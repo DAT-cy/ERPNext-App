@@ -2,7 +2,6 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import * as SecureStore from "expo-secure-store";
 import { SID_KEY, getLoggedUser, loginERP, logoutERP, pingERP } from "../../api/erp.api"; // <-- THÊM pingERP
 
-// ...
 type AuthContextType = {
   isLoading: boolean;
   isLoggedIn: boolean;

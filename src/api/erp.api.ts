@@ -2,8 +2,10 @@
 import axios, { AxiosHeaders, AxiosInstance } from "axios";
 import * as SecureStore from "expo-secure-store";
 import { Alert } from "react-native";
+import { API_URL } from '@env'; // <--- import trực tiếp từ .env
 
-const BASE_URL = "http://10.0.2.2:8080"; // Android Emulator (đổi nếu cần)
+
+const BASE_URL = API_URL; 
 export const SID_KEY = "erpnext_sid";
 
 /* ============== Types ============== */
@@ -22,6 +24,7 @@ export const api: AxiosInstance = axios.create({
     Accept: "application/json",
     "Content-Type": "application/json",
   },
+  withCredentials: true,
   timeout: 15000,
 });
 
