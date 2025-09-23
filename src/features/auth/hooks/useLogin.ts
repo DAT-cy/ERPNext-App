@@ -1,27 +1,33 @@
 // src/features/auth/hooks/useLogin.ts
-import { useCallback, useState } from "react";
-import { useAuth } from "../../../(app)/providers"; // bọc provider bên dưới
+import { useState, useCallback } from "react";
+import { login } from "../services/authService";
+import type { LoginResult } from "../model/auth.types";
 
-export function useLogin(opts?: { onSuccess?: (res: any)=>void; onError?: (e:any)=>void }) {
-  const { login } = useAuth();
+export function useLogin(opts?: { onSuccess?: (res: LoginResult) => void }) {
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string|null>(null);
+  const [error, setError]     = useState<string | null>(null);
 
   const doLogin = useCallback(async (usr: string, pwd: string) => {
     setLoading(true); setError(null);
     try {
-      const res = await login(usr, pwd);  // dùng context để đảm bảo state app cập nhật
-      opts?.onSuccess?.(res);
+      const res = await login({ usr, pwd });
+      if (res.ok) {
+        opts?.onSuccess?.(res);
+      } else {
+        // Map lỗi thành thông báo UI
+        setError(
+          res.error === "INVALID_CREDENTIALS"
+            ? "Hãy kiểm tra lại tài khoản hoặc mật khẩu của bạn"
+            : res.error === "NETWORK_TIMEOUT"
+            ? "Không kết nối được máy chủ. Kiểm tra IP/Port/Firewall."
+            : "Đăng nhập thất bại. Vui lòng thử lại."
+        );
+      }
       return res;
-    } catch (e:any) {
-      const msg = e?.response?.data?.message || e?.message || "Đăng nhập thất bại";
-      setError(msg);
-      opts?.onError?.(e);
-      throw e;
     } finally {
       setLoading(false);
     }
-  }, [login, opts]);
+  }, [opts]);
 
   return { doLogin, loading, error, setError };
 }

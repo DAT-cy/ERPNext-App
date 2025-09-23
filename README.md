@@ -20,7 +20,7 @@ erpnext-mobile-app/
 │  │  ├─ ui/                        # Button, Input, Card, EmptyState...
 │  │  ├─ hooks/                     # useDebounce, useOnline, usePagination...
 │  │  ├─ lib/                       # format, date, currency, validators (zod/yup)
-│  │  ├─ theme/                     # tokens, typography, colors
+│  │  ├─ theme/                     # tokens, typography,    colors
 │  │  └─ types/                     # kiểu nền tảng (UserSession, Paginated<T>…)
 │  │
 │  ├─ features/                     # MỖI FEATURE = mini-module tự quản

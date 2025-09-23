@@ -1,12 +1,14 @@
+// src/(app)/providers/AuthProvider.tsx
 import React, { createContext, useContext, useEffect, useState } from "react";
 import * as SecureStore from "expo-secure-store";
-import { SID_KEY, getLoggedUser, loginERP, logoutERP, pingERP } from "../../api/erp.api"; // <-- THÊM pingERP
+import { SID_KEY, getLoggedUser, loginERP, logoutERP, pingERP } from "../../api/erp.api";
+import type { LoginResult } from "../../features/auth/model/auth.types";
 
 type AuthContextType = {
   isLoading: boolean;
   isLoggedIn: boolean;
   user: string | null;
-  login: (usr: string, pwd: string) => Promise<any>; 
+  login: (usr: string, pwd: string) => Promise<LoginResult>;
   logout: () => Promise<void>;
 };
 
@@ -19,16 +21,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     (async () => {
-      // ---- GỌI PING TRƯỚC ĐỂ KIỂM TRA KẾT NỐI ----
+      // 1) PING để xác minh server
       try {
         const pong = await pingERP();
-        console.log("PING:", pong); // mong đợi { message: "pong" }
+        console.log("PING:", pong); // { message: "pong" }
       } catch (e: any) {
         console.log("PING lỗi:", e?.message);
-        // Có thể setLoading(false) và return nếu muốn dừng tại đây
-        // setLoading(false); return;
+        // Không return; vẫn cho phép vào màn Login
       }
-      // ---- SAU ĐÓ MỚI KIỂM TRA SID ----
+
+      // 2) Auto login nếu có SID
       const sid = await SecureStore.getItemAsync(SID_KEY);
       if (sid) {
         try {
@@ -36,6 +38,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setUser(me?.message ?? null);
           setLoggedIn(true);
         } catch {
+          // SID cũ không còn hợp lệ
+          await SecureStore.deleteItemAsync(SID_KEY).catch(() => {});
           setLoggedIn(false);
           setUser(null);
         }
@@ -44,29 +48,39 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     })();
   }, []);
 
-const login = async (usr: string, pwd: string) => {
-  setLoading(true);
-  try {
-    const result = await loginERP(usr, pwd); // { ok, sid, loginData }
-    setLoggedIn(true);
-
-    // (tuỳ chọn) lấy user hiện tại
+  const login = async (usr: string, pwd: string): Promise<LoginResult> => {
+    let loginResult: LoginResult;
     try {
-      const me = await getLoggedUser(); // { message: "Administrator" }
-      setUser(me?.message || null);
-      return { ...result, me };
-    } catch {
-      return result;
+      loginResult = await loginERP(usr, pwd);
+    } catch (e) {
+      // Trường hợp lỗi không mong muốn
+      return { ok: false, error: "UNKNOWN", raw: e } as LoginResult;
     }
-  } finally {
-    setLoading(false);
-  }
-};
+
+    if (!loginResult.ok) {
+      // Đăng nhập thất bại: KHÔNG reset user/isLoggedIn, KHÔNG reload, không set loading
+      return loginResult;
+    }
+
+    // Chỉ set loading khi đăng nhập thành công và cần chuyển trang
+    setLoading(true);
+    setLoggedIn(true);
+    try {
+      const me = await getLoggedUser();
+      setUser(me?.message || null);
+      return { ...loginResult, me };
+    } catch {
+      return loginResult;
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const logout = async () => {
     setLoading(true);
     try {
       await logoutERP();
+      await SecureStore.deleteItemAsync(SID_KEY).catch(() => {});
       setUser(null);
       setLoggedIn(false);
     } finally {
@@ -86,3 +100,4 @@ export const useAuth = () => {
   if (!ctx) throw new Error("useAuth must be used within <AuthProvider>");
   return ctx;
 };
+
