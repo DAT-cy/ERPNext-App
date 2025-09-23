@@ -29,7 +29,10 @@ export default function HomeScreen() {
 
   const handleLogout = async () => {
     await logoutFromHomeService();
-    navigation.reset({ index: 0, routes: [{ name: "Login" }] });
+    navigation.reset({
+      index: 0,
+      routes: [{ name: "Login" }] 
+    });
   };
 
   return (
