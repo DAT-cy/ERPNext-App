@@ -1,45 +1,51 @@
-erpnext-mobile-app/
-├─ src/
-│  ├─ app/                          # App shell & providers
-│  │  ├─ App.tsx                    # Entry: bọc Providers, Navigation
-│  │  ├─ navigation/                # React Navigation stacks/tabs
-│  │  └─ providers/                 # AuthProvider, QueryClientProvider...
-│  │     ├─ AuthProvider.tsx
-│  │     └─ index.ts
-│  │
-│  ├─ config/                       # Cấu hình môi trường & hằng số
-│  │  ├─ env.ts                     # BASE_URL, flags (đọc .env hoặc hard-code dev)
-│  │  └─ constants.ts               # keys, routes, query-keys
-│  │
-│  ├─ api/                          # LỚP DATA chung cho ERPNext
-│  │  ├─ http.ts                    # axios instance (timeout, headers)
-│  │  ├─ erpClient.ts               # wrapper chung: login, logout, list/getDoc, callMethod
-│  │  └─ types.ts                   # kiểu chung (ListArgs, Doc<T>, Error shape)
-│  │
-│  ├─ shared/                       # Tài nguyên dùng chung (không phụ thuộc feature)
-│  │  ├─ ui/                        # Button, Input, Card, EmptyState...
-│  │  ├─ hooks/                     # useDebounce, useOnline, usePagination...
-│  │  ├─ lib/                       # format, date, currency, validators (zod/yup)
-│  │  ├─ theme/                     # tokens, typography,    colors
-│  │  └─ types/                     # kiểu nền tảng (UserSession, Paginated<T>…)
-│  │
-│  ├─ features/                     # MỖI FEATURE = mini-module tự quản
-│  │  ├─ hr/
-│  │  │  ├─ api/                    # gọi ERPNext cho HR (Leave Application, Employee…)
-│  │  │  ├─ model/                  # types + schema (zod) của HR
-│  │  │  ├─ hooks/                  # useGetEmployees, useApproveLeave...
-│  │  │  ├─ ui/                     # components đặc thù HR (LeaveCard…)
-│  │  │  └─ screens/                # HR screens (List, Detail, Create…)
-│  │  ├─ stock/
-│  │  ├─ sales/
-│  │  └─ manufacturing/
-│  │
-│  ├─ pages/                        # Screen cấp route (nếu không muốn để trong features)
-│  ├─ storage/                      # SecureStore/MMKV (sid, prefs…)
-│  ├─ i18n/                         # đa ngôn ngữ
-│  └─ utils/                        # tiện ích nhỏ (nếu chưa muốn đẩy vào shared/lib)
+src/
+├── (app)/                      # App core
+│   ├── App.tsx                # Root component
+│   └── providers/             # Global providers
+│       ├── AuthProvider.tsx
+│       └── index.ts
 │
-├─ assets/
-├─ .env
-├─ package.json
-└─ README.md
+├── api/                       # API layer
+│   ├── config.ts             # API configuration, base URL, headers
+│   ├── erp.api.ts            # ERPNext API endpoints
+│   └── types.ts              # API type definitions
+│
+├── features/                  # Feature-based modules
+│   ├── auth/                 # Authentication feature
+│   │   ├── components/       # Feature-specific components
+│   │   │   └── LoginForm.tsx
+│   │   ├── hooks/           # Custom hooks
+│   │   │   └── useAuth.ts
+│   │   ├── screens/         # Feature screens
+│   │   │   └── LoginScreen.tsx
+│   │   ├── services/        # Business logic & API calls
+│   │   │   └── authService.ts
+│   │   └── types/          # Feature-specific types
+│   │       └── auth.types.ts
+│   │
+│   └── home/               # Home feature
+│       ├── components/
+│       ├── screens/
+│       │   └── HomeScreen.tsx
+│       └── types/
+│
+├── shared/                 # Shared resources
+│   ├── components/        # Common UI components
+│   │   ├── Button/
+│   │   ├── Input/
+│   │   └── Loading/
+│   ├── constants/        # App constants
+│   │   ├── config.ts
+│   │   └── theme.ts
+│   ├── hooks/           # Common hooks
+│   │   └── useLoading.ts
+│   ├── utils/          # Utility functions
+│   │   ├── storage.ts
+│   │   └── validation.ts
+│   └── types/         # Common type definitions
+│       └── common.ts
+│
+└── navigation/        # Navigation configuration
+    ├── AppNavigator.tsx
+    ├── AuthNavigator.tsx
+    └── types.ts

@@ -2,19 +2,22 @@
 // src/api/erp.api.ts
 import axios, { AxiosInstance, AxiosHeaders } from "axios";
 import * as SecureStore from "expo-secure-store";
-import { API_URL } from "@env";
+import { ENV_MODE, API_URL } from "@env";
 import {
   LoggedUser,
   LoginOk,
   LoginFail,
   LoginResult,
-} from "../features/auth/model/auth.types"; // <-- dùng lại type chung
+} from "../features/auth/model/auth.types";
 
 export const SID_KEY = "erpnext_sid";
 
 const BASE_URL = API_URL;
-// Debug: Log BASE_URL when this module is loaded
-console.log('[DEBUG] ERP API BASE_URL:', BASE_URL);
+// Log thông tin môi trường API
+console.log('🌍 API Environment:', {
+  MODE: ENV_MODE,
+  URL: BASE_URL
+});
 
 export const api: AxiosInstance = axios.create({
   baseURL: BASE_URL.replace(/\/$/, ""),

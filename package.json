@@ -4,8 +4,14 @@
   "main": "index.js",
   "scripts": {
     "start": "expo start",
+    "start:dev": "expo start --config app.config.dev.js",
+    "start:prod": "expo start --config app.config.prod.js",
     "android": "expo start --android",
+    "android:dev": "expo start --android --config app.config.dev.js",
+    "android:prod": "expo start --android --config app.config.prod.js",
     "ios": "expo start --ios",
+    "ios:dev": "expo start --ios --config app.config.dev.js",
+    "ios:prod": "expo start --ios --config app.config.prod.js",
     "web": "expo start --web"
   },
   "dependencies": {
