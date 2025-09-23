@@ -1,8 +1,8 @@
 // src/screens/HomeScreen.tsx
 import React, { useEffect, useState } from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
-import { useAuth } from "../(app)/providers/AuthProvider";
-import { getSid } from "../api/erp.api";
+import { useNavigation } from "@react-navigation/native";
+import { getSid, logout as logoutFromHomeService, getCurrentUser } from "../services/homeService";
 
 function maskSid(sid: string | null) {
   if (!sid) return "(no sid)";
@@ -10,15 +10,27 @@ function maskSid(sid: string | null) {
 }
 
 export default function HomeScreen() {
-  const { user, logout } = useAuth();
+  const navigation = useNavigation<any>();
+  const [user, setUser] = useState<string | null>(null);
   const [sid, setSid] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
       const s = await getSid();
       setSid(s);
+      try {
+        const me = await getCurrentUser();
+        setUser(me?.message ?? null);
+      } catch {
+        setUser(null);
+      }
     })();
   }, []);
+
+  const handleLogout = async () => {
+    await logoutFromHomeService();
+    navigation.reset({ index: 0, routes: [{ name: "Login" }] });
+  };
 
   return (
     <View style={styles.container}>
@@ -30,7 +42,7 @@ export default function HomeScreen() {
         <Text style={styles.sidValue}>{maskSid(sid)}</Text>
       </View>
 
-      <Pressable style={styles.btn} onPress={logout}>
+      <Pressable style={styles.btn} onPress={handleLogout}>
         <Text style={styles.btnText}>Đăng xuất</Text>
       </Pressable>
     </View>

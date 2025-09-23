@@ -1,5 +1,6 @@
 // src/features/auth/services/auth.service.ts
-import { loginERP, logoutERP, getLoggedUser, pingERP } from "../../../api/erp.api";
+import { loginERP, logoutERP, getLoggedUser } from '../../../config/auth';
+import { pingERP } from '../../../config/ping';
 import type { LoginPayload, LoginResult, LoggedUser } from "../model/auth.types";
 
 export async function login(

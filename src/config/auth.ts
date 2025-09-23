@@ -1,44 +1,9 @@
-
-// src/api/erp.api.ts
-import axios, { AxiosInstance, AxiosHeaders } from "axios";
+// src/api/auth.ts
+import { api, SID_KEY } from "./api";
 import * as SecureStore from "expo-secure-store";
-import { ENV_MODE, API_URL } from "@env";
-import {
-  LoggedUser,
-  LoginOk,
-  LoginFail,
-  LoginResult,
-} from "../features/auth/model/auth.types";
+import { LoggedUser, LoginOk, LoginFail, LoginResult } from "../features/auth/model/auth.types";
 
-export const SID_KEY = "erpnext_sid";
-
-const BASE_URL = API_URL;
-// Log thông tin môi trường API
-console.log('🌍 API Environment:', {
-  MODE: ENV_MODE,
-  URL: BASE_URL
-});
-
-export const api: AxiosInstance = axios.create({
-  baseURL: BASE_URL.replace(/\/$/, ""),
-  headers: { Accept: "application/json", "Content-Type": "application/json" },
-  withCredentials: true,
-  timeout: 15000,
-});
-
-api.interceptors.request.use(async (config) => {
-  const sid = await SecureStore.getItemAsync(SID_KEY);
-  if (!config.headers) config.headers = new AxiosHeaders();
-  else if (!(config.headers instanceof AxiosHeaders)) {
-    config.headers = AxiosHeaders.from(config.headers);
-  }
-  const h = config.headers as AxiosHeaders;
-  h.set("Accept", "application/json");
-  h.set("Content-Type", "application/json");
-  if (sid) h.set("Cookie", `sid=${sid}`);
-  return config;
-});
-
+// Hỗ trợ lấy SID từ cookie
 function extractSidFromSetCookie(setCookie?: string | string[]): string | null {
   if (!setCookie) return null;
   const arr = Array.isArray(setCookie) ? setCookie : [setCookie];
@@ -49,20 +14,16 @@ function extractSidFromSetCookie(setCookie?: string | string[]): string | null {
   return null;
 }
 
-export async function pingERP(): Promise<{ message: string }> {
-  const { data } = await api.get("/api/method/ping");
-  return data;
-}
-
+// Hàm lấy thông tin người dùng đã đăng nhập
 export async function getLoggedUser(): Promise<LoggedUser> {
   const { data } = await api.get("/api/method/frappe.auth.get_logged_user");
-  // Đảm bảo đúng shape: { message: string }
   if (!data || typeof data.message !== "string") {
     throw new Error("Invalid get_logged_user response");
   }
   return data as LoggedUser;
 }
 
+// Hàm đăng nhập vào ERP
 export async function loginERP(usr: string, pwd: string): Promise<LoginResult> {
   try {
     const resp = await api.post("/api/method/login", { usr, pwd });
@@ -73,14 +34,14 @@ export async function loginERP(usr: string, pwd: string): Promise<LoginResult> {
       (resp.headers as any)?.map?.["set-cookie"];
     const sid = extractSidFromSetCookie(setCookie);
     if (sid) {
-      try { await SecureStore.setItemAsync(SID_KEY, sid); } catch {}
+      try { await SecureStore.setItemAsync(SID_KEY, sid); } catch {} // Lưu SID
     }
 
-    // Xác minh phiên bằng get_logged_user
+    // Xác minh phiên người dùng
     try {
-      const me = await getLoggedUser(); // LoggedUser với message: string
+      const me = await getLoggedUser();
       const ok: LoginOk = { ok: true, sid: sid ?? undefined, data: resp.data, me };
-      console.log(ok)
+      console.log(ok);
       return ok;
     } catch (verr: any) {
       const fail: LoginFail = {
@@ -102,17 +63,19 @@ export async function loginERP(usr: string, pwd: string): Promise<LoginResult> {
   }
 }
 
+// Hàm đăng xuất khỏi ERP
 export async function logoutERP(): Promise<void> {
   try { await api.post("/api/method/logout"); } catch {}
-  await SecureStore.deleteItemAsync(SID_KEY);
+  await SecureStore.deleteItemAsync(SID_KEY); // Xóa SID
 }
 
+// Hàm kiểm tra SID có tồn tại không
 export async function getSid(): Promise<string | null> {
   return SecureStore.getItemAsync(SID_KEY);
 }
 
+// Hàm kiểm tra xem người dùng đã đăng nhập chưa
 export async function hasSid(): Promise<boolean> {
   const sid = await SecureStore.getItemAsync(SID_KEY);
   return !!sid;
 }
-

@@ -1,7 +1,10 @@
 // src/(app)/providers/AuthProvider.tsx
 import React, { createContext, useContext, useEffect, useState } from "react";
 import * as SecureStore from "expo-secure-store";
-import { SID_KEY, getLoggedUser, loginERP, logoutERP, pingERP } from "../../api/erp.api";
+import { SID_KEY} from "../../config/api";
+import {getLoggedUser, loginERP, logoutERP } from "../../config/auth";
+import { pingERP } from "../../config/ping";
+
 import type { LoginResult } from "../../features/auth/model/auth.types";
 
 type AuthContextType = {
