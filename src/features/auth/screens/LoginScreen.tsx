@@ -1,10 +1,11 @@
 // src/screens/LoginScreen.tsx
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState, useEffect } from "react";
 import { View, Text, StyleSheet, Pressable, ActivityIndicator, KeyboardAvoidingView, Platform } from "react-native";
 import { useNavigation } from "@react-navigation/native";
-import { login, ping } from "../services/authService"; // Gọi trực tiếp từ authService
+import { useAuth } from "../../../(app)/providers/AuthProvider";
 import Input from "../ui/Input";
 import { ERROR_DEFS, AppErrorCode, StatusCode } from "../../../shared/errors/Error";
+import { pingERP } from "../../../config/ping";
 
 type FieldErrors = {
   usr?: string | null;
@@ -13,6 +14,7 @@ type FieldErrors = {
 
 export default function LoginScreen() {
   const navigation = useNavigation<any>();
+  const { login: authLogin, isLoggedIn } = useAuth();
   const [usr, setUsr] = useState("");
   const [pwd, setPwd] = useState("");
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -31,6 +33,38 @@ export default function LoginScreen() {
     if (!value) return "Vui lòng nhập mật khẩu";
     return null;
   }, []);
+
+  // ----- Auto-fill detection -----
+  useEffect(() => {
+    // Tự động xử lý validation khi có giá trị (auto-fill)
+    if (usr.trim()) {
+      if (!touched.usr) {
+        setTouched((prev) => ({ ...prev, usr: true }));
+      }
+      // Xóa lỗi validation nếu field có giá trị hợp lệ
+      const usrError = validateUsr(usr);
+      if (!usrError && errors.usr) {
+        setErrors((prev) => ({ ...prev, usr: null }));
+      }
+    }
+    if (pwd) {
+      if (!touched.pwd) {
+        setTouched((prev) => ({ ...prev, pwd: true }));
+      }
+      // Xóa lỗi validation nếu field có giá trị hợp lệ
+      const pwdError = validatePwd(pwd);
+      if (!pwdError && errors.pwd) {
+        setErrors((prev) => ({ ...prev, pwd: null }));
+      }
+    }
+  }, [usr, pwd, touched.usr, touched.pwd, validateUsr, validatePwd, errors.usr, errors.pwd]);
+
+  // ----- Auto redirect nếu đã đăng nhập -----
+  useEffect(() => {
+    if (isLoggedIn) {
+      navigation.reset({ index: 0, routes: [{ name: "Home" }] });
+    }
+  }, [isLoggedIn, navigation]);
 
   const validateAll = useCallback(
     (u: string, p: string) => {
@@ -83,27 +117,26 @@ export default function LoginScreen() {
     if (!ok) return;
     setLoginLoading(true);
     try {
-      const res = await login({ usr: usr.trim(), pwd: pwd }); // Gọi trực tiếp từ authService
+      const res = await authLogin(usr.trim(), pwd);
       if (!res.ok) {
         const uiMsg =
           res.status === StatusCode.UNAUTHORIZED || res.status === 401
             ? ERROR_DEFS[AppErrorCode.INVALID_CREDENTIALS].uiMessage
-            : ERROR_DEFS[res.error]?.uiMessage ??
+            : ERROR_DEFS[res.error as AppErrorCode]?.uiMessage ??
               ERROR_DEFS[AppErrorCode.UNKNOWN].uiMessage;
         setFormErr(uiMsg);
         return;
       }
-      // Điều hướng sau khi đăng nhập thành công
-      navigation.reset({ index: 0, routes: [{ name: "Home" }] });
+      // Không cần điều hướng thủ công, useEffect sẽ tự động điều hướng khi isLoggedIn = true
     } finally {
       setLoginLoading(false);
     }
-  }, [usr, pwd, validateAll, navigation]);
+  }, [usr, pwd, validateAll, authLogin]);
 
   const onPing = useCallback(async () => {
     setFormErr(null);
     try {
-      await ping(); // Gọi ping từ authService
+      await pingERP(); // Gọi ping từ config
     } catch (e: any) {
       setFormErr(e?.message || "Không gọi được ping");
     }
@@ -124,7 +157,7 @@ export default function LoginScreen() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <View style={styles.container}>
-        <Text style={styles.title}>ERPNext Login</Text>
+        <Text style={styles.title}>REMAK Login</Text>
 
         <Input
           value={usr}

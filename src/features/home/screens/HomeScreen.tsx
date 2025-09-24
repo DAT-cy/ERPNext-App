@@ -1,64 +1,113 @@
 // src/screens/HomeScreen.tsx
 import React, { useEffect, useState } from "react";
-import { View, Text, Pressable, StyleSheet } from "react-native";
+import { SafeAreaView, StatusBar, StyleSheet, View, Text } from "react-native";
 import { useNavigation } from "@react-navigation/native";
-import { getSid, logout as logoutFromHomeService, getCurrentUser } from "../services/homeService";
-
-function maskSid(sid: string | null) {
-  if (!sid) return "(no sid)";
-  return sid.length > 12 ? `${sid.slice(0,6)}...${sid.slice(-4)}` : sid;
-}
+import { BottomTabBar, TopTabBar, SidebarMenu, BottomTabItem, TopTabItem } from "../../../shared/components";
+import { useAuth } from "../../../(app)/providers/AuthProvider";
 
 export default function HomeScreen() {
   const navigation = useNavigation<any>();
-  const [user, setUser] = useState<string | null>(null);
-  const [sid, setSid] = useState<string | null>(null);
+  const { user, logout, isLoggedIn } = useAuth();
 
+  // State
+  const [activeBottomTab, setActiveBottomTab] = useState("checkin");
+  const [activeTopTab, setActiveTopTab] = useState("today");
+  const [isSidebarVisible, setIsSidebarVisible] = useState(false);
+
+  // Tabs
+  const bottomTabs: BottomTabItem[] = [
+    { key: "checkin", title: "Trang chủ", icon: "🏠" },
+    { key: "profile", title: "Hồ sơ", icon: "👤" },
+  ];
+
+  const topTabs: TopTabItem[] = [];
+
+  // Redirect to login if not logged in
   useEffect(() => {
-    (async () => {
-      const s = await getSid();
-      setSid(s);
-      try {
-        const me = await getCurrentUser();
-        setUser(me?.message ?? null);
-      } catch {
-        setUser(null);
-      }
-    })();
-  }, []);
+    if (!isLoggedIn) {
+      navigation.reset({
+        index: 0,
+        routes: [{ name: "Login" }],
+      });
+    }
+  }, [isLoggedIn, navigation]);
 
-  const handleLogout = async () => {
-    await logoutFromHomeService();
-    navigation.reset({
-      index: 0,
-      routes: [{ name: "Login" }] 
-    });
+  const renderContent = () => {
+    if (activeBottomTab === "checkin") {
+      return (
+        <View style={styles.content}>
+          <Text>📌 Chào mừng, {user || "Người dùng"}!</Text>
+          <Text>🏠 Đây là trang chủ</Text>
+        </View>
+      );
+    }
+    if (activeBottomTab === "profile") {
+      return (
+        <View style={styles.content}>
+          <Text>👤 Đây là màn Profile</Text>
+          <Text>User: {user || "Không xác định"}</Text>
+        </View>
+      );
+    }
+    return null;
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Xin chào, {user || "User"} 👋</Text>
-      <Text style={styles.subtitle}>Bạn đã đăng nhập ERPNext thành công.</Text>
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
 
-      <View style={styles.sidBox}>
-        <Text style={styles.sidLabel}>SID</Text>
-        <Text style={styles.sidValue}>{maskSid(sid)}</Text>
-      </View>
+      {/* Top Tabs + nút menu */}
+      <TopTabBar
+        tabs={topTabs}
+        activeTab={activeTopTab}
+        onTabPress={setActiveTopTab}
+        onMenuPress={() => setIsSidebarVisible(true)}
+      />
 
-      <Pressable style={styles.btn} onPress={handleLogout}>
-        <Text style={styles.btnText}>Đăng xuất</Text>
-      </Pressable>
-    </View>
+
+      {/* Content giữa */}
+      <View style={styles.flexContent}>{renderContent()}</View>
+
+      {/* Bottom Tabs */}
+      <BottomTabBar
+        tabs={bottomTabs}
+        activeTab={activeBottomTab}
+        onTabPress={setActiveBottomTab}
+      />
+
+      {/* Sidebar overlay */}
+      <SidebarMenu
+        isVisible={isSidebarVisible}
+        onClose={() => setIsSidebarVisible(false)}
+        onMenuItemPress={(id) => {
+          console.log("Menu item:", id);
+          setIsSidebarVisible(false);
+        }}
+        onSubItemPress={(id, subId) => {
+          console.log("Sub item:", id, subId);
+          setIsSidebarVisible(false);
+        }}
+        onLogout={async () => {
+          await logout();
+          // Không cần navigate thủ công, useEffect sẽ tự động điều hướng khi isLoggedIn = false
+        }}
+      />
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, gap: 10, padding: 20, justifyContent: "center", alignItems: "center" },
-  title: { fontSize: 22, fontWeight: "700" },
-  subtitle: { color: "#666" },
-  sidBox: { marginTop: 12, padding: 10, borderRadius: 8, backgroundColor: "#0f172a" },
-  sidLabel: { color: "#94a3b8", fontSize: 12, marginBottom: 4 },
-  sidValue: { color: "white", fontWeight: "700" },
-  btn: { marginTop: 16, backgroundColor: "#ef4444", padding: 12, borderRadius: 10 },
-  btnText: { color: "white", fontWeight: "700" },
+  container: {
+    flex: 1,
+    backgroundColor: "#ffffff",
+  },
+  flexContent: {
+    flex: 1,
+    backgroundColor: "#f9f9f9",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  content: {
+    padding: 20,
+  },
 });

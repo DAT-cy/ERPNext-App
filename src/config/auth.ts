@@ -23,6 +23,7 @@ export async function getLoggedUser(): Promise<LoggedUser> {
   return data as LoggedUser;
 }
 
+
 // Hàm đăng nhập vào ERP
 export async function loginERP(usr: string, pwd: string): Promise<LoginResult> {
   try {
@@ -40,7 +41,8 @@ export async function loginERP(usr: string, pwd: string): Promise<LoginResult> {
     // Xác minh phiên người dùng
     try {
       const me = await getLoggedUser();
-      const ok: LoginOk = { ok: true, sid: sid ?? undefined, data: resp.data, me };
+
+      const ok: LoginOk = { ok: true, sid: sid ?? undefined, data: resp.data, me  };
       console.log(ok);
       return ok;
     } catch (verr: any) {

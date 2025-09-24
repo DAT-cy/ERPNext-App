@@ -1,5 +1,9 @@
 // src/features/auth/model/auth.types.ts
 export type LoggedUser = { message: string }; // ERPNext: { message: "<username>" }
+export type UserSettings = {
+  message: string[]; // hoặc object tùy API trả về
+};
+
 
 export type LoginFailCode =
   | "INVALID_CREDENTIALS"
@@ -13,6 +17,7 @@ export type LoginOk = {
   sid?: string;    
   data: any;        
   me?: LoggedUser;  
+  settings?: UserSettings;
 };
 
 export type LoginFail = {
