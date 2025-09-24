@@ -13,7 +13,7 @@ import {
   InteractionManager,
 } from 'react-native';
 
-import { logout } from '../../../features/auth/services/authService';
+import { logoutERP as logout } from '../../services/authService'; 
 
 const { width } = Dimensions.get('window');
 

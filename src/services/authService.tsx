@@ -1,7 +1,7 @@
-// src/api/auth.ts
-import { api, SID_KEY } from "./api";
+// services/authService.tsx
+import { api, SID_KEY } from "../config/api";
 import * as SecureStore from "expo-secure-store";
-import { LoggedUser, LoginOk, LoginFail, LoginResult } from "../features/auth/model/auth.types";
+import { LoggedUser, LoginOk, LoginFail, LoginResult } from "../types/auth.types";
 
 // Hỗ trợ lấy SID từ cookie
 function extractSidFromSetCookie(setCookie?: string | string[]): string | null {
@@ -81,3 +81,9 @@ export async function hasSid(): Promise<boolean> {
   const sid = await SecureStore.getItemAsync(SID_KEY);
   return !!sid;
 }
+
+export async function pingERP(): Promise<{ message: string }> {
+  const { data } = await api.get("/api/method/ping");
+  return data;
+}
+

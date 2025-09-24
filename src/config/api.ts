@@ -1,14 +1,16 @@
 // src/api/api.ts
 import axios, { AxiosInstance, AxiosHeaders } from "axios";
 import * as SecureStore from "expo-secure-store";
-import { API_URL } from "@env";
+import { API_URL, ENV_MODE } from "@env";
 
 export const SID_KEY = "erpnext_sid";
 
 const BASE_URL = API_URL;
 
 console.log('🌍 API Environment:', {
-  URL: BASE_URL
+  ENV_MODE,
+  URL: BASE_URL,
+  NODE_ENV: process.env.NODE_ENV
 });
 
 // Tạo axios instance dùng chung

@@ -2,10 +2,10 @@
 import React, { useEffect, useState } from "react";
 import { SafeAreaView, StatusBar, StyleSheet, View, Text } from "react-native";
 import { useNavigation } from "@react-navigation/native";
-import { BottomTabBar, TopTabBar, SidebarMenu, BottomTabItem, TopTabItem } from "../../../shared/components";
-import { useAuth } from "../../../(app)/providers/AuthProvider";
+import { BottomTabBar, TopTabBar, SidebarMenu, BottomTabItem, TopTabItem } from "../components";
+import { useAuth } from "../hooks";
 
-export default function HomeScreen() {
+export default function homeScreen() {
   const navigation = useNavigation<any>();
   const { user, logout, isLoggedIn } = useAuth();
 

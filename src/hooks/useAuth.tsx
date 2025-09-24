@@ -1,11 +1,10 @@
-// src/(app)/providers/AuthProvider.tsx
+// hooks/useAuth.tsx
 import React, { createContext, useContext, useEffect, useState } from "react";
 import * as SecureStore from "expo-secure-store";
-import { SID_KEY} from "../../config/api";
-import {getLoggedUser, loginERP, logoutERP } from "../../config/auth";
-import { pingERP } from "../../config/ping";
+import { SID_KEY} from "../config/api";
+import {getLoggedUser, loginERP, logoutERP , pingERP } from "../services/authService";
 
-import type { LoginResult } from "../../features/auth/model/auth.types";
+import type { LoginResult } from "../types/auth.types";
 
 type AuthContextType = {
   isLoading: boolean;
@@ -13,6 +12,7 @@ type AuthContextType = {
   user: string | null;
   login: (usr: string, pwd: string) => Promise<LoginResult>;
   logout: () => Promise<void>;
+  ping: () => Promise<{ message: string }>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -91,8 +91,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  const ping = async () => {
+    return await pingERP();
+  };
+
   return (
-    <AuthContext.Provider value={{ isLoading, isLoggedIn, user, login, logout }}>
+    <AuthContext.Provider value={{ isLoading, isLoggedIn, user, login, logout, ping }}>
       {children}
     </AuthContext.Provider>
   );

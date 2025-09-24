@@ -1,11 +1,10 @@
 // src/screens/LoginScreen.tsx
 import React, { useCallback, useMemo, useState, useEffect } from "react";
-import { View, Text, StyleSheet, Pressable, ActivityIndicator, KeyboardAvoidingView, Platform } from "react-native";
+import { View, Text, StyleSheet, Pressable, ActivityIndicator, KeyboardAvoidingView, Platform, Alert } from "react-native";
 import { useNavigation } from "@react-navigation/native";
-import { useAuth } from "../../../(app)/providers/AuthProvider";
-import Input from "../ui/Input";
-import { ERROR_DEFS, AppErrorCode, StatusCode } from "../../../shared/errors/Error";
-import { pingERP } from "../../../config/ping";
+import { useAuth } from "../hooks";
+import { Input } from "../components";
+import { ERROR_DEFS, AppErrorCode, StatusCode } from "../utils/errors/Error";
 
 type FieldErrors = {
   usr?: string | null;
@@ -14,7 +13,8 @@ type FieldErrors = {
 
 export default function LoginScreen() {
   const navigation = useNavigation<any>();
-  const { login: authLogin, isLoggedIn } = useAuth();
+  const { login, ping, isLoggedIn } = useAuth();
+  const authLogin = login; // Alias cho rõ ràng
   const [usr, setUsr] = useState("");
   const [pwd, setPwd] = useState("");
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -136,11 +136,12 @@ export default function LoginScreen() {
   const onPing = useCallback(async () => {
     setFormErr(null);
     try {
-      await pingERP(); // Gọi ping từ config
+      await ping(); // Gọi ping từ hook
+      Alert.alert("SUCCESS", "Kết nối thành công!");
     } catch (e: any) {
-      setFormErr(e?.message || "Không gọi được ping");
+      Alert.alert("ERROR", e?.message || "Không thể kết nối");
     }
-  }, []);
+  }, [ping]);
 
   const showUsrErr = useMemo(
     () => (touched.usr || !!errors.usr) && !!errors.usr,

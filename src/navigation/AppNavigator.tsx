@@ -2,9 +2,9 @@
 import React from "react";
 import { createStackNavigator } from "@react-navigation/stack";
 import { View, Text, ActivityIndicator, StyleSheet } from "react-native";
-import LoginScreen from "../features/auth/screens/LoginScreen"; // Màn hình Login
-import HomeScreen from "../features/home/screens/HomeScreen"; // Màn hình Home
-import { useAuth } from "../(app)/providers/AuthProvider";
+import LoginScreen from "../screens/LoginScreen"; // Màn hình Login
+import HomeScreen from "../screens/HomeScreen"; // Màn hình Home
+import { useAuth } from "../hooks/useAuth";
 
 const Stack = createStackNavigator();
 
