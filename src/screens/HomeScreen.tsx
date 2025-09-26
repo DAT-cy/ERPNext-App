@@ -14,6 +14,7 @@ import { fetchCheckinRecords } from "../services/checkinService";
 import { CheckinRecord, Checkin } from "../types/checkin.types";
 import { homeScreenStyles } from '../styles/HomeScreen.styles';
 import SimpleSuccessAnimation from '../components/SuccessAnimation/SimpleSuccessAnimation';
+import { homeScreenErrorHandler, HomeScreenErrorCode } from '../utils/error/homeScreen';
 
 // Helper functions for formatting date and time
 const formatTime = (dateTimeStr: string): string => {
@@ -55,12 +56,12 @@ export default function HomeScreen() {
   const [records, setRecords] = useState<CheckinRecord[]>([]);
   const [displayRecords, setDisplayRecords] = useState<CheckinRecord[]>([]);
   const [checkinStatus, setCheckinStatus] = useState(false);
-  const [userLocation, setUserLocation] = useState({
-    latitude: 10.7769, // Default: TP.HCM
-    longitude: 106.7009,
-    latitudeDelta: 0.01,
-    longitudeDelta: 0.01
-  });
+  const [userLocation, setUserLocation] = useState<{
+    latitude: number;
+    longitude: number;
+    latitudeDelta: number;
+    longitudeDelta: number;
+  } | null>(null);
   const [checkinType, setCheckinType] = useState<'IN' | 'OUT'>('IN');
   const [currentTime, setCurrentTime] = useState<string>(new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
   
@@ -71,7 +72,6 @@ export default function HomeScreen() {
   const [locationLoading, setLocationLoading] = useState(true);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [hasValidLocation, setHasValidLocation] = useState(false);
-  const [locationRetryCount, setLocationRetryCount] = useState(0);
 
   // Tabs
   const bottomTabs: BottomTabItem[] = [
@@ -122,7 +122,10 @@ export default function HomeScreen() {
         setCheckinType(isCheckedIn ? 'OUT' : 'IN');
       }
     } catch (err) {
-      setError("Không thể tải dữ liệu chấm công");
+      const error = homeScreenErrorHandler.analyzeError(err, 'loadCheckinData');
+      const errorDef = homeScreenErrorHandler.getErrorDefinition(error.code);
+      setError(errorDef.userMessage);
+      homeScreenErrorHandler.handleError(error, loadCheckinData);
     } finally {
       setLoading(false);
     }
@@ -133,13 +136,16 @@ export default function HomeScreen() {
     try {
       const isEnabled = await Location.hasServicesEnabledAsync();
       if (!isEnabled) {
-        setLocationError("GPS chưa được bật. Vui lòng bật GPS trong cài đặt.");
+        const error = homeScreenErrorHandler.createError(HomeScreenErrorCode.GPS_SERVICE_DISABLED);
+        const errorDef = homeScreenErrorHandler.getErrorDefinition(error.code);
+        setLocationError(errorDef.userMessage);
         setHasValidLocation(false);
         return false;
       }
       return true;
     } catch (error) {
-      console.warn('Không thể kiểm tra location services:', error);
+      const serviceError = homeScreenErrorHandler.analyzeError(error, 'locationService');
+      homeScreenErrorHandler.handleLocationError(serviceError);
       return true; // Assume enabled if can't check
     }
   }, []);
@@ -164,8 +170,9 @@ export default function HomeScreen() {
       
       if (status !== 'granted') {
         console.warn('Quyền vị trí bị từ chối');
-        const errorMsg = "Cần cấp quyền truy cập vị trí để chấm công";
-        setLocationError(errorMsg);
+        const error = homeScreenErrorHandler.createError(HomeScreenErrorCode.LOCATION_PERMISSION_DENIED);
+        const errorDef = homeScreenErrorHandler.getErrorDefinition(error.code);
+        setLocationError(errorDef.userMessage);
         setHasValidLocation(false);
         setLocationLoading(false);
         return;
@@ -176,7 +183,6 @@ export default function HomeScreen() {
       
       // Strategy 1: High accuracy với timeout 8s
       try {
-        console.log('📍 Thử High accuracy...');
         location = await Promise.race([
           Location.getCurrentPositionAsync({
             accuracy: Location.Accuracy.High,
@@ -186,7 +192,9 @@ export default function HomeScreen() {
           )
         ]);
       } catch (highAccuracyError) {
-        console.log('⚠️ High accuracy failed, trying Balanced...');
+        // Log high accuracy timeout (low severity - no user notification)
+        const highError = homeScreenErrorHandler.analyzeError(highAccuracyError, 'location');
+        homeScreenErrorHandler.handleLocationError(highError);
         
         // Strategy 2: Balanced accuracy với timeout 6s
         try {
@@ -200,6 +208,8 @@ export default function HomeScreen() {
           ]);
         } catch (balancedError) {
           console.log('⚠️ Balanced accuracy failed, trying Low...');
+          const balancedErrorObj = homeScreenErrorHandler.analyzeError(balancedError, 'location');
+          homeScreenErrorHandler.handleLocationError(balancedErrorObj);
           
           // Strategy 3: Low accuracy với timeout 4s (last resort)
           location = await Promise.race([
@@ -215,7 +225,8 @@ export default function HomeScreen() {
       
       // Kiểm tra location có valid không
       if (!location || !location.coords) {
-        throw new Error('Không thể lấy được tọa độ GPS');
+        const error = homeScreenErrorHandler.createError(HomeScreenErrorCode.LOCATION_COORDS_INVALID);
+        throw error;
       }
       
       // Cập nhật vị trí người dùng
@@ -235,24 +246,14 @@ export default function HomeScreen() {
       });
       
     } catch (error: any) {
-      console.error('❌ Lỗi lấy vị trí:', error.message);
+      const locationError = error.code ? error : homeScreenErrorHandler.analyzeError(error, 'location');
+      const errorDef = homeScreenErrorHandler.getErrorDefinition(locationError.code);
       
-      let errorMsg = "Không thể lấy vị trí";
-      
-      if (error.message.includes('timeout')) {
-        errorMsg = "GPS timeout - Hãy ra ngoài trời hoặc gần cửa sổ";
-      } else if (error.message.includes('permission')) {
-        errorMsg = "Cần cấp quyền truy cập vị trí";
-      } else if (error.message.includes('disabled')) {
-        errorMsg = "Vui lòng bật GPS trong cài đặt";
-      } else if (error.message.includes('network')) {
-        errorMsg = "Lỗi mạng - Kiểm tra kết nối internet";
-      } else {
-        errorMsg = `GPS error: ${error.message}`;
-      }
-      
-      setLocationError(errorMsg);
+      setLocationError(errorDef.userMessage);
       setHasValidLocation(false);
+      
+      // Xử lý với specialized location error handler
+      homeScreenErrorHandler.handleLocationError(locationError, getCurrentLocation);
     } finally {
       setLocationLoading(false);
     }
@@ -274,22 +275,23 @@ export default function HomeScreen() {
         loadCheckinData(),
         getCurrentLocation()
       ]).catch(error => {
-        console.error('Lỗi khi khởi tạo:', error);
+        const initError = homeScreenErrorHandler.analyzeError(error, 'initialization');
+        homeScreenErrorHandler.handleError(initError);
       });
     }
   }, [loadCheckinData, getCurrentLocation]); 
 
-  // Auto refresh vị trí mỗi 30 giây
+  // Auto refresh vị trí mỗi 60 giây (chỉ khi không có location)
   useEffect(() => {
     const locationInterval = setInterval(() => {
-      if (!hasValidLocation) {
+      if (!hasValidLocation && !locationLoading) {
         console.log('🔄 Auto refreshing location...');
         getCurrentLocation();
       }
-    }, 30000); // 30 giây
+    }, 60000); // 60 giây
 
     return () => clearInterval(locationInterval);
-  }, [hasValidLocation, getCurrentLocation]);
+  }, [hasValidLocation, locationLoading, getCurrentLocation]);
 
   // Tối ưu hóa việc lọc records theo content tab
   const filteredRecords = useMemo(() => {
@@ -346,49 +348,14 @@ export default function HomeScreen() {
     setActiveTopTab(tabKey);
   }, []);
 
-  // 🚀 Tối ưu hóa hàm chấm công với auto-reload hoàn chỉnh
+  // 🚀 Hàm chấm công - chỉ hoạt động khi có GPS
   const handleCheckin = useCallback(async (type: 'IN' | 'OUT') => {
-    // Kiểm tra vị trí trước khi chấm công
+    // Chỉ cho phép chấm công khi có GPS hợp lệ
     if (!hasValidLocation) {
-      const buttons = [
-        { text: "Thử lại GPS", onPress: () => {
-          setLocationRetryCount(prev => prev + 1);
-          getCurrentLocation();
-        }},
-        { text: "Hủy", style: "cancel" as const }
-      ];
-
-      // Nếu đã thử nhiều lần, cho phép dùng vị trí mặc định
-      if (locationRetryCount >= 2) {
-        buttons.unshift({
-          text: "Dùng vị trí mặc định",
-          onPress: () => {
-            Alert.alert(
-              "Xác nhận",
-              "Bạn có chắc muốn chấm công với vị trí mặc định (TP.HCM)?",
-              [
-                { text: "Có", onPress: () => proceedWithCheckin(type, true) },
-                { text: "Không", style: "cancel" }
-              ]
-            );
-          }
-        });
-      }
-
-      Alert.alert(
-        "⚠️ Không thể lấy vị trí GPS",
-        locationError || "Đang lấy vị trí hiện tại. Vui lòng thử lại sau.",
-        buttons
-      );
+      const error = homeScreenErrorHandler.createCheckinNoGpsError(locationError || undefined);
+      homeScreenErrorHandler.handleCheckinError(error, getCurrentLocation, type);
       return;
     }
-
-    // Chấm công bình thường với GPS
-    proceedWithCheckin(type, false);
-  }, [hasValidLocation, locationError, locationRetryCount, getCurrentLocation]);
-
-  // Function thực hiện chấm công
-  const proceedWithCheckin = useCallback(async (type: 'IN' | 'OUT', useDefaultLocation: boolean = false) => {
   
     // BƯớc 1: Cập nhật UI ngay lập tức
     setCheckinType(type === 'IN' ? 'OUT' : 'IN');
@@ -409,51 +376,38 @@ export default function HomeScreen() {
     setDisplayRecords(prev => [tempRecord, ...prev]);
     
     try {
-      // BƯớc 3: Chuẩn bị dữ liệu API
-      const locationToUse = useDefaultLocation 
-        ? { latitude: 10.7769, longitude: 106.7009 } // TP.HCM default
-        : { latitude: userLocation.latitude, longitude: userLocation.longitude };
+      // BƯớc 3: Chuẩn bị dữ liệu API với GPS thực
+      if (!userLocation) {
+        const locationError = homeScreenErrorHandler.createCheckinNoLocationError();
+        throw locationError;
+      }
 
       const checkinData: Checkin = {
         log_type: type,
         custom_checkin: now,
-        latitude: locationToUse.latitude,
-        longitude: locationToUse.longitude,
-        custom_auto_load_location: useDefaultLocation ? 0 : 1,
+        latitude: userLocation.latitude,
+        longitude: userLocation.longitude,
+        custom_auto_load_location: 1,
         doctype: "Employee Checkin",
         web_form_name: "checkin"
       };
 
-      if (useDefaultLocation) {
-        console.log('⚠️ Sử dụng vị trí mặc định để chấm công');
-      }
-      
       await handleSubmitCheckin(checkinData);
     
-      // Xóa temp record trước khi reload
       setRecords(prev => prev.filter(r => r.name !== tempRecord.name));
       setDisplayRecords(prev => prev.filter(r => r.name !== tempRecord.name));
       
       await loadCheckinData();
-      
-      // BƯớc 6: Hiển thị animation thành công
-      console.log('🎯 Triggering success animation...');
-      setShowSuccessAnimation(true);
-      
-      console.log(`✅ Chấm công ${type} hoàn tất!`);
-      
+            setShowSuccessAnimation(true);
+            
     } catch (error: any) {
       setRecords(prev => prev.filter(r => r.name !== tempRecord.name));
       setDisplayRecords(prev => prev.filter(r => r.name !== tempRecord.name));
       setCheckinType(type); // Trả lại trạng thái ban đầu
       
-      // Hiển thị lỗi chi tiết
-      const errorMsg = error?.message || error?.response?.data?.message || 'Lỗi không xác định';
-      Alert.alert(
-        "❌ Lỗi chấm công",
-        `Không thể ${type === 'IN' ? 'vào ca' : 'ra ca'}.\nLỗi: ${errorMsg}`,
-        [{ text: "OK" }]
-      );
+      // Xử lý error với specialized checkin error handler
+      const checkinError = error.code ? error : homeScreenErrorHandler.analyzeError(error, 'checkin');
+      homeScreenErrorHandler.handleCheckinError(checkinError, getCurrentLocation, type);
     }
   }, [userLocation, loadCheckinData, handleSubmitCheckin, user, hasValidLocation, locationError, getCurrentLocation]);
   
@@ -585,7 +539,7 @@ export default function HomeScreen() {
                 (!hasValidLocation || locationLoading) && homeScreenStyles.checkinButtonTextDisabled
               ]}>
                 {locationLoading ? '📍 Đang lấy vị trí...' : 
-                 !hasValidLocation ? '❌ Không có vị trí' :
+                 !hasValidLocation ? '🚫 Cần GPS để chấm công' :
                  checkinType === 'IN' ? 'Vào ca' : 'Ra ca'}
               </Text>
             </TouchableOpacity>
@@ -605,31 +559,42 @@ export default function HomeScreen() {
             
             {/* Google Maps - Vị trí đã khóa */}
             <View style={homeScreenStyles.mapContainer}>
-              <MapView
-                provider={PROVIDER_GOOGLE}
-                style={homeScreenStyles.map}
-                region={userLocation}
-                initialRegion={userLocation}
-                showsUserLocation={true}
-                showsCompass={false}
-                showsMyLocationButton={false}
-                zoomEnabled={false}
-                scrollEnabled={false}
-                rotateEnabled={false}
-                pitchEnabled={false}
-                toolbarEnabled={false}
-                moveOnMarkerPress={false}
-              >
-                <Marker
-                  coordinate={{
-                    latitude: userLocation.latitude,
-                    longitude: userLocation.longitude
-                  }}
-                  title="Vị trí đã xác định"
-                  description="Vị trí chấm công của bạn"
-                  pinColor="#0068FF"
-                />
-              </MapView>
+              {userLocation ? (
+                <MapView
+                  provider={PROVIDER_GOOGLE}
+                  style={homeScreenStyles.map}
+                  region={userLocation}
+                  initialRegion={userLocation}
+                  showsUserLocation={true}
+                  showsCompass={false}
+                  showsMyLocationButton={false}
+                  zoomEnabled={false}
+                  scrollEnabled={false}
+                  rotateEnabled={false}
+                  pitchEnabled={false}
+                  toolbarEnabled={false}
+                  moveOnMarkerPress={false}
+                >
+                  <Marker
+                    coordinate={{
+                      latitude: userLocation.latitude,
+                      longitude: userLocation.longitude
+                    }}
+                    title="Vị trí đã xác định"
+                    description="Vị trí chấm công của bạn"
+                    pinColor="#0068FF"
+                  />
+                </MapView>
+              ) : (
+                <View style={[homeScreenStyles.map, { justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5' }]}>
+                  <Text style={{ color: '#666', fontSize: 16, textAlign: 'center' }}>
+                    📍 Đang lấy vị trí GPS...
+                  </Text>
+                  <Text style={{ color: '#999', fontSize: 12, textAlign: 'center', marginTop: 4 }}>
+                    Map sẽ hiển thị khi có vị trí
+                  </Text>
+                </View>
+              )}
               {/* Nút làm mới vị trí */}
               <TouchableOpacity 
                 style={homeScreenStyles.refreshLocationButton} 

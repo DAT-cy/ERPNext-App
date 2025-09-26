@@ -1,32 +1,7 @@
-
-export enum StatusCode {
-  OK = 200,
-  BAD_REQUEST = 400,
-  UNAUTHORIZED = 401,
-  FORBIDDEN = 403,
-  NOT_FOUND = 404,
-  REQUEST_TIMEOUT = 408,
-  INTERNAL_SERVER_ERROR = 500,
-}
-
-/* ===== App error code enum (có thể mở rộng dần) ===== */
-export enum AppErrorCode {
-  INVALID_CREDENTIALS = "INVALID_CREDENTIALS",
-  SESSION_EXPIRED = "SESSION_EXPIRED",
-  JWT_EXPIRED = "JWT_EXPIRED",
-  NETWORK_TIMEOUT = "NETWORK_TIMEOUT",
-  FORBIDDEN = "FORBIDDEN",
-  UNKNOWN = "UNKNOWN",
-}
-
-/* ===== Kiểu mô tả 1 error definition ===== */
-type ErrorDef = {
-  status: StatusCode;
-  sysCode: string;        // mã hệ thống/chuẩn hoá nội bộ
-  defaultMessage: string; // message kỹ thuật ngắn gọn
-  uiMessage: string;      // message cho người dùng (có thể i18n sau)
-};
-
+import axios from "axios";
+import { AxiosInstance } from "axios";
+import { StatusCode , AppErrorCode } from "../enum/errorEnum";
+import { ErrorDef } from "../types/error.types";
 /* ===== Bảng định nghĩa lỗi chuẩn ===== */
 export const ERROR_DEFS: Record<AppErrorCode, ErrorDef> = {
   [AppErrorCode.INVALID_CREDENTIALS]: {

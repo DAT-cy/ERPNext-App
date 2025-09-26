@@ -1,7 +1,7 @@
 // src/components/SuccessAnimation/SuccessAnimation.styles.ts
 import { StyleSheet, Dimensions } from 'react-native';
 import { wp, hp, fs, ss, spacing, borderRadius } from '../utils';
-import { colors } from '.';
+import { colors } from './globalStyles';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 

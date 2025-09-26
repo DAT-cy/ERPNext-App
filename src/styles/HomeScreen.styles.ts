@@ -4,7 +4,7 @@ import {
   wp, hp, fs, ss, 
   typography, spacing, borderRadius, touchTargets 
 } from '../utils';
-import { colors } from '.';
+import { colors } from './globalStyles';
 
 export const homeScreenStyles = StyleSheet.create({
   // Base containers
