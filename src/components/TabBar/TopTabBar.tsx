@@ -59,13 +59,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,
     borderBottomColor: '#E0E0E0',
-    paddingHorizontal: 16,
+    paddingHorizontal: 40,
+    paddingVertical: 8,
   },
   menuButton: {
-    padding: 20,
+    padding: 5,
   },
   menuIcon: {
-    fontSize: 30,
+    fontSize: 25,
     color: '#333333',
   },
   tabsContainer: {
@@ -74,7 +75,7 @@ const styles = StyleSheet.create({
   },
   tab: {
     flex: 1,
-    paddingVertical: 16,
+    paddingVertical: 20,
     alignItems: 'center',
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
@@ -83,7 +84,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#007AFF',
   },
   tabText: {
-    fontSize: 16,
+    fontSize: 20,
     fontWeight: '500',
     color: '#666666',
   },

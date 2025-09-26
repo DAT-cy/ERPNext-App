@@ -1,24 +1,22 @@
 // src/api/api.ts
 import axios, { AxiosInstance, AxiosHeaders } from "axios";
 import * as SecureStore from "expo-secure-store";
-import { API_URL, ENV_MODE } from "@env";
+import { API_URL } from "@env";
 
 export const SID_KEY = "erpnext_sid";
 
 const BASE_URL = API_URL;
 
 console.log('🌍 API Environment:', {
-  ENV_MODE,
-  URL: BASE_URL,
-  NODE_ENV: process.env.NODE_ENV
+  URL: BASE_URL
 });
 
-// Tạo axios instance dùng chung
+// Tạo axios instance dùng chung - siêu tối ưu
 export const api: AxiosInstance = axios.create({
   baseURL: BASE_URL.replace(/\/$/, ""),
   headers: { Accept: "application/json", "Content-Type": "application/json" },
   withCredentials: true,
-  timeout: 15000,
+  timeout: 3000, // Siêu nhanh - chỉ 3s timeout
 });
 
 // Thêm interceptor cho request

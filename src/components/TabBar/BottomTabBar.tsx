@@ -1,10 +1,10 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 
 export interface BottomTabItem {
   key: string;
   title: string;
-  icon: string;
+  icon: string | any; // Có thể là string (emoji) hoặc require() result (image source)
 }
 
 interface BottomTabBarProps {
@@ -12,6 +12,33 @@ interface BottomTabBarProps {
   activeTab: string;
   onTabPress: (tabKey: string) => void;
 }
+
+// Helper function để render icon (text hoặc image)
+const renderIcon = (icon: string | any, isActive: boolean) => {
+  if (typeof icon === 'string') {
+    // Nếu là string thì render như text/emoji
+    return (
+      <Text style={[
+        styles.tabIcon,
+        isActive && styles.activeTabIcon
+      ]}>
+        {icon}
+      </Text>
+    );
+  } else {
+    // Nếu là image source thì render như Image
+    return (
+      <Image 
+        source={icon} 
+        style={[
+          styles.tabIconImage,
+          { tintColor: isActive ? '#007AFF' : '#666666' }
+        ]}
+        resizeMode="contain"
+      />
+    );
+  }
+};
 
 export default function BottomTabBar({ tabs, activeTab, onTabPress }: BottomTabBarProps) {
   return (
@@ -22,12 +49,7 @@ export default function BottomTabBar({ tabs, activeTab, onTabPress }: BottomTabB
           style={styles.tab}
           onPress={() => onTabPress(tab.key)}
         >
-          <Text style={[
-            styles.tabIcon,
-            activeTab === tab.key && styles.activeTabIcon
-          ]}>
-            {tab.icon}
-          </Text>
+          {renderIcon(tab.icon, activeTab === tab.key)}
           <Text style={[
             styles.tabText,
             activeTab === tab.key && styles.activeTabText
@@ -61,6 +83,11 @@ const styles = StyleSheet.create({
   },
   activeTabIcon: {
     color: '#007AFF',
+  },
+  tabIconImage: {
+    width: 24,
+    height: 24,
+    marginBottom: 4,
   },
   tabText: {
     fontSize: 12,

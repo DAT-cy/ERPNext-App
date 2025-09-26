@@ -4,7 +4,7 @@ import { View, Text, StyleSheet, Pressable, ActivityIndicator, KeyboardAvoidingV
 import { useNavigation } from "@react-navigation/native";
 import { useAuth } from "../hooks";
 import { Input } from "../components";
-import { ERROR_DEFS, AppErrorCode, StatusCode } from "../utils/errors/Error";
+import { ERROR_DEFS, AppErrorCode, StatusCode } from "../utils";
 
 type FieldErrors = {
   usr?: string | null;

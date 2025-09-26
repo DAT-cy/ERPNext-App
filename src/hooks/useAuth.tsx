@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import * as SecureStore from "expo-secure-store";
 import { SID_KEY} from "../config/api";
-import {getLoggedUser, loginERP, logoutERP , pingERP } from "../services/authService";
+import {getLoggedUser, loginERP, logoutERP , pingERP, getRolesUsers, getCurrentUserRoles } from "../services/authService";
 
 import type { LoginResult } from "../types/auth.types";
 
@@ -10,9 +10,12 @@ type AuthContextType = {
   isLoading: boolean;
   isLoggedIn: boolean;
   user: string | null;
+  roles: string[];
   login: (usr: string, pwd: string) => Promise<LoginResult>;
   logout: () => Promise<void>;
   ping: () => Promise<{ message: string }>;
+  getRoleUsers: () => Promise<any>;
+  hasRole: (roleName: string) => boolean;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -21,6 +24,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [isLoading, setLoading] = useState(true);
   const [isLoggedIn, setLoggedIn] = useState(false);
   const [user, setUser] = useState<string | null>(null);
+  const [roles, setRoles] = useState<string[]>([]);
 
   useEffect(() => {
     (async () => {
@@ -38,13 +42,28 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (sid) {
         try {
           const me = await getLoggedUser();
-          setUser(me?.message ?? null);
+          const userName = me?.message ?? null;
+          setUser(userName);
           setLoggedIn(true);
+          
+          // Load roles cho user
+          if (userName) {
+            try {
+              const rolesData = await getCurrentUserRoles();
+              const userRoles = rolesData?.message || [];
+              setRoles(userRoles);
+              console.log(`🔐 Loaded roles for ${userName}:`, userRoles);
+            } catch (e) {
+              console.log('Lỗi load roles:', e);
+              setRoles([]);
+            }
+          }
         } catch {
           // SID cũ không còn hợp lệ
           await SecureStore.deleteItemAsync(SID_KEY).catch(() => {});
           setLoggedIn(false);
           setUser(null);
+          setRoles([]);
         }
       }
       setLoading(false);
@@ -70,7 +89,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setLoggedIn(true);
     try {
       const me = await getLoggedUser();
-      setUser(me?.message || null);
+      const userName = me?.message || null;
+      setUser(userName);
+      
+      // Load roles cho user
+      if (userName) {
+        try {
+          const rolesData = await getCurrentUserRoles();
+          const userRoles = rolesData?.message || [];
+          setRoles(userRoles);
+          console.log(`🔐 Loaded roles for ${userName}:`, userRoles);
+        } catch (e) {
+          console.log('Lỗi load roles:', e);
+          setRoles([]);
+        }
+      }
+      
       return { ...loginResult, me };
     } catch {
       return loginResult;
@@ -86,6 +120,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       await SecureStore.deleteItemAsync(SID_KEY).catch(() => {});
       setUser(null);
       setLoggedIn(false);
+      setRoles([]);
     } finally {
       setLoading(false);
     }
@@ -95,8 +130,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return await pingERP();
   };
 
+  const getRoleUsers = async () => {
+    if (!user) return { message: [] };
+    return await getCurrentUserRoles();
+  };
+
+  const hasRole = (roleName: string): boolean => {
+    return roles.includes(roleName);
+  };
+
   return (
-    <AuthContext.Provider value={{ isLoading, isLoggedIn, user, login, logout, ping }}>
+    <AuthContext.Provider value={{ isLoading, isLoggedIn, user, roles, login, logout, ping, getRoleUsers, hasRole }}>
       {children}
     </AuthContext.Provider>
   );

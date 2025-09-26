@@ -1,7 +1,7 @@
 // services/authService.tsx
 import { api, SID_KEY } from "../config/api";
 import * as SecureStore from "expo-secure-store";
-import { LoggedUser, LoginOk, LoginFail, LoginResult } from "../types/auth.types";
+import { LoggedUser, LoginOk, LoginFail, LoginResult , RoleUsers } from "../types/auth.types";
 
 // Hỗ trợ lấy SID từ cookie
 function extractSidFromSetCookie(setCookie?: string | string[]): string | null {
@@ -65,6 +65,25 @@ export async function loginERP(usr: string, pwd: string): Promise<LoginResult> {
   }
 }
 
+// Hàm lấy roles của user theo username
+export async function getRolesUsers(userId: string): Promise<RoleUsers> {
+  const { data } = await api.get<RoleUsers>(
+    "/api/method/frappe.core.doctype.user.user.get_roles",
+    {
+      params: { uid: userId }
+    }
+  );
+  return data;
+}
+
+// Hàm lấy roles của user hiện tại (lấy từ getLoggedUser)
+export async function getCurrentUserRoles(): Promise<RoleUsers> {
+  const loggedUser = await getLoggedUser();
+  const username = loggedUser.message;
+  return await getRolesUsers(username);
+}
+
+  
 // Hàm đăng xuất khỏi ERP
 export async function logoutERP(): Promise<void> {
   try { await api.post("/api/method/logout"); } catch {}

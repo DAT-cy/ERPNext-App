@@ -11,16 +11,20 @@ import {
   StatusBar,
   Platform,
   InteractionManager,
+  ScrollView,
+  PanResponder,
 } from 'react-native';
 
-import { logoutERP as logout } from '../../services/authService'; 
+import { logoutERP as logout } from '../../services/authService';
+import { useAuth } from '../../hooks/useAuth';
+import { getAccessibleMenus } from '../../utils/menuPermissions';
 
 const { width } = Dimensions.get('window');
 
 export interface MenuItem {
   id: string;
   title: string;
-  icon: string;
+  icon: string | any; // Can be string (emoji) or require() result (local image)
   hasSubItems?: boolean;
   subItems?: SubMenuItem[];
 }
@@ -28,7 +32,7 @@ export interface MenuItem {
 export interface SubMenuItem {
   id: string;
   title: string;
-  icon: string;
+  icon: string | any; // Can be string (emoji) or require() result (local image)
 }
 
 export interface SidebarMenuProps {
@@ -39,9 +43,37 @@ export interface SidebarMenuProps {
   onLogout: () => void;
 }
 
-export async function handleLogout() {
-  await logout();
-}
+// Helper function to render icon (either Image or Text) with better UI/UX
+const renderIcon = (icon: string | any, style: any, isSubItem: boolean = false) => {
+  if (typeof icon === 'string') {
+    // It's an emoji or text
+    return <Text style={style}>{icon}</Text>;
+  } else {
+    // It's a local image (require() result)
+    const imageSize = isSubItem ? 20 : 24;
+    return (
+      <View style={[
+        style, 
+        { 
+          width: imageSize, 
+          height: imageSize,
+          justifyContent: 'center',
+          alignItems: 'center',
+        }
+      ]}>
+        <Image 
+          source={icon} 
+          style={{ 
+            width: imageSize, 
+            height: imageSize,
+            tintColor: isSubItem ? '#666666' : '#333333', // Consistent color theming
+          }} 
+          resizeMode="contain" 
+        />
+      </View>
+    );
+  }
+};
 
 export default function SidebarMenu({
   isVisible,
@@ -50,29 +82,52 @@ export default function SidebarMenu({
   onSubItemPress,
   onLogout,
 }: SidebarMenuProps) {
+  const { roles } = useAuth();
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const slideAnim = useRef(new Animated.Value(-width * 0.85)).current; // bắt đầu từ bên trái
   const backdropOpacity = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
   const subItemAnimations = useRef<{ [key: string]: Animated.Value }>({}).current;
 
+  // PanResponder for swipe to close (từ phải sang trái)
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (evt, gestureState) => {
+        // Respond to horizontal swipes từ phải sang trái (dx < 0)
+        // Giảm threshold để sensitive hơn
+        return Math.abs(gestureState.dx) > 10 && gestureState.dx < 0;
+      },
+      onPanResponderMove: (evt, gestureState) => {
+        // Chỉ cho phép kéo sang trái (dx < 0)
+        if (gestureState.dx < 0) {
+          // Kéo sidebar theo gesture sang trái để đóng
+          const newValue = Math.max(gestureState.dx, -width * 0.85);
+          slideAnim.setValue(newValue);
+        }
+      },
+      onPanResponderRelease: (evt, gestureState) => {
+        
+        // Giảm threshold xuống 80px để dễ trigger hơn
+        if (gestureState.dx < -80 || gestureState.vx < -0.3) {
+          // Đóng sidebar
+          onClose();
+        } else {
+          // Snap back về vị trí ban đầu
+          Animated.spring(slideAnim, {
+            toValue: 0,
+            tension: 100,
+            friction: 9,
+            useNativeDriver: true,
+          }).start();
+        }
+      },
+    })
+  ).current;
+
   // Khởi tạo animations cho tất cả items
   useEffect(() => {
-    const menuItems: MenuItem[] = [
-      {
-        id: 'hr',
-        title: 'Nhân sự',
-        icon: '💼',
-        hasSubItems: true,
-        subItems: [
-          { id: 'overview', title: 'Tổng quan', icon: '📊' },
-          { id: 'recruitment', title: 'Tuyển dụng', icon: '👥' },
-          { id: 'work-history', title: 'Lý lịch công tác', icon: '👤' },
-          { id: 'performance', title: 'Hiệu suất', icon: '⭐' },
-          { id: 'attendance', title: 'Điểm danh & ca làm việc', icon: '📋' },
-        ],
-      },
-    ];
+    const menuItems: MenuItem[] = [];
     
     menuItems.forEach(item => {
       if (item.hasSubItems && !subItemAnimations[item.id]) {
@@ -165,21 +220,25 @@ export default function SidebarMenu({
     }
   }, [isVisible, slideAnim, backdropOpacity, scaleAnim]);
 
-  const menuItems: MenuItem[] = [
-    {
-      id: 'hr',
-      title: 'Nhân sự',
-      icon: '💼',
-      hasSubItems: true,
-      subItems: [
-        { id: 'overview', title: 'Tổng quan', icon: '📊' },
-        { id: 'recruitment', title: 'Tuyển dụng', icon: '👥' },
-        { id: 'work-history', title: 'Lý lịch công tác', icon: '👤' },
-        { id: 'performance', title: 'Hiệu suất', icon: '⭐' },
-        { id: 'attendance', title: 'Điểm danh & ca làm việc', icon: '📋' },
-      ],
-    },
-  ];
+  // Lấy menu items dựa trên roles của user
+  const menuItems: MenuItem[] = getAccessibleMenus(roles).map(menuDef => ({
+    id: menuDef.id,
+    title: menuDef.title,
+    icon: menuDef.icon,
+    hasSubItems: menuDef.hasSubItems,
+    subItems: menuDef.subItems?.map(subItem => ({
+      id: subItem.id,
+      title: subItem.title,
+      icon: subItem.icon
+    }))
+  }));
+
+  // Debug: Log accessible menus chỉ khi roles thay đổi
+  useEffect(() => {
+    // Chỉ log một lần khi component mount hoặc khi roles thay đổi
+    console.log(`🔐 User Roles: [${roles.join(', ')}]`);
+    console.log(`📋 Accessible Menus: [${menuItems.map(m => m.title).join(', ')}]`);
+  }, [roles.join(',')]); // Chỉ re-run khi roles thay đổi
 
   const toggleExpanded = (itemId: string) => {
     if (!subItemAnimations[itemId]) {
@@ -240,6 +299,7 @@ export default function SidebarMenu({
             ],
           },
         ]}
+        {...panResponder.panHandlers}
       >
 
       {/* Content của sidebar */}
@@ -272,7 +332,16 @@ export default function SidebarMenu({
         <View style={styles.separator} />
 
         {/* Menu Items */}
-        <View style={styles.menuSection}>
+        <ScrollView 
+          style={styles.menuSection}
+          contentContainerStyle={styles.menuContentContainer}
+          showsVerticalScrollIndicator={false}
+          bounces={true}
+          alwaysBounceVertical={false}
+          scrollEventThrottle={16}
+          keyboardShouldPersistTaps="handled"
+          nestedScrollEnabled={true}
+        >
           {menuItems.map((item) => (
             <View key={item.id}>
               <TouchableOpacity
@@ -284,13 +353,25 @@ export default function SidebarMenu({
                 activeOpacity={0.7}
               >
                 <View style={styles.menuItemContent}>
-                  <Text style={styles.menuItemIcon}>{item.icon}</Text>
+                  {renderIcon(item.icon, styles.menuItemIcon, false)}
                   <Text style={styles.menuItemText}>{item.title}</Text>
                 </View>
                 {item.hasSubItems && (
-                  <Text style={styles.expandIcon}>
-                    {expandedItems.has(item.id) ? '▲' : '▼'}
-                  </Text>
+                  <Animated.View 
+                    style={[
+                      styles.expandIconContainer,
+                      {
+                        transform: [{ 
+                          rotate: expandedItems.has(item.id) ? '180deg' : '0deg' 
+                        }]
+                      }
+                    ]}
+                  >
+                    <Image 
+                      source={require('../../assets/dropdown.png')} 
+                      style={styles.expandIconImage}
+                    />
+                  </Animated.View>
                 )}
               </TouchableOpacity>
 
@@ -333,7 +414,7 @@ export default function SidebarMenu({
                         activeOpacity={0.7}
                       >
                         <View style={styles.subMenuItemContent}>
-                          <Text style={styles.subMenuItemIcon}>{subItem.icon}</Text>
+                          {renderIcon(subItem.icon, styles.subMenuItemIcon, true)}
                           <Text style={styles.subMenuItemText}>{subItem.title}</Text>
                         </View>
                       </TouchableOpacity>
@@ -343,7 +424,7 @@ export default function SidebarMenu({
               )}
             </View>
           ))}
-        </View>
+        </ScrollView>
 
         <View style={styles.separator} />
 
@@ -353,16 +434,20 @@ export default function SidebarMenu({
             style={styles.bottomMenuItem}
             activeOpacity={0.7}
           >
-            <Text style={styles.bottomMenuItemIcon}>⚙️</Text>
+            <Text style={styles.bottomMenuItemIcon}>
+              <Image source={require('../../assets/settings.png')} />
+            </Text>
             <Text style={styles.bottomMenuItemText}>Cài đặt</Text>
           </TouchableOpacity>
 
           <TouchableOpacity 
             style={[styles.bottomMenuItem, styles.logoutButton]} 
-            onPress={handleLogout}
+            onPress={onLogout}
             activeOpacity={0.7}
           >
-            <Text style={styles.bottomMenuItemIcon}>🚪</Text>
+            <Text style={styles.bottomMenuItemIcon}>
+              <Image source={require('../../assets/logout.png')} />
+            </Text>
             <Text style={[styles.bottomMenuItemText, styles.logoutText]}>Đăng xuất</Text>
           </TouchableOpacity>
         </View>
@@ -404,8 +489,6 @@ const styles = StyleSheet.create({
   sidebar: {
     width: width * 0.85,
     backgroundColor: '#FFFFFF',
-    borderTopRightRadius: 25,
-    borderBottomRightRadius: 25,
     paddingTop: Platform.OS === 'ios' ? 60 : 40,
     paddingHorizontal: 0,
     paddingBottom: 30,
@@ -451,12 +534,12 @@ const styles = StyleSheet.create({
   profileSection: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 30,
     paddingHorizontal: 20,
-    paddingVertical: 15,
-    backgroundColor: '#F8F9FA',
-    marginHorizontal: 10,
-    borderRadius: 15,
+    paddingVertical: 20,
+    backgroundColor: '#FFFFFF',
+    marginHorizontal: 0,
+    borderRadius: 0,
   },
   profileImageContainer: {
     marginRight: 16,
@@ -483,44 +566,43 @@ const styles = StyleSheet.create({
   separator: {
     height: 1,
     backgroundColor: '#E0E0E0',
-    marginVertical: 20,
-    marginHorizontal: 20,
+    marginVertical: 0,
+    marginHorizontal: 0,
   },
   menuSection: {
     flex: 1,
-    paddingHorizontal: 10,
+    paddingHorizontal: 0,
+  },
+  menuContentContainer: {
+    flexGrow: 1,
+    paddingBottom: 20,
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 15,
+    paddingVertical: 16,
     paddingHorizontal: 20,
-    borderRadius: 12,
-    marginBottom: 8,
+    borderRadius: 0,
+    marginBottom: 0,
     backgroundColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
   },
   menuItemExpanded: {
-    backgroundColor: '#E3F2FD',
-    borderColor: '#2196F3',
-    borderWidth: 1,
+    backgroundColor: '#F8F9FA',
   },
   menuItemContent: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
+    paddingVertical: 2, // Add some vertical padding for better touch area
   },
   menuItemIcon: {
     fontSize: 22,
     marginRight: 15,
+    minWidth: 24, // Ensure consistent width
+    textAlign: 'center', // Center text/emoji icons
   },
   menuItemText: {
     fontSize: 16,
@@ -532,28 +614,44 @@ const styles = StyleSheet.create({
     color: '#2196F3',
     fontWeight: 'bold',
   },
+  expandIconContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 20,
+    height: 20,
+  },
+  expandIconImage: {
+    width: 23,
+    height:23 ,
+    tintColor: '#000000',
+  },
   subItemsContainer: {
-    marginLeft: 20,
-    marginBottom: 10,
-    paddingLeft: 15,
-    borderLeftWidth: 2,
-    borderLeftColor: '#E3F2FD',
+    marginLeft: 0,
+    marginBottom: 0,
+    paddingLeft: 0,
+    borderLeftWidth: 0,
     overflow: 'hidden',
+    backgroundColor: '#F8F9FA',
   },
   subMenuItem: {
-    paddingVertical: 10,
-    paddingHorizontal: 15,
-    marginBottom: 5,
-    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 40,
+    marginBottom: 0,
+    borderRadius: 0,
     backgroundColor: '#F8F9FA',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
   },
   subMenuItemContent: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingVertical: 2, // Add some vertical padding for better touch area
   },
   subMenuItemIcon: {
     fontSize: 18,
     marginRight: 12,
+    minWidth: 20, // Ensure consistent width
+    textAlign: 'center', // Center text/emoji icons
   },
   subMenuItemText: {
     fontSize: 15,
@@ -562,16 +660,22 @@ const styles = StyleSheet.create({
   },
   bottomSection: {
     marginTop: 'auto',
-    paddingHorizontal: 20,
+    paddingHorizontal: 0,
+    paddingBottom: 0,
+    backgroundColor: 'white',
+    borderTopWidth: 1,
+    borderTopColor: '#E0E0E0',
   },
   bottomMenuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 15,
+    paddingVertical: 16,
     paddingHorizontal: 20,
-    borderRadius: 12,
-    marginBottom: 8,
-    backgroundColor: '#F8F9FA',
+    borderRadius: 0,
+    marginBottom: 0,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
   },
   bottomMenuItemIcon: {
     fontSize: 20,
@@ -583,12 +687,11 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   logoutButton: {
-    backgroundColor: '#FFEBEE',
-    borderColor: '#F44336',
-    borderWidth: 1,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 0,
   },
   logoutText: {
-    color: '#F44336',
-    fontWeight: '600',
+    color: '#333333',
+    fontWeight: '500',
   },
 });

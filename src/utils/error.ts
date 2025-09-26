@@ -1,5 +1,4 @@
-// src/shared/errors/app-error.ts
-/* ===== HTTP status code enum (gọn) ===== */
+
 export enum StatusCode {
   OK = 200,
   BAD_REQUEST = 400,

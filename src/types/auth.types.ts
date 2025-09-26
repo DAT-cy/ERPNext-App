@@ -1,7 +1,7 @@
 // src/features/auth/model/auth.types.ts
 export type LoggedUser = { message: string }; // ERPNext: { message: "<username>" }
 export type UserSettings = {
-  message: string[]; // hoặc object tùy API trả về
+  message: string[];
 };
 
 
@@ -32,4 +32,8 @@ export type LoginResult = LoginOk | LoginFail;
 export type LoginPayload = {
   usr: string;
   pwd: string;
+};
+
+export type RoleUsers = {
+  message: string[];
 };
