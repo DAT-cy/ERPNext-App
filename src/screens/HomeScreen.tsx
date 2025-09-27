@@ -5,7 +5,7 @@ import {
   ScrollView, ActivityIndicator, FlatList, TouchableOpacity, Alert, Animated
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
-import { BottomTabBar, TopTabBar, SidebarMenu, BottomTabItem, TopTabItem } from "../components";
+import { BottomTabBar, TopTabBar, NavigationSidebarMenu, BottomTabItem, TopTabItem } from "../components";
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { useAuth } from "../hooks";
@@ -15,6 +15,8 @@ import { CheckinRecord, Checkin } from "../types/checkin.types";
 import { homeScreenStyles } from '../styles/HomeScreen.styles';
 import SimpleSuccessAnimation from '../components/SuccessAnimation/SimpleSuccessAnimation';
 import { homeScreenErrorHandler, HomeScreenErrorCode } from '../utils/error/homeScreen';
+import { menuRouterController } from '../router';
+import { useScreenNavigator } from '../router/ScreenNavigator';
 
 // Helper functions for formatting date and time
 const formatTime = (dateTimeStr: string): string => {
@@ -45,6 +47,7 @@ export default function HomeScreen() {
   const { user, logout, isLoggedIn, roles } = useAuth();
   const { handleSubmitCheckin, loadCheckinData: reloadCheckinData, loading: checkinLoading } = useCheckin();
   const hasLoggedRef = useRef(false);
+  const screenNavigator = useScreenNavigator();
 
   // State
   const [activeBottomTab, setActiveBottomTab] = useState("checkin");
@@ -114,12 +117,26 @@ export default function HomeScreen() {
       setRecords(data);
       setError(null);
       
-      // Kiểm tra trạng thái check-in
-      if (data.length > 0) {
-        const isCheckedIn = data[0].log_type === 'IN';
+      // Lấy ngày hiện tại
+      const today = new Date().toISOString().split('T')[0]; // format YYYY-MM-DD
+      
+      // Lọc records của ngày hôm nay
+      const todayRecords = data.filter(record => record.time.startsWith(today));
+      
+      if (todayRecords.length > 0) {
+        // Kiểm tra bản ghi chấm công mới nhất của ngày hôm nay
+        // (đã được sắp xếp theo thời gian giảm dần từ API)
+        const latestRecord = todayRecords[0];
+        const isCheckedIn = latestRecord.log_type === 'IN';
         setCheckinStatus(isCheckedIn);
         // Cập nhật checkinType dựa vào trạng thái hiện tại
         setCheckinType(isCheckedIn ? 'OUT' : 'IN');
+        console.log(`📍 Ngày hôm nay đã có ${todayRecords.length} bản ghi, trạng thái hiện tại: ${isCheckedIn ? 'Đã checkin (IN)' : 'Đã checkout (OUT)'}`);
+      } else {
+        // Nếu chưa có bản ghi nào cho ngày hôm nay, luôn bắt đầu với IN
+        setCheckinStatus(false);
+        setCheckinType('IN');
+        console.log('📍 Ngày mới, bắt đầu với checkin (IN)');
       }
     } catch (err) {
       const error = homeScreenErrorHandler.analyzeError(err, 'loadCheckinData');
@@ -178,48 +195,32 @@ export default function HomeScreen() {
         return;
       }
       
-      // Thử nhiều accuracy level với timeout khác nhau
+
       let location: Location.LocationObject | null = null;
       
-      // Strategy 1: High accuracy với timeout 8s
       try {
-        location = await Promise.race([
-          Location.getCurrentPositionAsync({
-            accuracy: Location.Accuracy.High,
-          }),
-          new Promise<never>((_, reject) => 
-            setTimeout(() => reject(new Error('High accuracy timeout')), 8000)
-          )
-        ]);
-      } catch (highAccuracyError) {
-        // Log high accuracy timeout (low severity - no user notification)
-        const highError = homeScreenErrorHandler.analyzeError(highAccuracyError, 'location');
-        homeScreenErrorHandler.handleLocationError(highError);
+        console.log('📍 Đang lấy vị trí...');
         
-        // Strategy 2: Balanced accuracy với timeout 6s
+        // Thử lấy vị trí với độ chính xác cao
+        location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.High
+        });
+        
+        console.log('✅ Đã lấy được vị trí với độ chính xác cao');
+      } catch (locationError) {
+        console.log('⚠️ Lỗi khi lấy vị trí với độ chính xác cao, thử với độ chính xác thấp');
+        
         try {
-          location = await Promise.race([
-            Location.getCurrentPositionAsync({
-              accuracy: Location.Accuracy.Balanced,
-            }),
-            new Promise<never>((_, reject) => 
-              setTimeout(() => reject(new Error('Balanced accuracy timeout')), 6000)
-            )
-          ]);
-        } catch (balancedError) {
-          console.log('⚠️ Balanced accuracy failed, trying Low...');
-          const balancedErrorObj = homeScreenErrorHandler.analyzeError(balancedError, 'location');
-          homeScreenErrorHandler.handleLocationError(balancedErrorObj);
-          
-          // Strategy 3: Low accuracy với timeout 4s (last resort)
-          location = await Promise.race([
-            Location.getCurrentPositionAsync({
-              accuracy: Location.Accuracy.Low,
-            }),
-            new Promise<never>((_, reject) => 
-              setTimeout(() => reject(new Error('Low accuracy timeout')), 4000)
-            )
-          ]);
+          // Thử lại với độ chính xác thấp hơn
+          location = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Low
+          });
+          console.log('✅ Đã lấy được vị trí với độ chính xác thấp');
+        } catch (lowAccuracyError) {
+          console.log('⚠️ Không thể lấy vị trí');
+          const errorObj = homeScreenErrorHandler.analyzeError(lowAccuracyError, 'location');
+          homeScreenErrorHandler.handleLocationError(errorObj);
+          throw errorObj;
         }
       }
       
@@ -293,7 +294,7 @@ export default function HomeScreen() {
     return () => clearInterval(locationInterval);
   }, [hasValidLocation, locationLoading, getCurrentLocation]);
 
-  // Tối ưu hóa việc lọc records theo content tab
+  // Tối ưu hóa việc lọc records theo content tab và phân nhóm theo ngày
   const filteredRecords = useMemo(() => {
     if (activeContentTab === "today") {
       const today = new Date().toISOString().split('T')[0];
@@ -308,10 +309,13 @@ export default function HomeScreen() {
       endOfWeek.setDate(now.getDate() + (6 - now.getDay()));
       endOfWeek.setHours(23, 59, 59, 999);
       
-      return records.filter(record => {
+      // Lọc records trong tuần này
+      const weekRecords = records.filter(record => {
         const recordDate = new Date(record.time);
         return recordDate >= startOfWeek && recordDate <= endOfWeek;
       });
+      
+      return weekRecords;
     }
   }, [activeContentTab, records]);
   
@@ -329,20 +333,8 @@ export default function HomeScreen() {
     setIsSidebarVisible(false);
   }, []);
   
-  const handleMenuItemPress = useCallback((id: string) => {
-    // Xử lý menu item press (không log)
-    setIsSidebarVisible(false);
-  }, []);
-  
-  const handleSubItemPress = useCallback((id: string, subId: string) => {
-    // Xử lý sub item press (không log)
-    setIsSidebarVisible(false);
-  }, []);
-  
-  const handleLogout = useCallback(async () => {
-    await logout();
-    // useEffect sẽ tự động điều hướng khi isLoggedIn = false
-  }, [logout]);
+  // Không cần các handlers cho menu navigation và logout nữa
+  // vì đã được xử lý trong NavigationSidebarMenu
   
   const handleTabChange = useCallback((tabKey: string) => {
     setActiveTopTab(tabKey);
@@ -525,24 +517,35 @@ export default function HomeScreen() {
               </View>
             </View>
             
-            {/* Nút chấm công ở giữa */}
-            <TouchableOpacity 
-              style={[
-                homeScreenStyles.checkinButton, 
-                (!hasValidLocation || locationLoading) && homeScreenStyles.checkinButtonDisabled
-              ]}
-              onPress={() => handleCheckin(checkinType)}
-              disabled={!hasValidLocation || locationLoading}
-            >
-              <Text style={[
-                homeScreenStyles.checkinButtonText,
-                (!hasValidLocation || locationLoading) && homeScreenStyles.checkinButtonTextDisabled
-              ]}>
-                {locationLoading ? '📍 Đang lấy vị trí...' : 
-                 !hasValidLocation ? '🚫 Cần GPS để chấm công' :
-                 checkinType === 'IN' ? 'Vào ca' : 'Ra ca'}
-              </Text>
-            </TouchableOpacity>
+            {/* Nút chấm công hoặc trạng thái GPS ở giữa */}
+            {locationLoading ? (
+              // Hiển thị trạng thái đang tải GPS
+              <View style={[homeScreenStyles.checkinButton, homeScreenStyles.checkinButtonDisabled]}>
+                <Text style={[homeScreenStyles.checkinButtonText, homeScreenStyles.checkinButtonTextDisabled]}>
+                  📍 Đang lấy vị trí...
+                </Text>
+              </View>
+            ) : !hasValidLocation ? (
+              // Hiển thị trạng thái khi không có GPS
+              <TouchableOpacity 
+                style={[homeScreenStyles.checkinButton, homeScreenStyles.checkinButtonDisabled]}
+                onPress={getCurrentLocation}
+              >
+                <Text style={[homeScreenStyles.checkinButtonText, homeScreenStyles.checkinButtonTextDisabled]}>
+                  🚫 Nhấn để lấy vị trí GPS
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              // Hiển thị nút chấm công khi có GPS
+              <TouchableOpacity 
+                style={homeScreenStyles.checkinButton}
+                onPress={() => handleCheckin(checkinType)}
+              >
+                <Text style={homeScreenStyles.checkinButtonText}>
+                  {checkinType === 'IN' ? 'Vào ca' : 'Ra ca'}
+                </Text>
+              </TouchableOpacity>
+            )}
             
             {/* Location Status */}
             {locationError && (
@@ -641,12 +644,9 @@ export default function HomeScreen() {
       />
 
       {/* Sidebar overlay */}
-      <SidebarMenu
+      <NavigationSidebarMenu
         isVisible={isSidebarVisible}
         onClose={handleMenuClose}
-        onMenuItemPress={handleMenuItemPress}
-        onSubItemPress={handleSubItemPress}
-        onLogout={handleLogout}
       />
 
       {/* Success Animation */}

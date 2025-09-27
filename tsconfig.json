@@ -13,7 +13,7 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
-    "typeRoots": ["./src/types", "./node_modules/@types"]
+    // "typeRoots": ["./src/types", "./node_modules/@types"]
     /* KHÔNG cần "types": ["expo"] */
     /* Nếu muốn, bạn có thể để:
        "types": ["react", "react-native"]

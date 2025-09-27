@@ -7,5 +7,4 @@ export * from './Input';
 
 export * from './SidebarMenu';
 
-export { default as ResponsiveDemo } from './ResponsiveDemo';
 
