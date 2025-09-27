@@ -18,6 +18,8 @@ import {
 import { logoutERP as logout } from '../../services/authService';
 import { useAuth } from '../../hooks/useAuth';
 import { getAccessibleMenus } from '../../utils/menuPermissions';
+import { getInformationEmployee } from '../../services/authService';
+import { InformationUser } from '../../types'; 
 
 const { width } = Dimensions.get('window');
 
@@ -88,6 +90,8 @@ export default function SidebarMenu({
   const backdropOpacity = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
   const subItemAnimations = useRef<{ [key: string]: Animated.Value }>({}).current;
+  const [userInfo, setUserInfo] = useState<InformationUser | null>(null);
+
 
   // PanResponder for swipe to close (từ phải sang trái)
   const panResponder = useRef(
@@ -284,6 +288,16 @@ export default function SidebarMenu({
     }
   };
 
+  // Fetch employee information
+  useEffect(() => {
+    const fetchInfo = async () => {
+      const info = await getInformationEmployee();
+      console.log('👤 Fetched User Info:', info); // Debug log
+      setUserInfo(info);
+    };
+    fetchInfo();
+  }, []);
+
   if (!isVisible) return null;
 
   return (
@@ -324,8 +338,7 @@ export default function SidebarMenu({
             />
           </View>
           <View style={styles.profileInfo}>
-            <Text style={styles.profileName}>Sophia Rose</Text>
-            <Text style={styles.profileTitle}>UX/UI Designer</Text>
+            <Text style={styles.profileName}>{userInfo?.employee_name}</Text>
           </View>
         </View>
 

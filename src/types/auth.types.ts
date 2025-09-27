@@ -37,3 +37,15 @@ export type LoginPayload = {
 export type RoleUsers = {
   message: string[];
 };
+export type RoleUserMap = {
+    doctype: string;
+    docname: string;
+    fields: string[];
+}
+
+export type InformationUser = {
+  name: string;
+  employee_name: string;
+  company: string;
+  department: string;
+};

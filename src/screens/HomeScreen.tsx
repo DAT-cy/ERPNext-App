@@ -5,17 +5,18 @@ import {
   ScrollView, ActivityIndicator, FlatList, TouchableOpacity, Alert, Animated
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
-import { BottomTabBar, TopTabBar, NavigationSidebarMenu, BottomTabItem, TopTabItem } from "../components";
+import TopTabBar from "../components/TabBar/TopTabBar";
+import BottomTabBar from "../components/TabBar/BottomTabBar";
+import { NavigationSidebarMenu } from "../components/SidebarMenu";
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
-import { useAuth } from "../hooks";
+import { useAuth, useScreenTabBar } from "../hooks";
 import { useCheckin } from "../hooks/useCheckin";
 import { fetchCheckinRecords } from "../services/checkinService";
 import { CheckinRecord, Checkin } from "../types/checkin.types";
 import { homeScreenStyles } from '../styles/HomeScreen.styles';
 import SimpleSuccessAnimation from '../components/SuccessAnimation/SimpleSuccessAnimation';
 import { homeScreenErrorHandler, HomeScreenErrorCode } from '../utils/error/homeScreen';
-import { menuRouterController } from '../router';
 import { useScreenNavigator } from '../router/ScreenNavigator';
 
 // Helper functions for formatting date and time
@@ -44,16 +45,15 @@ const getTodayDateString = (): string => {
 
 export default function HomeScreen() {
   const navigation = useNavigation<any>();
-  const { user, logout, isLoggedIn, roles } = useAuth();
+  const { user, isLoggedIn } = useAuth();
   const { handleSubmitCheckin, loadCheckinData: reloadCheckinData, loading: checkinLoading } = useCheckin();
   const hasLoggedRef = useRef(false);
-  const screenNavigator = useScreenNavigator();
 
-  // State
-  const [activeBottomTab, setActiveBottomTab] = useState("checkin");
-  const [activeTopTab, setActiveTopTab] = useState("today");
-  const [activeContentTab, setActiveContentTab] = useState("today"); // Tab cho nội dung: "today" hoặc "week"
-  const [isSidebarVisible, setIsSidebarVisible] = useState(false);
+  // Content tab state - độc lập với TopTabBar (vì TopTab giờ trống)
+  const [activeContentTab, setActiveContentTab] = useState('today'); // Default tab "Hôm nay"
+  const tabBar = useScreenTabBar('checkin');
+
+  // App state
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [records, setRecords] = useState<CheckinRecord[]>([]);
@@ -75,22 +75,6 @@ export default function HomeScreen() {
   const [locationLoading, setLocationLoading] = useState(true);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [hasValidLocation, setHasValidLocation] = useState(false);
-
-  // Tabs
-  const bottomTabs: BottomTabItem[] = [
-    { 
-      key: "checkin",
-      title: "Trang chủ", 
-      icon: require('../assets/home.png')
-    },
-    {
-      key: "profile",
-      title: "Hồ sơ",
-      icon: require('../assets/profile.png')
-    },
-  ];
-
-  const topTabs: TopTabItem[] = [];
 
   // Redirect to login if not logged in
   useEffect(() => {
@@ -324,21 +308,7 @@ export default function HomeScreen() {
     setDisplayRecords(filteredRecords);
   }, [filteredRecords]);
   
-  // Các hàm xử lý events (memoized để tối ưu)
-  const handleMenuPress = useCallback(() => {
-    setIsSidebarVisible(true);
-  }, []);
-  
-  const handleMenuClose = useCallback(() => {
-    setIsSidebarVisible(false);
-  }, []);
-  
-  // Không cần các handlers cho menu navigation và logout nữa
-  // vì đã được xử lý trong NavigationSidebarMenu
-  
-  const handleTabChange = useCallback((tabKey: string) => {
-    setActiveTopTab(tabKey);
-  }, []);
+  // Các hàm xử lý events từ hooks
 
   // 🚀 Hàm chấm công - chỉ hoạt động khi có GPS
   const handleCheckin = useCallback(async (type: 'IN' | 'OUT') => {
@@ -429,10 +399,7 @@ export default function HomeScreen() {
 
       {/* Top Tabs + nút menu */}
       <TopTabBar
-        tabs={topTabs}
-        activeTab={activeTopTab}
-        onTabPress={handleTabChange}
-        onMenuPress={handleMenuPress}
+        {...tabBar.topTabBarProps}
       />
 
       {/* Content với tabs "Hôm nay" và "Tuần này" */}
@@ -638,15 +605,12 @@ export default function HomeScreen() {
 
       {/* Bottom Tabs */}
       <BottomTabBar
-        tabs={bottomTabs}
-        activeTab={activeBottomTab}
-        onTabPress={setActiveBottomTab}
+        {...tabBar.bottomTabBarProps}
       />
 
       {/* Sidebar overlay */}
       <NavigationSidebarMenu
-        isVisible={isSidebarVisible}
-        onClose={handleMenuClose}
+        {...tabBar.sidebarProps}
       />
 
       {/* Success Animation */}

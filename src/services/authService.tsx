@@ -1,8 +1,8 @@
 // services/authService.tsx
 import { api, SID_KEY } from "../config/api";
 import * as SecureStore from "expo-secure-store";
-import { LoggedUser, LoginOk, LoginFail, LoginResult , RoleUsers } from "../types/auth.types";
-
+import { LoggedUser, LoginOk, LoginFail, LoginResult , RoleUsers, InformationUser, RoleUserMap } from "../types/auth.types";
+import {getCodeNameEmployee}  from "./checkinService";
 // Hỗ trợ lấy SID từ cookie
 function extractSidFromSetCookie(setCookie?: string | string[]): string | null {
   if (!setCookie) return null;
@@ -105,4 +105,30 @@ export async function pingERP(): Promise<{ message: string }> {
   const { data } = await api.get("/api/method/ping");
   return data;
 }
+
+export async function getInformationEmployee(): Promise<InformationUser> {
+
+  const getCodeNameEmployeeValue = await getCodeNameEmployee();
+  if (!getCodeNameEmployeeValue) {
+    throw new Error("Không thể lấy mã nhân viên từ người dùng đã đăng nhập");
+  }
+  const payload : RoleUserMap = {
+    doctype: "Employee",
+    docname: getCodeNameEmployeeValue,
+    fields: [
+      "employee_name",
+      "company",
+      "department",
+    ]
+  };
+  try {
+    const res = await api.post<{ message: InformationUser }>("/api/method/frappe.client.validate_link", payload);
+    return res.data.message;
+  } catch (error) {
+    console.error("Error fetching employee info:", error);
+    throw error;
+  }
+}
+
+
 

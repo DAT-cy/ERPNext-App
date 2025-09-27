@@ -22,7 +22,6 @@ export default function TopTabBar({
 }: TopTabBarProps) {
   return (
     <View style={styles.container}>
-      {/* Menu button bên trái */}
       {onMenuPress && (
         <TouchableOpacity style={styles.menuButton} onPress={onMenuPress}>
           <Text style={styles.menuIcon}>☰</Text>
@@ -60,10 +59,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E0E0E0',
     paddingHorizontal: 40,
-    paddingVertical: 8,
+    paddingVertical: 10,
   },
   menuButton: {
-    padding: 5,
+    padding: 10,
   },
   menuIcon: {
     fontSize: 25,

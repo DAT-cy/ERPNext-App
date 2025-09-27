@@ -5,7 +5,7 @@ import { getLoggedUser } from "./authService";
 
 
 
-
+// Hàm lấy mã nhân viên từ người dùng đã đăng nhập
 export async function getCodeNameEmployee(): Promise<string | null> {
     const filters = JSON.stringify([["user_id", "=", getLoggedUser()]]);
     const fields = JSON.stringify([

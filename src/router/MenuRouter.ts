@@ -13,7 +13,6 @@ export enum RouteNames {
   LOGIN = 'Login',
   HOME = 'Home',
   LEAVE_MANAGEMENT = 'LeaveManagement',
-  DASHBOARD = 'Dashboard',
 }
 
 /**
@@ -26,11 +25,6 @@ export type RouteParams = {
     selectedDate?: string;
     initialTab?: 'pending' | 'approved' | 'rejected';
   };
-  [RouteNames.DASHBOARD]: {
-    timeRange?: 'day' | 'week' | 'month' | 'year';
-    refreshData?: boolean;
-  };
-  // Thêm các tham số cho routes khác
 };
 
 /**
@@ -41,24 +35,16 @@ export const MENU_ROUTE_MAP: Record<string, {
   routeName: keyof RouteParams;
   defaultParams?: any;
 }> = {
+  // Bottom Tab Routes
+  'bottom:home': { routeName: RouteNames.HOME },
+  
   // HR Menu Routes
   'hr:leaves-hr': { routeName: RouteNames.LEAVE_MANAGEMENT },
   'hr:recruitment': { routeName: RouteNames.LEAVE_MANAGEMENT }, // Giả sử sử dụng LeaveManagement cho demo
   'hr:performance': { routeName: RouteNames.LEAVE_MANAGEMENT }  // Giả sử sử dụng LeaveManagement cho demo
 };
 
-/**
- * Class quản lý điều hướng giữa các màn hình trong ứng dụng
- */
 class MenuRouter {
- 
-  /**
-   * Điều hướng dựa trên menu ID và submenu ID
-   * @param menuId ID của menu chính
-   * @param subMenuId ID của submenu
-   * @param customParams Tham số tùy chỉnh (override defaultParams)
-   * @returns true nếu điều hướng thành công, false nếu không tìm thấy route
-   */
   navigateByMenuId(
     menuId: string, 
     subMenuId: string, 
@@ -96,28 +82,13 @@ class MenuRouter {
     }
   }
 
-  /**
-   * Quay lại màn hình trước đó
-   */
   goBack(): void {
     if (navigationRef.current && navigationRef.current.canGoBack()) {
       navigationRef.current.goBack();
     }
   }
 
-  /**
-   * Điều hướng đến màn hình Dashboard
-   * @param params Tham số cho màn hình Dashboard
-   */
-  navigateToDashboard(params?: RouteParams[RouteNames.DASHBOARD]): void {
-    this.navigate(RouteNames.DASHBOARD, params);
-  }
 
-  /**
-   * Reset navigation stack và điều hướng đến màn hình mới
-   * @param routeName Tên route đến
-   * @param params Tham số truyền cho màn hình
-   */
   resetTo<T extends keyof RouteParams>(
     routeName: T,
     params?: RouteParams[T]
@@ -152,6 +123,27 @@ class MenuRouter {
    */
   navigateToPendingLeaves(): void {
     this.navigateToLeaveManagement({ initialTab: 'pending' });
+  }
+
+  /**
+   * Xử lý navigation cho bottom tab
+   * @param tabKey Key của bottom tab ("home", "profile", etc.)
+   * @param params Tham số tùy chỉnh
+   * @returns boolean - true nếu điều hướng thành công
+   */
+  navigateByBottomTab(tabKey: string, params?: any): boolean {
+    const routeKey = `bottom:${tabKey}`;
+    const routeInfo = MENU_ROUTE_MAP[routeKey];
+
+    if (!routeInfo) {
+      console.warn(`Không tìm thấy định nghĩa route cho bottom tab: ${tabKey}`);
+      return false;
+    }
+
+    const finalParams = params || routeInfo.defaultParams;
+    this.navigate(routeInfo.routeName, finalParams);
+    console.log(`🚀 Điều hướng bottom tab: ${tabKey} -> ${routeInfo.routeName}`);
+    return true;
   }
 
   /**
@@ -194,6 +186,16 @@ class MenuRouter {
   } | undefined {
     const routeKey = `${menuId}:${subMenuId}`;
     return MENU_ROUTE_MAP[routeKey];
+  }
+
+  /**
+   * Debug method - Log tất cả routes có sẵn
+   */
+  logAvailableRoutes(): void {
+    console.log('📋 Available routes:');
+    Object.entries(MENU_ROUTE_MAP).forEach(([key, value]) => {
+      console.log(`  ${key} -> ${value.routeName}`);
+    });
   }
 }
 

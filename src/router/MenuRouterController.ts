@@ -34,6 +34,17 @@ class MenuRouterController {
   }
 
   /**
+   * Xử lý sự kiện click vào bottom tab và điều hướng
+   * @param tabKey Key của bottom tab
+   * @param params Tham số tùy chỉnh truyền vào route
+   * @returns boolean - true nếu điều hướng thành công, false nếu không
+   */
+  handleBottomTabNavigation(tabKey: string, params?: any): boolean {
+    // Bottom tabs thường không cần kiểm tra quyền đặc biệt
+    return menuRouter.navigateByBottomTab(tabKey, params);
+  }
+
+  /**
    * Kiểm tra xem user có quyền truy cập menu không
    * @param menuId ID của menu chính
    * @param subMenuId ID của submenu
@@ -53,58 +64,6 @@ class MenuRouterController {
 
     // Kiểm tra quyền truy cập thông qua menuPermissions
     return hasSubItemAccess(userRoles, menuId, subMenuId);
-  }
-
-  /**
-   * Phương thức tiện ích để xử lý các sự kiện menu từ UI components
-   * @param event Sự kiện từ menu
-   * @param userRoles Roles của user
-   * @returns boolean - true nếu điều hướng thành công, false nếu không
-   */
-  handleMenuEvent(
-    event: { menuId: string; subMenuId: string; params?: any },
-    userRoles: string[]
-  ): boolean {
-    const { menuId, subMenuId, params } = event;
-    return this.handleMenuNavigation(menuId, subMenuId, userRoles, params);
-  }
-
-  // === Các phương thức điều hướng trực tiếp ===
-  // (Không qua menu, không cần kiểm tra quyền từ menu)
-
-  navigateToLeaveManagement(params?: any): void {
-    menuRouter.navigateToLeaveManagement(params);
-  }
-
-  navigateToHome(): void {
-    menuRouter.navigateToHome();
-  }
-
-  navigateToLogin(): void {
-    menuRouter.navigateToLogin();
-  }
-
-  resetToLogin(): void {
-    menuRouter.resetToLogin();
-  }
-
-  resetToHome(): void {
-    menuRouter.resetToHome();
-  }
-
-  goBack(): void {
-    menuRouter.goBack();
-  }
-
-  /**
-   * Kiểm tra xem menu có route tương ứng không
-   * @param menuId ID của menu chính
-   * @param subMenuId ID của submenu
-   * @returns boolean - true nếu có route tương ứng, false nếu không
-   */
-  hasRoute(menuId: string, subMenuId: string): boolean {
-    const routeKey = `${menuId}:${subMenuId}`;
-    return Boolean(MENU_ROUTE_MAP[routeKey]);
   }
 }
 

@@ -9,14 +9,13 @@ import {
   SafeAreaView,
   Platform
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
 import { ss, fs } from '../utils/responsive';
+import { useScreenTabBar } from "../hooks";
+import { BottomTabBar, NavigationSidebarMenu, TopTabBar } from '../components';
+import { MENU_DEFINITIONS, SubMenuItemDef } from '../utils/menuPermissions';
 
-interface LeaveFeature {
-  id: string;
-  title: string;
+interface LeaveFeature extends SubMenuItemDef {
   description: string;
-  icon: string;
   backgroundColor: string;
 }
 
@@ -26,73 +25,37 @@ interface RouteParams {
 }
 
 const LeaveManagementScreen = ({ route }: { route?: { params?: RouteParams } }) => {
-  const navigation = useNavigation();
   const [notification, setNotification] = useState<string | null>(null);
-  
+  const tabBar = useScreenTabBar('leave_hr');
+
   // Lấy tham số từ navigation
   const { params } = route || {};
   const selectedDate = params?.selectedDate;
   const initialTab = params?.initialTab || 'pending';
   
-  // Sử dụng tham số để thiết lập trạng thái ban đầu
-  const [activeTab, setActiveTab] = useState(initialTab);
-  
+
   // Log tham số nhận được (chỉ để debug)
   React.useEffect(() => {
     console.log('LeaveManagement Screen Params:', { selectedDate, initialTab });
   }, [selectedDate, initialTab]);
 
-  // Mock data cho thống kê nhanh
-  const quickStats = [
-    { number: 12, label: 'Ngày còn lại' },
-    { number: 3, label: 'Đơn chờ duyệt' }
-  ];
 
-  // Danh sách các tính năng nghỉ phép
-  const features: LeaveFeature[] = [
-    {
-      id: 'apply',
-      title: 'Đơn Xin Nghỉ Phép',
-      description: 'Tạo đơn xin nghỉ phép mới và theo dõi trạng thái',
-      icon: '📝',
-      backgroundColor: '#10b981'
-    },
-    {
-      id: 'compensatory',
-      title: 'Yêu Cầu Nghỉ Phép Bù',
-      description: 'Đăng ký nghỉ bù cho những ngày làm thêm',
-      icon: '⏱',
-      backgroundColor: '#f59e0b'
-    },
-    {
-      id: 'allocation',
-      title: 'Nghỉ Phép Hưởng Lương',
-      description: 'Xem chi tiết ngày phép được hưởng lương',
-      icon: '💼',
-      backgroundColor: '#3b82f6'
-    },
-    {
-      id: 'settings',
-      title: 'Loại Nghỉ Phép',
-      description: 'Cấu hình và quản lý các loại nghỉ phép',
-      icon: '⚙️',
-      backgroundColor: '#8b5cf6'
-    },
-    {
-      id: 'balance',
-      title: 'Số Dư Ngày Phép',
-      description: 'Báo cáo chi tiết số dư ngày phép cá nhân',
-      icon: '📊',
-      backgroundColor: '#ef4444'
-    },
-    {
-      id: 'summary',
-      title: 'Tóm Tắt Số Dư Nhân Viên',
-      description: 'Báo cáo tổng hợp cho quản lý nhân sự',
-      icon: '📈',
-      backgroundColor: '#06b6d4'
-    }
-  ];
+  // Get leave management features from menuPermissions - từ submenu của leaves-hr
+  const hrMenu = MENU_DEFINITIONS.find(menu => menu.id === 'hr');
+  const leavesHrSubmenu = hrMenu?.subItems?.find(subItem => subItem.id === 'leaves-hr');
+  const features: LeaveFeature[] = (leavesHrSubmenu?.subItems || []).map(item => ({
+    ...item,
+    description: item.description || '',
+    backgroundColor: item.backgroundColor || '#6b7280'
+  }));
+
+  // Debug log để kiểm tra dữ liệu được load
+  React.useEffect(() => {
+    console.log('🍃 Leave Features loaded:', features.length);
+    features.forEach(feature => {
+      console.log(`  - ${feature.title} (${feature.backgroundColor})`);
+    });
+  }, []);
 
   // Xử lý hiển thị thông báo
   const showNotification = (message: string) => {
@@ -100,18 +63,6 @@ const LeaveManagementScreen = ({ route }: { route?: { params?: RouteParams } }) 
     setTimeout(() => {
       setNotification(null);
     }, 3000);
-  };
-
-  // Xử lý điều hướng quay lại
-  const handleGoBack = () => {
-    showNotification('Quay lại menu chính');
-    navigation.goBack();
-  };
-
-  // Xử lý tạo đơn nghỉ phép mới
-  const handleCreateNewLeave = () => {
-    showNotification('Mở form tạo đơn nghỉ phép mới');
-    // TODO: Thêm logic điều hướng đến màn hình tạo đơn nghỉ phép
   };
 
   // Xử lý điều hướng đến tính năng
@@ -144,22 +95,9 @@ const LeaveManagementScreen = ({ route }: { route?: { params?: RouteParams } }) 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" />
-      
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerTop}>
-          <TouchableOpacity style={styles.backBtn} onPress={handleGoBack}>
-            <Text style={styles.buttonText}>←</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.addBtn} onPress={handleCreateNewLeave}>
-            <Text style={styles.buttonText}>+</Text>
-          </TouchableOpacity>
-        </View>
-        <View style={styles.headerTitle}>
-          <Text style={styles.headerTitleIcon}>🌴</Text>
-          <Text style={styles.headerTitleText}>Nghỉ Phép</Text>
-        </View>
-      </View>
+    <TopTabBar
+            {...tabBar.topTabBarProps}
+          />
 
       {/* Main Content */}
       <ScrollView 
@@ -167,40 +105,18 @@ const LeaveManagementScreen = ({ route }: { route?: { params?: RouteParams } }) 
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: ss(80) }}
       >
-        {/* Quick Stats */}
-        <View style={styles.quickStats}>
-          <Text style={styles.statsTitle}>Tổng quan nhanh</Text>
-          <View style={styles.statsGrid}>
-            {quickStats.map((stat, index) => (
-              <View key={index} style={styles.statItem}>
-                <Text style={styles.statNumber}>{stat.number}</Text>
-                <Text style={styles.statLabel}>{stat.label}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-
-        {/* Feature Cards */}
+         {/* Feature Cards */}
         {features.map(feature => renderFeatureCard(feature))}
       </ScrollView>
 
-      {/* Floating Action Button */}
-      <TouchableOpacity 
-        style={styles.floatingAction}
-        onPress={handleCreateNewLeave}
-        activeOpacity={0.9}
-      >
-        <View style={styles.fabGradient}>
-          <Text style={styles.fabText}>+</Text>
-        </View>
-      </TouchableOpacity>
+    {/* Bottom Tabs */}
+          <BottomTabBar
+            {...tabBar.bottomTabBarProps}
+          />
 
-      {/* Notification */}
-      {notification && (
-        <View style={styles.notification}>
-          <Text style={styles.notificationText}>{notification}</Text>
-        </View>
-      )}
+          <NavigationSidebarMenu
+                  {...tabBar.sidebarProps}
+                />
     </SafeAreaView>
   );
 };

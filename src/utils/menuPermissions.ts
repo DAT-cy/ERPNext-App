@@ -15,6 +15,10 @@ export interface SubMenuItemDef {
   title: string;
   icon: string | any; // Can be emoji string or require() result for local images
   allowedRoles: string[];
+  description?: string; // Optional description for detailed menu items
+  backgroundColor?: string; // Optional background color for feature cards
+  hasSubItems?: boolean; // Optional for nested submenu
+  subItems?: SubMenuItemDef[]; // Optional nested submenu items
 }
 
 // ========================= ROLE GROUPS =========================
@@ -119,10 +123,87 @@ export const MENU_DEFINITIONS: MenuItemDef[] = [
         id: 'leaves-hr',
         title: 'Nghỉ Phép',
         icon: require('../assets/hr/leaves.png'),
+        hasSubItems: true,
         allowedRoles: [
           ...ROLE_GROUPS.HR_ROLES,
           ...ROLE_GROUPS.ADMIN_ROLES,
           ...ROLE_GROUPS.BASIC_USER
+        ],
+        subItems: [
+          {
+            id: 'apply',
+            title: 'Đơn Xin Nghỉ Phép',
+            icon: '📝',
+            description: 'Tạo đơn xin nghỉ phép mới và theo dõi trạng thái',
+            backgroundColor: '#10b981',
+            allowedRoles: [
+              ...ROLE_GROUPS.HR_ROLES,
+              ...ROLE_GROUPS.EMPLOYEE,
+              ...ROLE_GROUPS.ADMIN_ROLES,
+              ...ROLE_GROUPS.BASIC_USER
+            ]
+          },
+          {
+            id: 'compensatory',
+            title: 'Yêu Cầu Nghỉ Phép Bù',
+            icon: '⏱',
+            description: 'Đăng ký nghỉ bù cho những ngày làm thêm',
+            backgroundColor: '#f59e0b',
+            allowedRoles: [
+              ...ROLE_GROUPS.HR_ROLES,
+              ...ROLE_GROUPS.EMPLOYEE,
+              ...ROLE_GROUPS.ADMIN_ROLES,
+              ...ROLE_GROUPS.BASIC_USER
+            ]
+          },
+          {
+            id: 'allocation',
+            title: 'Nghỉ Phép Hưởng Lương',
+            icon: '💼',
+            description: 'Xem chi tiết ngày phép được hưởng lương',
+            backgroundColor: '#3b82f6',
+            allowedRoles: [
+              ...ROLE_GROUPS.HR_ROLES,
+              ...ROLE_GROUPS.EMPLOYEE,
+              ...ROLE_GROUPS.ADMIN_ROLES,
+              ...ROLE_GROUPS.BASIC_USER
+            ]
+          },
+          {
+            id: 'settings',
+            title: 'Loại Nghỉ Phép',
+            icon: '⚙️',
+            description: 'Cấu hình và quản lý các loại nghỉ phép',
+            backgroundColor: '#8b5cf6',
+            allowedRoles: [
+              ...ROLE_GROUPS.HR_ROLES,
+              ...ROLE_GROUPS.ADMIN_ROLES
+            ]
+          },
+          {
+            id: 'balance',
+            title: 'Số Dư Ngày Phép',
+            icon: '📊',
+            description: 'Báo cáo chi tiết số dư ngày phép cá nhân',
+            backgroundColor: '#ef4444',
+            allowedRoles: [
+              ...ROLE_GROUPS.HR_ROLES,
+              ...ROLE_GROUPS.EMPLOYEE,
+              ...ROLE_GROUPS.ADMIN_ROLES,
+              ...ROLE_GROUPS.BASIC_USER
+            ]
+          },
+          {
+            id: 'summary',
+            title: 'Tóm Tắt Số Dư Nhân Viên',
+            icon: '📈',
+            description: 'Báo cáo tổng hợp cho quản lý nhân sự',
+            backgroundColor: '#06b6d4',
+            allowedRoles: [
+              ...ROLE_GROUPS.HR_ROLES,
+              ...ROLE_GROUPS.ADMIN_ROLES
+            ]
+          }
         ]
       }
     ]
@@ -243,12 +324,13 @@ export const MENU_DEFINITIONS: MenuItemDef[] = [
     ]
   },
 
-
-
-
-
+  // === LeaveFeature ===
   
+
 ];
+
+
+
 
 // ========================= LEGACY COMPATIBILITY =========================
 // Giữ lại cho tương thích với code cũ
@@ -267,16 +349,7 @@ export const SUB_ITEM_PERMISSIONS = MENU_DEFINITIONS.reduce((acc, menu) => {
   return acc;
 }, {} as Record<string, Record<string, string[]>>);
 
-
-
-// ========================= UTILITY FUNCTIONS =========================
-
-/**
- * Kiểm tra user có quyền truy cập menu không
- * @param userRoles - Danh sách roles của user
- * @param menuId - ID của menu cần kiểm tra
- * @returns boolean - true nếu có quyền
- */
+// ========================= PERMISSION CHECK FUNCTIONS =========================
 export function hasMenuAccess(userRoles: string[], menuId: string): boolean {
   if (!userRoles || userRoles.length === 0) {
     return false;
@@ -296,16 +369,18 @@ export function hasMenuAccess(userRoles: string[], menuId: string): boolean {
 }
 
 /**
- * Kiểm tra user có quyền truy cập sub-item không
+ * Kiểm tra user có quyền truy cập sub-item không (hỗ trợ nested submenu)
  * @param userRoles - Danh sách roles của user  
  * @param menuId - ID của menu cha
  * @param subItemId - ID của sub-item
+ * @param nestedSubItemId - ID của nested sub-item (optional)
  * @returns boolean - true nếu có quyền
  */
 export function hasSubItemAccess(
   userRoles: string[],
   menuId: string, 
-  subItemId: string
+  subItemId: string,
+  nestedSubItemId?: string
 ): boolean {
   if (!userRoles || userRoles.length === 0) {
     return false;
@@ -319,6 +394,18 @@ export function hasSubItemAccess(
   const subItem = menuDef.subItems.find(sub => sub.id === subItemId);
   if (!subItem) {
     return false;
+  }
+  
+  // Nếu có nestedSubItemId, kiểm tra nested submenu
+  if (nestedSubItemId && subItem.subItems) {
+    const nestedSubItem = subItem.subItems.find(nested => nested.id === nestedSubItemId);
+    if (!nestedSubItem) {
+      return false;
+    }
+    
+    const hasAccess = userRoles.some(role => nestedSubItem.allowedRoles.includes(role));
+    console.log(`🔐 NestedSubItem ${menuDef.title}.${subItem.title}.${nestedSubItem.title}: User roles [${userRoles.join(', ')}] -> Access: ${hasAccess}`);
+    return hasAccess;
   }
   
   // Kiểm tra có ít nhất 1 role khớp
