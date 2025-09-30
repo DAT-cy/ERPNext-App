@@ -131,7 +131,7 @@ export const MENU_DEFINITIONS: MenuItemDef[] = [
         ],
         subItems: [
           {
-            id: 'apply',
+            id: 'apply-hr',
             title: 'Đơn Xin Nghỉ Phép',
             icon: '📝',
             description: 'Tạo đơn xin nghỉ phép mới và theo dõi trạng thái',

@@ -13,6 +13,7 @@ export enum RouteNames {
   LOGIN = 'Login',
   HOME = 'Home',
   LEAVE_MANAGEMENT = 'LeaveManagement',
+  APPLICATION_LEAVE = 'ApplicationLeave'
 }
 
 /**
@@ -24,6 +25,9 @@ export type RouteParams = {
   [RouteNames.LEAVE_MANAGEMENT]: {
     selectedDate?: string;
     initialTab?: 'pending' | 'approved' | 'rejected';
+  };
+  [RouteNames.APPLICATION_LEAVE]: {
+    leaveId: string;
   };
 };
 
@@ -40,8 +44,9 @@ export const MENU_ROUTE_MAP: Record<string, {
   
   // HR Menu Routes
   'hr:leaves-hr': { routeName: RouteNames.LEAVE_MANAGEMENT },
-  'hr:recruitment': { routeName: RouteNames.LEAVE_MANAGEMENT }, // Giả sử sử dụng LeaveManagement cho demo
-  'hr:performance': { routeName: RouteNames.LEAVE_MANAGEMENT }  // Giả sử sử dụng LeaveManagement cho demo
+  'hr:apply-hr': { routeName: RouteNames.APPLICATION_LEAVE, defaultParams: { leaveId: '' } },
+  // Leave Management Screen feature navigation
+  'leaves-hr:apply-hr': { routeName: RouteNames.APPLICATION_LEAVE, defaultParams: { leaveId: '' } },
 };
 
 class MenuRouter {
@@ -103,6 +108,7 @@ class MenuRouter {
       });
     }
   }
+  
   /**
    * Điều hướng đến màn hình Quản lý nghỉ phép
    * @param params Tham số cho màn hình Quản lý nghỉ phép
@@ -111,6 +117,9 @@ class MenuRouter {
     this.navigate(RouteNames.LEAVE_MANAGEMENT, params);
   }
   
+  navigateToLeaveApplication(leaveId: string): void {
+    this.navigate(RouteNames.APPLICATION_LEAVE, { leaveId });
+  }
   /**
    * Điều hướng đến màn hình nghỉ phép đã duyệt
    */

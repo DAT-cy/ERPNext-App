@@ -13,6 +13,7 @@ import { ss, fs } from '../utils/responsive';
 import { useScreenTabBar } from "../hooks";
 import { BottomTabBar, NavigationSidebarMenu, TopTabBar } from '../components';
 import { MENU_DEFINITIONS, SubMenuItemDef } from '../utils/menuPermissions';
+import menuRouter from '../router/MenuRouter';
 
 interface LeaveFeature extends SubMenuItemDef {
   description: string;
@@ -67,8 +68,15 @@ const LeaveManagementScreen = ({ route }: { route?: { params?: RouteParams } }) 
 
   // Xử lý điều hướng đến tính năng
   const handleNavigateToFeature = (feature: LeaveFeature) => {
-    showNotification(`Đang mở ${feature.title}...`);
-    // TODO: Thêm logic điều hướng đến màn hình tương ứng
+    if (feature.id === 'apply-hr') {
+      showNotification(`Đang mở ${feature.title}...`);
+      const success = menuRouter.navigateByMenuId('leaves-hr', 'apply-hr');
+      if (!success) {
+        showNotification('Không thể mở trang đơn xin nghỉ phép');
+      }
+    } else {
+      showNotification(`Tính năng ${feature.title} đang được phát triển...`);
+    }
   };
 
   // Render card tính năng
