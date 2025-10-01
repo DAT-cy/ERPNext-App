@@ -18,7 +18,7 @@ import {
 import { logoutERP as logout } from '../../services/authService';
 import { useAuth } from '../../hooks/useAuth';
 import { getAccessibleMenus } from '../../utils/menuPermissions';
-import { getInformationEmployee } from '../../services/authService';
+import { getInformationEmployee } from '../../services/checkinService';
 import { InformationUser } from '../../types'; 
 
 const { width } = Dimensions.get('window');

@@ -106,29 +106,7 @@ export async function pingERP(): Promise<{ message: string }> {
   return data;
 }
 
-export async function getInformationEmployee(): Promise<InformationUser> {
 
-  const getCodeNameEmployeeValue = await getCodeNameEmployee();
-  if (!getCodeNameEmployeeValue) {
-    throw new Error("Không thể lấy mã nhân viên từ người dùng đã đăng nhập");
-  }
-  const payload : RoleUserMap = {
-    doctype: "Employee",
-    docname: getCodeNameEmployeeValue,
-    fields: [
-      "employee_name",
-      "company",
-      "department",
-    ]
-  };
-  try {
-    const res = await api.post<{ message: InformationUser }>("/api/method/frappe.client.validate_link", payload);
-    return res.data.message;
-  } catch (error) {
-    console.error("Error fetching employee info:", error);
-    throw error;
-  }
-}
 
 
 

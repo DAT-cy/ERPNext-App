@@ -12,6 +12,10 @@ import {
   Modal,
   Animated,
 } from 'react-native';
+import { InformationUser } from '../types';
+import { getInformationEmployee } from '../services/checkinService';
+import { useApplicationLeave } from '../hooks/useApplicationLeave';
+
 
 interface FormData {
   leaveType: string;
@@ -39,6 +43,37 @@ interface PickerOption {
 }
 
 const ApplicationLeave: React.FC = () => {
+  // Use ApplicationLeave hook
+  const {
+    loading,
+    approvers: apiApprovers,
+    loadApprovers,
+    error
+  } = useApplicationLeave();
+
+  // Fixed approvers data
+  const approvers = [
+    {
+      name: "HR-EMP-00001",
+      employee_name: "Nguyễn Văn Minh",
+      employee: "HR-EMP-00001"
+    },
+    {
+      name: "HR-EMP-00002", 
+      employee_name: "Trần Thị Hương",
+      employee: "HR-EMP-00002"
+    },
+    {
+      name: "HR-EMP-00003",
+      employee_name: "Lê Quang Hải", 
+      employee: "HR-EMP-00003"
+    },
+    {
+      name: "HR-EMP-00004",
+      employee_name: "Phạm Thị Lan",
+      employee: "HR-EMP-00004"
+    }
+  ];
   const [formData, setFormData] = useState<FormData>({
     leaveType: '',
     dateFrom: new Date().toISOString().split('T')[0],
@@ -54,6 +89,10 @@ const ApplicationLeave: React.FC = () => {
   const [showLeaveFormModal, setShowLeaveFormModal] = useState(false);
   const [showApproverModal, setShowApproverModal] = useState(false);
   const [fadeAnim] = useState(new Animated.Value(0));
+  const [getInfor , setInfor] = useState<InformationUser | undefined>();
+
+
+  
 
   const leaveTypeOptions: PickerOption[] = [
     { label: 'Nghỉ phép năm', value: 'annual' },
@@ -83,6 +122,20 @@ const ApplicationLeave: React.FC = () => {
       useNativeDriver: true,
     }).start();
   }, []);
+  useEffect(() => {
+    const fetchEmployeeInfo = async () => {
+      const info = await getInformationEmployee();
+      setInfor(info);
+    };
+    fetchEmployeeInfo();
+  }, []);
+  // Debug: Log fixed approvers data
+  useEffect(() => {
+    console.log('🔍 Fixed Approvers data:', approvers);
+    console.log('🔍 Approvers type:', typeof approvers);
+    console.log('🔍 Is array:', Array.isArray(approvers));
+  }, []);
+
 
   const validateField = (field: keyof FormData, value: any): boolean => {
     const newErrors = { ...errors };
@@ -136,6 +189,26 @@ const ApplicationLeave: React.FC = () => {
     }
 
     return isValid;
+  };
+
+  
+   const getApproverLabel = (approvers: any, selectedId: string | null) => {
+    if (!approvers || !selectedId) {
+      return '';
+    }
+    
+    // Handle case where approvers is an array
+    if (Array.isArray(approvers)) {
+      const approver = approvers.find((app) => app.name === selectedId);
+      return approver ? `${approver.employee_name} (${approver.name})` : '';
+    }
+    
+    // Handle case where approvers is a single object or has message property
+    if (approvers.message === selectedId) {
+      return approvers.message;
+    }
+    
+    return '';
   };
 
   const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
@@ -242,10 +315,10 @@ const ApplicationLeave: React.FC = () => {
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <Animated.View style={[styles.formContainer, { opacity: fadeAnim }]}>
           {/* Leave Balance */}
-          <View style={styles.leaveBalance}>
+          {/* <View style={styles.leaveBalance}>
             <Text style={styles.balanceNumber}>12</Text>
             <Text style={styles.balanceLabel}>Ngày phép còn lại</Text>
-          </View>
+          </View> */}
 
           {/* Personal Information Section */}
           <View style={styles.formSection}>
@@ -253,16 +326,16 @@ const ApplicationLeave: React.FC = () => {
             
             <View style={styles.infoCard}>
               <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Mã đơn:</Text>
-                <Text style={styles.infoValue}>HR-LAP-2024-001</Text>
+                <Text style={styles.infoLabel}>Mã số:</Text>
+                <Text style={styles.infoValue}>HR-LAP-.YYYY.</Text>
               </View>
               <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>Nhân viên:</Text>
-                <Text style={styles.infoValue}>Nguyễn Văn An (HR-EMP-00115)</Text>
+                <Text style={styles.infoValue}>{getInfor?.employee_name}</Text>
               </View>
               <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>Công ty:</Text>
-                <Text style={styles.infoValue}>Công ty TNHH ABC</Text>
+                <Text style={styles.infoValue}>{getInfor?.company}</Text>
               </View>
             </View>
           </View>
@@ -384,7 +457,7 @@ const ApplicationLeave: React.FC = () => {
                   styles.selectText, 
                   !formData.approver && styles.placeholderText
                 ]}>
-                  {getOptionLabel(approverOptions, formData.approver) || 'Chọn người phê duyệt'}
+                  {getApproverLabel(approvers, formData.approver) || 'Chọn người phê duyệt'}
                 </Text>
                 <Text style={styles.selectArrow}>▼</Text>
               </TouchableOpacity>
@@ -452,7 +525,14 @@ const ApplicationLeave: React.FC = () => {
 
       {renderCustomPicker(
         'Chọn người phê duyệt',
-        approverOptions,
+        Array.isArray(approvers) 
+          ? approvers.map(approver => ({
+              label: `${approver.employee_name} (${approver.name})`,
+              value: approver.name
+            }))
+          : (approvers as any)?.message 
+            ? [{ label: (approvers as any).message, value: (approvers as any).message }]
+            : [],
         formData.approver,
         (value) => {
           setFormData({ ...formData, approver: value });

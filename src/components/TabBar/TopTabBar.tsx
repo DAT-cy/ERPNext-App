@@ -1,6 +1,8 @@
 // shared/components/TopTabBar.tsx
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { fs, ss } from '../../utils/responsive';
+import { useResponsiveTopTabBar } from '../../hooks/useResponsiveTopTabBar';
 
 export interface TopTabItem {
   key: string;
@@ -20,33 +22,80 @@ export default function TopTabBar({
   onTabPress,
   onMenuPress,
 }: TopTabBarProps) {
+  // Use responsive hook
+  const config = useResponsiveTopTabBar(tabs.length);
+
+  const renderTabs = () => {
+    const tabComponents = tabs.map((tab) => (
+      <TouchableOpacity
+        key={tab.key}
+        style={[
+          styles.tab,
+          {
+            paddingVertical: ss(config.verticalPadding),
+            paddingHorizontal: ss(config.horizontalPadding),
+          },
+          config.shouldUseScrollable && { minWidth: config.tabMinWidth },
+          activeTab === tab.key && styles.activeTab
+        ]}
+        onPress={() => onTabPress(tab.key)}
+      >
+        <Text
+          style={[
+            styles.tabText,
+            { fontSize: fs(config.fontSize) },
+            activeTab === tab.key && styles.activeTabText,
+          ]}
+          numberOfLines={1}
+          ellipsizeMode="tail"
+        >
+          {tab.title}
+        </Text>
+      </TouchableOpacity>
+    ));
+
+    if (config.shouldUseScrollable) {
+      return (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.scrollContainer}
+          contentContainerStyle={styles.scrollContent}
+        >
+          {tabComponents}
+        </ScrollView>
+      );
+    }
+
+    return (
+      <View style={styles.tabsContainer}>
+        {tabComponents}
+      </View>
+    );
+  };
+
   return (
-    <View style={styles.container}>
+    <View style={[
+      styles.container, 
+      { paddingHorizontal: config.containerPadding }
+    ]}>
       {onMenuPress && (
-        <TouchableOpacity style={styles.menuButton} onPress={onMenuPress}>
-          <Text style={styles.menuIcon}>☰</Text>
+        <TouchableOpacity 
+          style={[
+            styles.menuButton, 
+            { marginTop: config.menuTopMargin }
+          ]} 
+          onPress={onMenuPress}
+        >
+          <Text style={[
+            styles.menuIcon,
+            { fontSize: fs(config.iconSize) }
+          ]}>☰</Text>
         </TouchableOpacity>
       )}
 
       {/* Tabs */}
-      <View style={styles.tabsContainer}>
-        {tabs.map((tab) => (
-          <TouchableOpacity
-            key={tab.key}
-            style={[styles.tab, activeTab === tab.key && styles.activeTab]}
-            onPress={() => onTabPress(tab.key)}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                activeTab === tab.key && styles.activeTabText,
-              ]}
-            >
-              {tab.title}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+      {renderTabs()}
     </View>
   );
 }
@@ -58,34 +107,45 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,
     borderBottomColor: '#E0E0E0',
-    paddingHorizontal: 40,
-    paddingVertical: 10,
+    paddingVertical: ss(3),
+    // paddingHorizontal được set dynamic trong component
   },
   menuButton: {
-    padding: 10,
+    padding: ss(2),
+    marginLeft: ss(25),
+    // marginTop và fontSize được set dynamic trong component
   },
   menuIcon: {
-    fontSize: 25,
     color: '#333333',
+    // fontSize được set dynamic trong component
   },
   tabsContainer: {
     flex: 1,
     flexDirection: 'row',
   },
+  scrollContainer: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingRight: ss(16), // Extra padding for last item
+  },
   tab: {
     flex: 1,
-    paddingVertical: 20,
     alignItems: 'center',
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
+    // padding và minWidth được set dynamic trong component
   },
   activeTab: {
     borderBottomColor: '#007AFF',
   },
   tabText: {
-    fontSize: 20,
     fontWeight: '500',
     color: '#666666',
+    textAlign: 'center',
+    // fontSize được set dynamic trong component
   },
   activeTabText: {
     color: '#007AFF',

@@ -14,6 +14,7 @@ import { useScreenTabBar } from "../hooks";
 import { BottomTabBar, NavigationSidebarMenu, TopTabBar } from '../components';
 import { MENU_DEFINITIONS, SubMenuItemDef } from '../utils/menuPermissions';
 import menuRouter from '../router/MenuRouter';
+import { getCodeNameEmployee, getInformationEmployee } from '../services/checkinService';
 
 interface LeaveFeature extends SubMenuItemDef {
   description: string;
@@ -56,6 +57,20 @@ const LeaveManagementScreen = ({ route }: { route?: { params?: RouteParams } }) 
     features.forEach(feature => {
       console.log(`  - ${feature.title} (${feature.backgroundColor})`);
     });
+  }, []);
+
+  React.useEffect(() => {
+    const testIn4 = async () => {
+      console.log('🧪 Testing getCodeNameEmployee function...');
+      try {
+        const result = await getInformationEmployee();
+        console.log('🎉 getCodeNameEmployee result:', result);
+      } catch (error) {
+        console.error('💥 getCodeNameEmployee error:', error);
+      }
+    };
+
+    testIn4();
   }, []);
 
   // Xử lý hiển thị thông báo
