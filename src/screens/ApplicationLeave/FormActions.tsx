@@ -5,16 +5,29 @@ interface FormActionsProps {
   onCancel: () => void;
   onSubmit: () => void;
   onSaveDraft: () => void;
+  loading?: boolean;
 }
 
-const FormActions: React.FC<FormActionsProps> = ({ onCancel, onSubmit, onSaveDraft }) => {
+const FormActions: React.FC<FormActionsProps> = ({ onCancel, onSubmit, onSaveDraft, loading = false }) => {
   return (
     <View style={styles.formActions}>
-      <TouchableOpacity style={styles.btnSecondary} onPress={onCancel}>
-        <Text style={styles.btnSecondaryText}>❌ Hủy</Text>
+      <TouchableOpacity 
+        style={[styles.btnSecondary, loading && styles.btnDisabled]} 
+        onPress={onCancel}
+        disabled={loading}
+      >
+        <Text style={[styles.btnSecondaryText, loading && styles.btnDisabledText]}>
+          ❌ Hủy
+        </Text>
       </TouchableOpacity>
-      <TouchableOpacity style={styles.btnPrimary} onPress={onSubmit}>
-        <Text style={styles.btnPrimaryText}>📤 Gửi đơn</Text>
+      <TouchableOpacity 
+        style={[styles.btnPrimary, loading && styles.btnDisabled]} 
+        onPress={onSubmit}
+        disabled={loading}
+      >
+        <Text style={[styles.btnPrimaryText, loading && styles.btnDisabledText]}>
+          {loading ? '⏳ Đang gửi...' : '📤 Gửi đơn'}
+        </Text>
       </TouchableOpacity>
     </View>
   );
@@ -59,6 +72,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: 'white',
+  },
+  btnDisabled: {
+    backgroundColor: '#e5e7eb',
+    opacity: 0.6,
+  },
+  btnDisabledText: {
+    color: '#9ca3af',
   },
 });
 

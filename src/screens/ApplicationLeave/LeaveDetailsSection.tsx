@@ -11,6 +11,7 @@ interface LeaveDetailsProps {
     reason: string;
     leaveDuration: string; // '0' = cả ngày, '1' = nửa ngày
     halfDayType?: string; // 'morning' | 'afternoon' | 'custom'
+    halfDayDate?: string; // Ngày cụ thể cho nửa ngày
     timeFrom?: string;
     timeTo?: string;
   };
@@ -21,6 +22,7 @@ interface LeaveDetailsProps {
     reason?: string;
     leaveDuration?: string;
     halfDayType?: string;
+    halfDayDate?: string;
     timeFrom?: string;
     timeTo?: string;
     [key: string]: string | undefined;
@@ -69,10 +71,30 @@ const LeaveDetailsSection: React.FC<LeaveDetailsProps> = ({
     // Reset half day fields when switching to full day
     if (value === '0') {
       onChangeFormData('halfDayType', '');
+      onChangeFormData('halfDayDate', '');
       onChangeFormData('timeFrom', '');
       onChangeFormData('timeTo', '');
+    } else if (value === '1') {
+      // When switching to half day, auto-set halfDayDate if date range is single day
+      if (formData.dateFrom && formData.dateTo && formData.dateFrom === formData.dateTo) {
+        onChangeFormData('halfDayDate', formData.dateFrom);
+      } else if (formData.dateFrom && !formData.dateTo) {
+        // If only dateFrom is set, use it as default halfDayDate
+        onChangeFormData('halfDayDate', formData.dateFrom);
+      }
     }
-  }, [onChangeFormData, validateField]);
+  }, [onChangeFormData, validateField, formData.dateFrom, formData.dateTo]);
+
+  // Function to check if half day date is valid
+  const isValidHalfDayDate = useCallback((date: string): boolean => {
+    if (!formData.dateFrom || !formData.dateTo || !date) return true;
+    
+    const halfDayDate = new Date(date);
+    const fromDate = new Date(formData.dateFrom);
+    const toDate = new Date(formData.dateTo);
+    
+    return halfDayDate >= fromDate && halfDayDate <= toDate;
+  }, [formData.dateFrom, formData.dateTo]);
 
   // Professional PanResponder for textarea resizing
   const panResponder = useMemo(() => PanResponder.create({
@@ -178,27 +200,32 @@ const LeaveDetailsSection: React.FC<LeaveDetailsProps> = ({
 
       {/* Half Day Options */}
       {formData.leaveDuration === '1' && (
-        <FormField 
-          label="Loại nửa ngày" 
-          required 
-          error={errors.halfDayType}
-        >
-          <SelectInput
-            options={[
-              { label: 'Sáng (08:00 - 12:00)', value: 'morning' },
-              { label: 'Chiều (13:00 - 17:30)', value: 'afternoon' },
-              { label: 'Tùy chỉnh', value: 'custom' }
-            ]}
-            value={formData.halfDayType || ''}
-            onChange={(value: string) => {
-              onChangeFormData('halfDayType', value);
-              validateField('halfDayType', value);
-            }}
-            placeholder="Chọn loại nửa ngày"
-            hasError={!!errors.halfDayType}
-            title="Chọn loại nửa ngày"
-          />
-        </FormField>
+        <>
+          {/* Half Day Date Selection */}
+          <View>
+            <SimpleDateSelector
+              label="Chọn ngày nghỉ nửa ngày"
+              value={formData.halfDayDate || ''}
+              onChange={(date: string) => {
+                onChangeFormData('halfDayDate', date);
+                validateField('halfDayDate', date);
+              }}
+              placeholder="YYYY-MM-DD"
+              error={errors.halfDayDate}
+              required
+              minDate={formData.dateFrom}
+              maxDate={formData.dateTo}
+            />
+            <Text style={styles.helpText}>
+              {formData.dateFrom && formData.dateTo 
+                ? `💡 Chọn ngày cụ thể trong khoảng từ ngày bắt đầu đến ngày kết thúc để nghỉ nửa ngày`
+                : formData.dateFrom 
+                ? `💡 Vui lòng nhập "Đến ngày" trước để xác định khoảng thời gian`
+                : `💡 Vui lòng nhập "Từ ngày" và "Đến ngày" trước để chọn ngày nghỉ nửa ngày`
+              }
+            </Text>
+          </View>
+        </>
       )}
 
       {/* Custom Time Range */}
@@ -376,6 +403,13 @@ const styles = StyleSheet.create({
   },
   timeInputError: {
     borderColor: '#EF4444',
+  },
+  helpText: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontStyle: 'italic',
+    marginTop: 4,
+    paddingHorizontal: 4,
   },
 });
 

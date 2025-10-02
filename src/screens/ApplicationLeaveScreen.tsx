@@ -11,15 +11,15 @@ import { InformationUser } from '../types';
 import { getInformationEmployee  } from '../services/checkinService';
 import { useApplicationLeave } from '../hooks/useApplicationLeave';
 import { SelectOption } from '../components';
+import { saveLeaveApplication } from '../services/applicationLeave';
+import { SaveLeaveApplicationPayload } from '../types/applicationLeave.types';
 // Import các components đã tách
 import PersonalInfoSection from './ApplicationLeave/PersonalInfoSection';
 import LeaveDetailsSection from './ApplicationLeave/LeaveDetailsSection';
 import ApprovalSection from './ApplicationLeave/ApprovalSection';
 import FormActions from './ApplicationLeave/FormActions';
 import Header from './ApplicationLeave/Header';
-
-import { formatDisplayDate } from '../utils';
-
+// Local interfaces
 interface FormData {
   leaveType: string;
   dateFrom: string;
@@ -30,9 +30,10 @@ interface FormData {
   approverName: string;
   recordDate: string;
   leaveDuration: string; // '0' = cả ngày, '1' = nửa ngày
-  halfDayType?: string;
-  timeFrom?: string;
-  timeTo?: string;
+  halfDayType: string;
+  halfDayDate: string; // Ngày cụ thể cho nửa ngày
+  timeFrom: string;
+  timeTo: string;
 }
 
 interface FormErrors {
@@ -45,6 +46,7 @@ interface FormErrors {
   recordDate?: string;
   leaveDuration?: string;
   halfDayType?: string;
+  halfDayDate?: string;
   timeFrom?: string;
   timeTo?: string;
   [key: string]: string | undefined;
@@ -73,6 +75,7 @@ const ApplicationLeave: React.FC = () => {
     recordDate: new Date().toLocaleDateString('vi-VN'), // Mặc định ngày hiện tại
     leaveDuration: '0', // Mặc định cả ngày (0)
     halfDayType: '',
+    halfDayDate: '', // Ngày cụ thể cho nửa ngày
     timeFrom: '',
     timeTo: '',
   });
@@ -81,6 +84,7 @@ const ApplicationLeave: React.FC = () => {
   const [fadeAnim] = useState(new Animated.Value(0));
   const [userInfo, setUserInfo] = useState<InformationUser | undefined>();
   const [approverText, setApproverText] = useState<string>('');
+  const [submitting, setSubmitting] = useState(false);
 
   const [leaveTypeOptions, setLeaveTypeOptions] = useState<SelectOption[]>([]);
 
@@ -169,6 +173,25 @@ const ApplicationLeave: React.FC = () => {
           return false;
         }
         break;
+      case 'halfDayDate':
+        if (formData.leaveDuration === '1' && (!value || value === '')) {
+          newErrors[field] = 'Vui lòng chọn ngày nghỉ nửa ngày';
+          setErrors(newErrors);
+          return false;
+        }
+        // Validate date is within the range from dateFrom to dateTo
+        if (value && formData.dateFrom && formData.dateTo) {
+          const halfDayDate = new Date(value);
+          const fromDate = new Date(formData.dateFrom);
+          const toDate = new Date(formData.dateTo);
+          
+          if (halfDayDate < fromDate || halfDayDate > toDate) {
+            newErrors[field] = 'Ngày nghỉ nửa ngày phải nằm trong khoảng từ ngày đến ngày';
+            setErrors(newErrors);
+            return false;
+          }
+        }
+        break;
       case 'timeFrom':
       case 'timeTo':
         if (formData.halfDayType === 'custom' && (!value || value === '')) {
@@ -206,32 +229,66 @@ const ApplicationLeave: React.FC = () => {
     return true;
   };
 
-  // Form validation
+  // Form validation - CHỈ VALIDATE CÁC FIELD CẦN THIẾT CHO API
   const validateForm = (): boolean => {
+    console.log('🔍 Validating form with data:', formData);
+    
+    // CHỈ VALIDATE CÁC FIELD TRONG SaveLeaveApplicationPayload
     let fields: (keyof FormData)[] = [
-      'leaveType', 'dateFrom', 'dateTo', 'reason', 'approver',
-      'approverName', 'recordDate', 'leaveDuration'
+      'leaveType',    // -> leave_type
+      'dateFrom',     // -> from_date  
+      'dateTo',       // -> to_date
+      'reason',       // -> description
+      'leaveDuration' // -> half_day (0 hoặc 1)
     ];
     
-    // Add conditional fields based on selection
+    // Nếu chọn nửa ngày, cần thêm halfDayDate
     if (formData.leaveDuration === '1') { // Nửa ngày
-      fields.push('halfDayType');
-      if (formData.halfDayType === 'custom') {
-        fields.push('timeFrom', 'timeTo');
-      }
+      fields.push('halfDayDate'); // -> half_day_date
     }
+    
+    console.log('📋 Fields to validate for API:', fields);
     let isValid = true;
+    const failedFields: string[] = [];
 
+    // Validate từng field
     fields.forEach(field => {
-      if (!validateField(field, formData[field])) {
+      const fieldValue = formData[field];
+      console.log(`🔎 Checking field "${field}":`, fieldValue);
+      
+      // Kiểm tra field bắt buộc
+      if (!fieldValue || (typeof fieldValue === 'string' && fieldValue.trim() === '')) {
+        console.log(`❌ Field "${field}" is empty or invalid`);
         isValid = false;
+        failedFields.push(field);
       }
     });
-
+    
     // Validate date range
     if (formData.dateFrom && formData.dateTo && new Date(formData.dateFrom) > new Date(formData.dateTo)) {
-      showNotification('Ngày kết thúc phải sau ngày bắt đầu', 'error');
+      console.log('❌ Date range validation failed');
       isValid = false;
+      failedFields.push('dateRange');
+    }
+    
+    if (!isValid) {
+      console.log('❌ Validation failed for API fields:', failedFields);
+      
+      // Map field names to Vietnamese
+      const fieldNames: { [key: string]: string } = {
+        'leaveType': 'Loại nghỉ phép',
+        'dateFrom': 'Từ ngày',
+        'dateTo': 'Đến ngày',
+        'reason': 'Lý do nghỉ phép',
+        'leaveDuration': 'Thời lượng nghỉ',
+        'halfDayDate': 'Ngày nghỉ nửa ngày',
+        'dateRange': 'Khoảng thời gian (Đến ngày phải sau Từ ngày)'
+      };
+      
+      const missingFieldsVN = failedFields.map(field => fieldNames[field] || field).join(', ');
+      showNotification(`Vui lòng điền đầy đủ thông tin: ${missingFieldsVN}`, 'error');
+    } else {
+      console.log('✅ API validation passed');
     }
 
     return isValid;
@@ -246,11 +303,68 @@ const ApplicationLeave: React.FC = () => {
   };
 
   // Handle form submission
-  const handleSubmit = () => {
-    if (validateForm()) {
-      showNotification('Đơn xin nghỉ phép đã được gửi thành công! ✅', 'success');
-    } else {
+  const handleSubmit = async () => {
+    if (!validateForm()) {
       showNotification('Vui lòng điền đầy đủ thông tin bắt buộc', 'error');
+      return;
+    }
+
+    if (!userInfo?.name) {
+      showNotification('Không tìm thấy thông tin nhân viên', 'error');
+      return;
+    }
+
+    setSubmitting(true);
+    
+    try {
+      // Chuẩn bị payload theo yêu cầu
+      const payload: SaveLeaveApplicationPayload = {
+        employee: userInfo.name,
+        leave_type: formData.leaveType,
+        from_date: formData.dateFrom,
+        to_date: formData.dateTo,
+        half_day: formData.leaveDuration === '1' ? 1 : 0, // Nửa ngày = 1, cả ngày = 0
+        half_day_date: formData.halfDayDate || '',
+        description: formData.reason,
+        doctype: 'Leave Application',
+        web_form_name: 'leave-application'
+      };
+
+      console.log('🚀 Submitting leave application with payload:', payload);
+      console.log('👤 User Info:', userInfo);
+      console.log('📋 Form Data:', formData);
+      
+      const result = await saveLeaveApplication(payload);
+      
+      console.log('✅ Leave application submitted successfully:', result);
+      showNotification('Đơn xin nghỉ phép đã được gửi thành công! ✅', 'success');
+      
+      // Reset form sau khi submit thành công
+      setFormData({
+        leaveType: '',
+        dateFrom: new Date().toISOString().split('T')[0],
+        dateTo: '',
+        reason: '',
+        approver: '',
+        emailNotify: false,
+        approverName: '',
+        recordDate: new Date().toLocaleDateString('vi-VN'),
+        leaveDuration: '0',
+        halfDayType: '',
+        halfDayDate: '',
+        timeFrom: '',
+        timeTo: '',
+      });
+      setErrors({});
+      
+    } catch (error) {
+      console.error('❌ Error submitting leave application:', error);
+      showNotification(
+        'Có lỗi xảy ra khi gửi đơn xin nghỉ phép. Vui lòng thử lại.',
+        'error'
+      );
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -329,6 +443,7 @@ const ApplicationLeave: React.FC = () => {
         onCancel={handleCancel}
         onSubmit={handleSubmit}
         onSaveDraft={handleSaveDraft}
+        loading={loading || submitting}
       />
     </View>
   );

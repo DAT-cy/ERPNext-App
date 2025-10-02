@@ -7,35 +7,9 @@ import {
   ApplicationLeaveErrorCode 
 } from "../utils/error/applicationLeave";
 import { InformationUser, RoleUserMap } from "../types";
+import { LeaveApplication, LeaveApprover, SaveLeaveApplicationPayload } from "../types/applicationLeave.types";
 
-// Types cho Leave Application
-export interface LeaveApprover {
-  name: string;
-  employee_name: string;
-  employee: string;
-}
 
-export interface LeaveApplication {
-  employee: string;
-  leave_type: string;
-  from_date: string;
-  to_date: string;
-  total_leave_days: number;
-  description?: string;
-  leave_approver?: string;
-}
-
-export interface SaveLeaveApplicationPayload {
-  employee: string;
-  leave_type: string;
-  from_date: string;
-  to_date: number;
-  half_day: number;
-  half_day_date: string;
-  description: string;
-  doctype: string;
-  web_form_name: string;
-}
 
 /**
  * Lấy danh sách người phê duyệt nghỉ phép
@@ -241,7 +215,8 @@ export async function getCodeNameEmployee1(email: string): Promise<string | null
  * API này cho phép tạo mới hoặc cập nhật đơn xin nghỉ phép
  */
 export async function saveLeaveApplication(payload: SaveLeaveApplicationPayload): Promise<any> {
-    console.log('🔄 [saveLeaveApplication] Starting function with payload:', payload);
+    console.log('🔄 [saveLeaveApplication] Starting function');
+    console.log('📥 [saveLeaveApplication] Input payload:', JSON.stringify(payload, null, 2));
     
     try {
         // Chuẩn bị dữ liệu để gửi đi dưới dạng x-www-form-urlencoded
@@ -251,12 +226,41 @@ export async function saveLeaveApplication(payload: SaveLeaveApplicationPayload)
         formData.append('for_payment', 'false');
         formData.append('cmd', 'frappe.website.doctype.web_form.web_form.accept');
         
+        console.log('📤 [saveLeaveApplication] Form data being sent:');
+        console.log('  - data:', JSON.stringify(payload));
+        console.log('  - web_form: leave-application');
+        console.log('  - for_payment: false');
+        console.log('  - cmd: frappe.website.doctype.web_form.web_form.accept');
+        console.log('📡 [saveLeaveApplication] Full formData toString:', formData.toString());
+        
         // Gửi yêu cầu POST
-        const res = await api.post("/api/method/frappe.desk.form.save.savedocs", formData)
-        console.log('✅ [saveLeaveApplication] Response:', JSON.stringify(res.data, null, 2));
+        console.log('🚀 [saveLeaveApplication] Sending POST request to "/"');
+        const res = await api.post("/", formData, {
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            }
+        });
+        
+        console.log('✅ [saveLeaveApplication] Response status:', res.status);
+        console.log('✅ [saveLeaveApplication] Response headers:', res.headers);
+        console.log('✅ [saveLeaveApplication] Response data:', JSON.stringify(res.data, null, 2));
         return res.data || {};
-    } catch (error) {
-        console.error("❌ [saveLeaveApplication] Error:", error);
+    } catch (error: any) {
+        console.error("❌ [saveLeaveApplication] Error occurred:");
+        console.error("❌ [saveLeaveApplication] Error message:", error.message);
+        console.error("❌ [saveLeaveApplication] Error stack:", error.stack);
+        
+        if (error.response) {
+            console.error("❌ [saveLeaveApplication] Response status:", error.response.status);
+            console.error("❌ [saveLeaveApplication] Response statusText:", error.response.statusText);
+            console.error("❌ [saveLeaveApplication] Response headers:", error.response.headers);
+            console.error("❌ [saveLeaveApplication] Response data:", JSON.stringify(error.response.data, null, 2));
+        } else if (error.request) {
+            console.error("❌ [saveLeaveApplication] Request was made but no response:", error.request);
+        } else {
+            console.error("❌ [saveLeaveApplication] Error setting up request:", error.message);
+        }
+        
         throw error;
     }
 }

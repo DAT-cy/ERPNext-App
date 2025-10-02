@@ -18,6 +18,7 @@ const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({ userInfo }) =
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>Nhân viên:</Text>
           <Text style={styles.infoValue}>{userInfo?.employee_name || 'N/A'}</Text>
+          <Text style={styles.infoValue}>{userInfo?.name || 'N/A'}</Text>
         </View>
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>Công ty:</Text>

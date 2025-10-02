@@ -5,9 +5,8 @@ import {
   TouchableOpacity, 
   TextInput, 
   StyleSheet,
-  Platform
 } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import Calendar from './Calendar';
 
 interface SimpleDateSelectorProps {
   label: string;
@@ -16,6 +15,8 @@ interface SimpleDateSelectorProps {
   placeholder?: string;
   error?: string;
   required?: boolean;
+  minDate?: string; // Ngày tối thiểu có thể chọn
+  maxDate?: string; // Ngày tối đa có thể chọn
 }
 
 const SimpleDateSelector: React.FC<SimpleDateSelectorProps> = ({
@@ -25,88 +26,112 @@ const SimpleDateSelector: React.FC<SimpleDateSelectorProps> = ({
   placeholder = 'DD/MM/YYYY',
   error,
   required = false,
+  minDate,
+  maxDate,
 }) => {
-  const [showPicker, setShowPicker] = useState(false);
-
-  const parseDate = (dateString: string): Date => {
-    if (!dateString) return new Date();
-    
-    try {
-      if (dateString.includes('-')) {
-        const [year, month, day] = dateString.split('-').map(Number);
-        return new Date(year, month - 1, day);
-      }
-      return new Date();
-    } catch {
-      return new Date();
-    }
-  };
-
-  const formatDate = (date: Date): string => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
-
-  const formatDisplayDate = (dateString: string): string => {
-    if (!dateString) return '';
-    
-    try {
-      if (dateString.includes('-')) {
-        const [year, month, day] = dateString.split('-');
-        return `${day}/${month}/${year}`;
-      }
-      return dateString;
-    } catch {
-      return dateString;
-    }
-  };
-
-  const onDateChange = (event: any, selectedDate?: Date) => {
-    setShowPicker(false);
-
-    if (event.type === 'set' && selectedDate) {
-      const formattedDate = formatDate(selectedDate);
-      onChange(formattedDate);
-    }
-  };
+  const [showCalendar, setShowCalendar] = useState(false);
 
   const showDatePicker = () => {
-    console.log('Show date picker clicked');
-    setShowPicker(true);
+    console.log('🗓️ Opening beautiful calendar');
+    setShowCalendar(true);
+  };
+
+  const onDateSelect = (date: string) => {
+    console.log('✅ Date selected from calendar:', date);
+    onChange(date);
+    setShowCalendar(false);
+  };
+
+  const onCalendarClose = () => {
+    console.log('� Calendar closed');
+    setShowCalendar(false);
   };
 
   const handleTextInput = (text: string) => {
     console.log('Input text:', text);
     
-    // Auto format khi người dùng nhập
-    if (text.length === 8 && !text.includes('-') && !text.includes('/')) {
-      // Format YYYYMMDD -> YYYY-MM-DD
-      const year = text.substring(0, 4);
-      const month = text.substring(4, 6);
-      const day = text.substring(6, 8);
-      const formatted = `${year}-${month}-${day}`;
-      console.log('Formatted YYYYMMDD:', formatted);
-      onChange(formatted);
-    } else if (text.includes('/')) {
-      // Convert DD/MM/YYYY -> YYYY-MM-DD
-      const parts = text.split('/');
-      if (parts.length === 3) {
-        const [day, month, year] = parts;
-        if (day && month && year && year.length === 4) {
-          const formatted = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-          console.log('Formatted DD/MM/YYYY:', formatted);
-          onChange(formatted);
-          return;
-        }
-      }
-      // Nếu chưa đầy đủ thông tin, giữ nguyên text
-      onChange(text);
-    } else {
-      // Cho phép nhập trực tiếp YYYY-MM-DD hoặc text bất kỳ
-      onChange(text);
+    const formattedDate = formatDateInput(text);
+    onChange(formattedDate);
+  };
+  /**
+   * Tự động format ngày thành yyyy-mm-dd cho lưu trữ dữ liệu
+   * Hỗ trợ các định dạng: dd/mm/yyyy, dd-mm-yyyy, dd.mm.yyyy, ddmmyyyy
+   * Trả về yyyy-mm-dd khi đầy đủ thông tin, ngược lại trả về dạng hiển thị
+   */
+  const formatDateInput = (input: string): string => {
+    // Nếu đã đúng format yyyy-mm-dd thì giữ nguyên
+    if (/^\d{4}-\d{2}-\d{2}$/.test(input)) {
+      return input;
     }
+    
+    // Xóa tất cả ký tự không phải số
+    const numbersOnly = input.replace(/\D/g, '');
+    
+    // Nếu không có số nào thì trả về rỗng
+    if (!numbersOnly) return '';
+    
+    const length = numbersOnly.length;
+    
+    if (length <= 2) {
+      // Chỉ có ngày: 01, 15 -> hiển thị 01, 15
+      return numbersOnly;
+    } else if (length <= 4) {
+      // Ngày + tháng: 0115, 1503 -> hiển thị 01/15, 15/03
+      const day = numbersOnly.slice(0, 2);
+      const month = numbersOnly.slice(2, 4);
+      return `${day}/${month}`;
+    } else if (length <= 6) {
+      // Ngày + tháng + một phần năm: 011524 -> hiển thị 01/15/24
+      const day = numbersOnly.slice(0, 2);
+      const month = numbersOnly.slice(2, 4);
+      const year = numbersOnly.slice(4, 6);
+      return `${day}/${month}/${year}`;
+    } else if (length === 7) {
+      // 7 số - có thể là ddmmyyy -> hiển thị dd/mm/yyy
+      const day = numbersOnly.slice(0, 2);
+      const month = numbersOnly.slice(2, 4);
+      const year = numbersOnly.slice(4, 7);
+      return `${day}/${month}/${year}`;
+    } else if (length >= 8) {
+      // Đầy đủ 8 số trở lên: ddmmyyyy
+      const day = numbersOnly.slice(0, 2);
+      const month = numbersOnly.slice(2, 4);
+      const year = numbersOnly.slice(4, 8);
+      
+      // Validate ngày
+      const dayNum = parseInt(day);
+      const monthNum = parseInt(month);
+      const yearNum = parseInt(year);
+      
+      // Validate date ranges
+      if (dayNum >= 1 && dayNum <= 31 && 
+          monthNum >= 1 && monthNum <= 12 && 
+          yearNum >= 1900 && yearNum <= 2100) {
+        // QUAN TRỌNG: Trả về yyyy-mm-dd cho lưu trữ dữ liệu
+        return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+      }
+      
+      // Nếu không hợp lệ, hiển thị dạng dd/mm/yyyy
+      return `${day}/${month}/${year}`;
+    }
+    
+    return input;
+  };
+
+  /**
+   * Chuyển đổi từ yyyy-mm-dd sang dd/MM/yyyy để hiển thị
+   */
+  const getDisplayValue = (): string => {
+    if (!value) return '';
+    
+    // Nếu đã ở dạng yyyy-mm-dd, convert sang dd/MM/yyyy
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      const [year, month, day] = value.split('-');
+      return `${day}/${month}/${year}`;
+    }
+    
+    // Nếu không phải yyyy-mm-dd, có thể đang trong quá trình nhập
+    return value;
   };
 
   return (
@@ -120,15 +145,18 @@ const SimpleDateSelector: React.FC<SimpleDateSelectorProps> = ({
         <View style={[styles.inputRow, error && styles.inputError]}>
           <TextInput
             style={styles.inputText}
-            value={value}
+            value={getDisplayValue()}
             onChangeText={handleTextInput}
-            placeholder="YYYY-MM-DD"
+            placeholder={placeholder}
             placeholderTextColor="#9CA3AF"
+            keyboardType="numeric"
           />
           <TouchableOpacity 
             style={styles.iconButton}
             onPress={showDatePicker}
             activeOpacity={0.7}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            testID="calendarButton"
           >
             <Text style={styles.icon}>📅</Text>
           </TouchableOpacity>
@@ -137,15 +165,15 @@ const SimpleDateSelector: React.FC<SimpleDateSelectorProps> = ({
       
       {error && <Text style={styles.errorText}>{error}</Text>}
 
-      {/* DateTimePicker - chỉ hiện khi cần */}
-      {showPicker && (
-        <DateTimePicker
-          value={parseDate(value)}
-          mode="date"
-          display={Platform.OS === 'ios' ? 'default' : 'calendar'}
-          onChange={onDateChange}
-        />
-      )}
+      {/* Beautiful Calendar Modal */}
+      <Calendar
+        visible={showCalendar}
+        onClose={onCalendarClose}
+        onDateSelect={onDateSelect}
+        selectedDate={value}
+        minDate={minDate}
+        maxDate={maxDate}
+      />
     </View>
   );
 };
