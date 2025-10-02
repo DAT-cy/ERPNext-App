@@ -1,5 +1,6 @@
 // utils/index.ts
 export * from './error';
+export * from './date';
 export { 
   wp, 
   hp, 

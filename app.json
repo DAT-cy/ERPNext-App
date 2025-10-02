@@ -25,7 +25,8 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.anonymous.erpnextrnbase"
+      "package": "com.agrocognitive.agrocognitive"
+      
     },
     "web": {
       "favicon": "./assets/favicon.png"

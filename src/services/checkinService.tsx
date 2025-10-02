@@ -26,12 +26,6 @@ export async function getCodeNameEmployee(): Promise<string | null> {
         "employee",
     ]);
     
-    console.log('📋 [getCodeNameEmployee] API params:', {
-        filters: filters,
-        fields: fields,
-        user_id: loggedUser.message
-    });
-    
     try {
         const res = await api.get("/", {
             params: {
@@ -43,12 +37,9 @@ export async function getCodeNameEmployee(): Promise<string | null> {
                 fields,
             }
         });
-        
-        console.log('📡 [getCodeNameEmployee] API response:', res.data);
-        
+                
         const employees = res.data.message;
-        console.log('👥 [getCodeNameEmployee] Employees data:', employees);
-        
+    
         if (Array.isArray(employees) && employees.length > 0) {
             console.log('✅ [getCodeNameEmployee] Found employee:', employees[0]);
             return employees[0].employee;

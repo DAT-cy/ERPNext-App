@@ -1,5 +1,5 @@
 // hooks/useApplicationLeave.tsx
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Alert } from 'react-native';
 import {
   getLeaveApprovers,
@@ -10,13 +10,16 @@ import {
   getEmployeeLeaveApplications,
   cancelLeaveApplication,
   LeaveApprover,
-  LeaveApplication
+  LeaveApplication,
+  getInformationEmployeeApplicationLeave,
+  getCodeNameEmployee1
 } from '../services/applicationLeave';
 import { 
   ApplicationLeaveResult, 
   ApplicationLeaveError,
   ApplicationLeaveErrorHandler
 } from '../utils/error/applicationLeave';
+import { InformationUser } from '../types';
 
 export interface UseApplicationLeaveReturn {
   // Loading states
@@ -40,6 +43,8 @@ export interface UseApplicationLeaveReturn {
   loadLeaveApplications: () => Promise<boolean>;
   cancelLeave: (leaveId: string) => Promise<boolean>;
   clearError: () => void;
+  getInformationEmployee: (codeName: string) => Promise<InformationUser>;
+  getCodeNameEmployee: (email: string) => Promise<string | null>;
 }
 
 export const useApplicationLeave = (): UseApplicationLeaveReturn => {
@@ -50,6 +55,31 @@ export const useApplicationLeave = (): UseApplicationLeaveReturn => {
   const [leaveBalance, setLeaveBalance] = useState<any>(null);
   const [leaveApplications, setLeaveApplications] = useState<any[]>([]);
   const [error, setError] = useState<ApplicationLeaveError | null>(null);
+  
+  // Auto-load approvers when hook is initialized
+  useEffect(() => {
+    const loadApproversInitial = async () => {
+      console.log('🔄 useApplicationLeave: Loading approvers automatically');
+      setLoading(true);
+      try {
+        const result = await getLeaveApprovers();
+        console.log('📊 useApplicationLeave: getLeaveApprovers result:', result);
+        
+        if (result.success && result.data !== undefined) {
+          console.log('✅ useApplicationLeave: Setting approvers state with:', result.data);
+          setApprovers(result.data);
+        } else {
+          console.log('❌ useApplicationLeave: Failed to get approvers:', result.error);
+        }
+      } catch (err) {
+        console.error('💥 useApplicationLeave: Error in loadApproversInitial:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadApproversInitial();
+  }, []);
 
   /**
    * Handle result từ service calls
@@ -130,6 +160,20 @@ export const useApplicationLeave = (): UseApplicationLeaveReturn => {
     }
   }, [handleResult]);
 
+  const getInformationEmployee = useCallback(async (codeName: string): Promise<InformationUser> => {
+    setLoading(true);
+    try {
+      const result = await getInformationEmployeeApplicationLeave(codeName);
+      if (result) {
+        return result;
+      } else {
+        throw new Error('Không tìm thấy thông tin nhân viên');
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   /**
    * Cập nhật đơn xin nghỉ phép
    */
@@ -189,8 +233,20 @@ export const useApplicationLeave = (): UseApplicationLeaveReturn => {
     setError(null);
   }, []);
 
+  const getCodeNameEmployee = useCallback(async (email: string): Promise<string | null> => {
+    setLoading(true);
+    try {
+      const codeName = await getCodeNameEmployee1(email);
+      return codeName;
+    }
+    finally {
+      setLoading(false);
+    }
+  }, []);
+
   return {
     // States
+    getInformationEmployee,
     loading,
     approvers,
     leaveTypes,
@@ -199,6 +255,7 @@ export const useApplicationLeave = (): UseApplicationLeaveReturn => {
     error,
 
     // Methods
+    getCodeNameEmployee,
     loadApprovers,
     loadLeaveTypes,
     loadLeaveBalance,

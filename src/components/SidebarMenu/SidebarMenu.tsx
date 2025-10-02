@@ -339,6 +339,7 @@ export default function SidebarMenu({
           </View>
           <View style={styles.profileInfo}>
             <Text style={styles.profileName}>{userInfo?.employee_name}</Text>
+            <Text style={styles.profileTitle}>{userInfo?.name} - {userInfo?.company}</Text>
           </View>
         </View>
 
