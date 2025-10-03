@@ -5,15 +5,35 @@ import { API_URL } from "@env";
 
 export const SID_KEY = "erpnext_sid";
 
-const BASE_URL = API_URL;
+// Robust API_URL handling with multiple fallbacks
+let BASE_URL: string;
+try {
+  BASE_URL = API_URL || "https://we.remak.vn";
+  if (typeof BASE_URL !== 'string' || BASE_URL.trim() === '') {
+    BASE_URL = "https://we.remak.vn";
+  }
+} catch (error) {
+  console.warn('Error loading API_URL from env:', error);
+  BASE_URL = "https://we.remak.vn";
+}
 
 console.log('🌍 API Environment:', {
-  URL: BASE_URL
+  URL: BASE_URL,
+  API_URL_FROM_ENV: API_URL,
+  BASE_URL_TYPE: typeof BASE_URL
 });
+
+// Safe baseURL processing with null checks
+const getBaseURL = () => {
+  if (!BASE_URL || typeof BASE_URL !== 'string') {
+    return "https://we.remak.vn";
+  }
+  return BASE_URL.replace(/\/$/, "");
+};
 
 // Tạo axios instance dùng chung - siêu tối ưu
 export const api: AxiosInstance = axios.create({
-  baseURL: BASE_URL.replace(/\/$/, ""),
+  baseURL: getBaseURL(),
   headers: { Accept: "application/json", "Content-Type": "application/json" },
   withCredentials: true,
   timeout: 3000, // Siêu nhanh - chỉ 3s timeout

@@ -3,18 +3,8 @@
     "version": ">= 16.20.0",
     "appVersionSource": "remote"
   },
-  "build": {
-    "development": {
-      "developmentClient": true,
-      "distribution": "internal"
-    },
+   "build": {
     "preview": {
-      "android": {
-        "buildType": "apk",
-        "distribution": "internal"
-      }
-    },
-    "android-apk": {
       "android": {
         "buildType": "apk"
       }
@@ -29,20 +19,6 @@
     },
     "preview4": {
       "distribution": "internal"
-    },
-    "ios-simulator": {
-      "distribution": "internal",
-      "ios": {
-        "simulator": true,
-        "resourceClass": "m-medium"
-      }
-    },
-    "development-simulator": {
-      "developmentClient": true,
-      "distribution": "internal",
-      "ios": {
-        "simulator": true
-      }
     },
     "production": {}
   },

@@ -1,20 +1,20 @@
 {
   "expo": {
-    "name": "erpnext-rn-base",
+    "name": "Remak",
     "slug": "erpnext-rn-base",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/remak.jpg",
     "userInterfaceStyle": "light",
-    "newArchEnabled": false,
+    "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/remak.jpg",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.erpnextrnbase",
+      "bundleIdentifier": "com.remak.app",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -25,17 +25,21 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.agrocognitive.agrocognitive"
-      
+      "package": "com.remak.app",
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyCJr8Vvm2ZJ1gJ5kiKefflHt7duDxECmUQ"
+        }
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "extra": {
       "eas": {
-        "projectId": "d4e5a1ca-6d6c-4519-b444-a682668d795f"
+        "projectId": "bf0f1003-8149-4f3d-8a14-d1d2421907c9"
       }
     },
-    "owner": "aaaa123"
+    "owner": "admin1234123"
   }
 }

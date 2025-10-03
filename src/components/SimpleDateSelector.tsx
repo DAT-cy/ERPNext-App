@@ -59,6 +59,9 @@ const SimpleDateSelector: React.FC<SimpleDateSelectorProps> = ({
    * Trả về yyyy-mm-dd khi đầy đủ thông tin, ngược lại trả về dạng hiển thị
    */
   const formatDateInput = (input: string): string => {
+    // Check for null/undefined input
+    if (!input || typeof input !== 'string') return '';
+    
     // Nếu đã đúng format yyyy-mm-dd thì giữ nguyên
     if (/^\d{4}-\d{2}-\d{2}$/.test(input)) {
       return input;
