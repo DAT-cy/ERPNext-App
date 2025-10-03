@@ -8,7 +8,7 @@ interface FormActionsProps {
   loading?: boolean;
 }
 
-const FormActions: React.FC<FormActionsProps> = ({ onCancel, onSubmit, onSaveDraft, loading = false }) => {
+const FormActions: React.FC<FormActionsProps> = ({ onCancel, onSubmit, loading = false }) => {
   return (
     <View style={styles.formActions}>
       <TouchableOpacity 

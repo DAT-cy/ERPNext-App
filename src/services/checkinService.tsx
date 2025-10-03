@@ -1,61 +1,62 @@
 import { api, SID_KEY } from "../config/api";
 import { CheckinRecord, Checkin, CheckinAPIRequest } from "../types/checkin.types";
 import { InformationUser, RoleUserMap } from "../types/auth.types";
-
-import * as SecureStore from "expo-secure-store";
-import { getLoggedUser } from "./authService";
+import { getLoggedUser , getEmployeeCodeByEmail } from "./authService";
 
 
 
-// Hàm lấy mã nhân viên từ người dùng đã đăng nhập
-export async function getCodeNameEmployee(): Promise<string | null> {
-    console.log('🔍 [getCodeNameEmployee] Starting function...');
+
+// // Hàm lấy mã nhân viên từ người dùng đã đăng nhập
+// export async function getCodeNameEmployee(): Promise<string | null> {
+//     console.log('🔍 [getCodeNameEmployee] Starting function...');
     
-    let loggedUser;
-    try {
-        loggedUser = await getLoggedUser();
-        console.log('✅ [getCodeNameEmployee] Got logged user:', loggedUser);
-    } catch (error) {
-        console.error('❌ [getCodeNameEmployee] Error getting logged user:', error);
-        return null;
-    }
+//     let loggedUser;
+//     try {
+//         loggedUser = await getLoggedUser();
+//         console.log('✅ [getCodeNameEmployee] Got logged user:', loggedUser);
+//     } catch (error) {
+//         console.error('❌ [getCodeNameEmployee] Error getting logged user:', error);
+//         return null;
+//     }
     
-    const filters = JSON.stringify([["user_id", "=", loggedUser.message]]);
-    const fields = JSON.stringify([
-        "name",
-        "employee",
-    ]);
+//     const filters = JSON.stringify([["user_id", "=", loggedUser.message]]);
+//     const fields = JSON.stringify([
+//         "name",
+//         "employee",
+//     ]);
     
-    try {
-        const res = await api.get("/", {
-            params: {
-                cmd: "frappe.www.list.get_list_data",
-                doctype: "Employee", 
-                limit_start: 0,
-                limit: 20,
-                filters,
-                fields,
-            }
-        });
+//     try {
+//         const res = await api.get("/", {
+//             params: {
+//                 cmd: "frappe.www.list.get_list_data",
+//                 doctype: "Employee", 
+//                 limit_start: 0,
+//                 limit: 20,
+//                 filters,
+//                 fields,
+//             }
+//         });
                 
-        const employees = res.data.message;
+//         const employees = res.data.message;
     
-        if (Array.isArray(employees) && employees.length > 0) {
-            console.log('✅ [getCodeNameEmployee] Found employee:', employees[0]);
-            return employees[0].employee;
-        } else {
-            console.warn('⚠️  [getCodeNameEmployee] No employee found for user:', loggedUser.message);
-            return null;
-        }
-    } catch (error: any) {
-        console.error("❌ [getCodeNameEmployee] Error fetching employee:", error);
-        if (error?.response) {
-            console.error("📡 [getCodeNameEmployee] Response error:", error.response.data);
-            console.error("📡 [getCodeNameEmployee] Status:", error.response.status);
-        }
-        throw error;
-    }
-}
+//         if (Array.isArray(employees) && employees.length > 0) {
+//             console.log('✅ [getCodeNameEmployee] Found employee:', employees[0]);
+//             return employees[0].employee;
+//         } else {
+//             console.warn('⚠️  [getCodeNameEmployee] No employee found for user:', loggedUser.message);
+//             return null;
+//         }
+//     } catch (error: any) {
+//         console.error("❌ [getCodeNameEmployee] Error fetching employee:", error);
+//         if (error?.response) {
+//             console.error("📡 [getCodeNameEmployee] Response error:", error.response.data);
+//             console.error("📡 [getCodeNameEmployee] Status:", error.response.status);
+//         }
+//         throw error;
+//     }
+// }
+
+
 
 export async function fetchCheckinRecords(): Promise<CheckinRecord[]> {
     console.log('🔍 [fetchCheckinRecords] Starting function...');
@@ -65,12 +66,11 @@ export async function fetchCheckinRecords(): Promise<CheckinRecord[]> {
         loggedUser = await getLoggedUser();
         console.log('✅ [fetchCheckinRecords] Got logged user:', loggedUser.message);
     } catch (error) {
-        console.error('❌ [fetchCheckinRecords] Error getting logged user:', error);
+        console.error('❌ [fetchCheckinRecords] Error getting lsogged user:', error);
         return [];
     }
     
-    // Lấy employee code trước
-    const employeeCode = await getCodeNameEmployee();
+    const employeeCode = await getEmployeeCodeByEmail();
     if (!employeeCode) {
         console.warn('⚠️ [fetchCheckinRecords] No employee code found');
         return [];
@@ -109,25 +109,65 @@ export async function fetchCheckinRecords(): Promise<CheckinRecord[]> {
     }
 }
 export async function getInformationEmployee(): Promise<InformationUser> {
+  const getEmployeeCodeByEmailValue = await getEmployeeCodeByEmail();
 
-  const getCodeNameEmployeeValue = await getCodeNameEmployee();
-  if (!getCodeNameEmployeeValue) {
+  // Kiểm tra current user để xử lý trường hợp đặc biệt
+  const loggedUser = await getLoggedUser();
+  const currentUser = loggedUser.message;
+  
+  if (!getEmployeeCodeByEmailValue) {
+    if (currentUser === 'Administrator' || currentUser === 'administrator' || currentUser.includes('administrator')) {
+      console.log('👑 [getInformationEmployee] Administrator detected, returning default info');
+      return {
+        name: 'Administrator',
+        employee_name: 'Administrator',
+        company: 'REMAK',
+        department: ''
+      };
+    }
+    console.error('❌ [getInformationEmployee] No employee code found for user:', currentUser);
     throw new Error("Không thể lấy mã nhân viên từ người dùng đã đăng nhập");
   }
+  
   const payload : RoleUserMap = {
     doctype: "Employee",
-    docname: getCodeNameEmployeeValue,
+    docname: getEmployeeCodeByEmailValue,
     fields: [
       "employee_name",
       "company",
       "department",
     ]
   };
+  
+  console.log('📦 [getInformationEmployee] API payload:', payload);
+  
   try {
     const res = await api.post<{ message: InformationUser }>("/api/method/frappe.client.validate_link", payload);
+    console.log('✅ [getInformationEmployee] API response:', res.data);
+    console.log('👨‍💼 [getInformationEmployee] Employee info:', {
+      name: res.data.message.name,
+      employee_name: res.data.message.employee_name,
+      company: res.data.message.company
+    });
     return res.data.message;
-  } catch (error) {
-    console.error("Error fetching employee info:", error);
+  } catch (error: any) {
+    console.error("❌ [getInformationEmployee] Error fetching employee info:", error);
+    
+    // Nếu là Administrator và gặp lỗi, trả về thông tin mặc định
+    if (currentUser === 'Administrator' || currentUser === 'administrator@example.com' || currentUser.includes('administrator')) {
+      console.log('👑 [getInformationEmployee] API failed for Administrator, returning fallback info');
+      return {
+        name: getEmployeeCodeByEmailValue,
+        employee_name: 'System Administrator',
+        company: 'System',
+        department: 'Administration'
+      };
+    }
+    
+    if (error?.response) {
+      console.error("📡 [getInformationEmployee] Response error:", error.response.data);
+      console.error("📡 [getInformationEmployee] Status:", error.response.status);
+    }
     throw error;
   }
 }

@@ -18,6 +18,7 @@ import { homeScreenStyles } from '../styles/HomeScreen.styles';
 import SimpleSuccessAnimation from '../components/SuccessAnimation/SimpleSuccessAnimation';
 import { homeScreenErrorHandler, HomeScreenErrorCode } from '../utils/error/homeScreen';
 import { useScreenNavigator } from '../router/ScreenNavigator';
+import { getLeaveApproversName } from "../services/applicationLeave";
 
 // Helper functions for formatting date and time
 const formatTime = (dateTimeStr: string): string => {
@@ -75,6 +76,10 @@ export default function HomeScreen() {
   const [locationLoading, setLocationLoading] = useState(true);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [hasValidLocation, setHasValidLocation] = useState(false);
+  
+  // User Display Name State
+  const [displayName, setDisplayName] = useState<string>('Người dùng');
+  const [nameLoading, setNameLoading] = useState(false);
 
   // Redirect to login if not logged in
   useEffect(() => {
@@ -277,6 +282,33 @@ export default function HomeScreen() {
 
     return () => clearInterval(locationInterval);
   }, [hasValidLocation, locationLoading, getCurrentLocation]);
+  
+  // Fetch display name khi user thay đổi
+  useEffect(() => {
+    const fetchDisplayName = async () => {
+      if (!user) {
+        setDisplayName('Người dùng');
+        return;
+      }
+      
+      setNameLoading(true);
+      try {
+        const name = await getLeaveApproversName(user);
+        
+        if (name && name.trim()) {
+          setDisplayName(name);
+        } else {
+          setDisplayName(user);
+        }
+      } catch (error) {
+        setDisplayName(user);
+      } finally {
+        setNameLoading(false);
+      }
+    };
+    
+    fetchDisplayName();
+  }, [user]);
 
   // Tối ưu hóa việc lọc records theo content tab và phân nhóm theo ngày
   const filteredRecords = useMemo(() => {
@@ -338,7 +370,6 @@ export default function HomeScreen() {
     setDisplayRecords(prev => [tempRecord, ...prev]);
     
     try {
-      // BƯớc 3: Chuẩn bị dữ liệu API với GPS thực
       if (!userLocation) {
         const locationError = homeScreenErrorHandler.createCheckinNoLocationError();
         throw locationError;
@@ -447,7 +478,7 @@ export default function HomeScreen() {
               {/* Thông tin người dùng và ngày tháng */}
               <View style={homeScreenStyles.userInfoContainer}>
                 <Text style={homeScreenStyles.usernameText}>
-                  Xin chào, {user || 'Người dùng'}
+                  Xin chào, {nameLoading ? 'Đang tải...' : displayName}
                 </Text>
                 <Text style={homeScreenStyles.todayDateText}>
                   {getTodayDateString()}

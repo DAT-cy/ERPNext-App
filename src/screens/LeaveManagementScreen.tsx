@@ -14,7 +14,7 @@ import { useScreenTabBar } from "../hooks";
 import { BottomTabBar, NavigationSidebarMenu, TopTabBar } from '../components';
 import { MENU_DEFINITIONS, SubMenuItemDef } from '../utils/menuPermissions';
 import menuRouter from '../router/MenuRouter';
-import { getCodeNameEmployee, getInformationEmployee } from '../services/checkinService';
+import { getInformationEmployee } from '../services/checkinService';
 
 interface LeaveFeature extends SubMenuItemDef {
   description: string;

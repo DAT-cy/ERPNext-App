@@ -292,7 +292,7 @@ export default function SidebarMenu({
   useEffect(() => {
     const fetchInfo = async () => {
       const info = await getInformationEmployee();
-      console.log('👤 Fetched User Info:', info); // Debug log
+      console.log('👤 Fetched User Info:', info);
       setUserInfo(info);
     };
     fetchInfo();

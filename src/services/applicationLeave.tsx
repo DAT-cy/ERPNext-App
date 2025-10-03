@@ -1,6 +1,6 @@
 import { api, SID_KEY } from "../config/api";
 import * as SecureStore from "expo-secure-store";
-import { getCodeNameEmployee } from "./checkinService";
+import { getEmployeeCodeByEmail } from "./authService";
 import { 
   ApplicationLeaveErrorHandler, 
   ApplicationLeaveResult,
@@ -9,15 +9,10 @@ import {
 import { InformationUser, RoleUserMap } from "../types";
 import { LeaveApplication, LeaveApprover, SaveLeaveApplicationPayload } from "../types/applicationLeave.types";
 
-
-
-/**
- * Lấy danh sách người phê duyệt nghỉ phép
- */
 export async function getLeaveApprovers(): Promise<ApplicationLeaveResult<LeaveApprover[]>> {
   console.log('🔄 Calling getLeaveApprovers service');
   return ApplicationLeaveErrorHandler.withErrorHandling(async () => {
-    const employeeCode = await getCodeNameEmployee();
+    const employeeCode = await getEmployeeCodeByEmail();
     
     console.log('👤 Employee Code for leave approver request:', employeeCode);
     
@@ -37,7 +32,7 @@ export async function getLeaveApprovers(): Promise<ApplicationLeaveResult<LeaveA
     );
     
     const approvers = data?.message || [];
-    console.log('📥 Received leave approvers:', approvers);
+
     return approvers;
   }, 'Get Leave Approvers');
 }
@@ -57,7 +52,7 @@ export async function getLeaveTypes(): Promise<ApplicationLeaveResult<any[]>> {
  */
 export async function getLeaveBalance(leaveType: string): Promise<ApplicationLeaveResult<any>> {
   return ApplicationLeaveErrorHandler.withErrorHandling(async () => {
-    const employeeCode = await getCodeNameEmployee();
+    const employeeCode = await getEmployeeCodeByEmail();
     
     if (!employeeCode) {
       throw ApplicationLeaveErrorHandler.createEmployeeNotFoundError();
@@ -115,8 +110,8 @@ export async function cancelLeaveApplication(leaveId: string): Promise<Applicati
  */
 export async function getEmployeeLeaveApplications(): Promise<ApplicationLeaveResult<any[]>> {
   return ApplicationLeaveErrorHandler.withErrorHandling(async () => {
-    const employeeCode = await getCodeNameEmployee();
-    
+    const employeeCode = await getEmployeeCodeByEmail();
+
     if (!employeeCode) {
       throw ApplicationLeaveErrorHandler.createEmployeeNotFoundError();
     }
@@ -217,30 +212,25 @@ export async function getCodeNameEmployee1(email: string): Promise<string | null
 export async function saveLeaveApplication(payload: SaveLeaveApplicationPayload): Promise<any> {
     console.log('🔄 [saveLeaveApplication] Starting function');
     console.log('📥 [saveLeaveApplication] Input payload:', JSON.stringify(payload, null, 2));
-    
+
     try {
-        // Chuẩn bị dữ liệu để gửi đi dưới dạng x-www-form-urlencoded
-        const formData = new URLSearchParams();
+        // Chuẩn bị dữ liệu để gửi đi dưới dạng FormData
+        const formData = new FormData();
         formData.append('data', JSON.stringify(payload)); // Dữ liệu JSON đã được mã hóa
         formData.append('web_form', 'leave-application');
         formData.append('for_payment', 'false');
         formData.append('cmd', 'frappe.website.doctype.web_form.web_form.accept');
-        
-        console.log('📤 [saveLeaveApplication] Form data being sent:');
+
         console.log('  - data:', JSON.stringify(payload));
-        console.log('  - web_form: leave-application');
-        console.log('  - for_payment: false');
-        console.log('  - cmd: frappe.website.doctype.web_form.web_form.accept');
-        console.log('📡 [saveLeaveApplication] Full formData toString:', formData.toString());
         
         // Gửi yêu cầu POST
         console.log('🚀 [saveLeaveApplication] Sending POST request to "/"');
         const res = await api.post("/", formData, {
             headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
+                'Content-Type': 'multipart/form-data',
             }
         });
-        
+
         console.log('✅ [saveLeaveApplication] Response status:', res.status);
         console.log('✅ [saveLeaveApplication] Response headers:', res.headers);
         console.log('✅ [saveLeaveApplication] Response data:', JSON.stringify(res.data, null, 2));
@@ -249,7 +239,7 @@ export async function saveLeaveApplication(payload: SaveLeaveApplicationPayload)
         console.error("❌ [saveLeaveApplication] Error occurred:");
         console.error("❌ [saveLeaveApplication] Error message:", error.message);
         console.error("❌ [saveLeaveApplication] Error stack:", error.stack);
-        
+
         if (error.response) {
             console.error("❌ [saveLeaveApplication] Response status:", error.response.status);
             console.error("❌ [saveLeaveApplication] Response statusText:", error.response.statusText);
@@ -260,49 +250,23 @@ export async function saveLeaveApplication(payload: SaveLeaveApplicationPayload)
         } else {
             console.error("❌ [saveLeaveApplication] Error setting up request:", error.message);
         }
-        
+
         throw error;
     }
 }
 
 
-/**
- * API cập nhật cho getCodeNameEmployee1 sử dụng API frappe.client.get_value
- */
-export async function getEmployeeCodeByEmail(email: string): Promise<string | null> {
-    console.log('🔍 [getEmployeeCodeByEmail] Starting function with email:', email);
-    
-    if (!email) {
-        console.warn('⚠️ [getEmployeeCodeByEmail] No email provided');
-        return null;
-    }
-    
-    try {
-        // Sử dụng API với frappe.client.get_value
-        const res = await api.get("/api/method/frappe.client.get_value", {
-            params: {
-                doctype: "Employee",
-                fieldname: "name",
-                filters: JSON.stringify({ "user_id": email })
-            }
-        });
-        
-        console.log('📊 [getEmployeeCodeByEmail] API response:', JSON.stringify(res.data, null, 2));
-        
-        // Kiểm tra kết quả trả về
-        if (res.data && res.data.message) {
-            console.log('✅ [getEmployeeCodeByEmail] Found employee:', res.data.message);
-            return res.data.message.name; // Trả về mã nhân viên
-        } else {
-            console.warn('⚠️ [getEmployeeCodeByEmail] No employee found for user:', email);
-            return null;
-        }
-    } catch (error: any) {
-        console.error("❌ [getEmployeeCodeByEmail] Error fetching employee:", error);
-        if (error?.response) {
-            console.error("📡 [getEmployeeCodeByEmail] Response error:", error.response.data);
-            console.error("📡 [getEmployeeCodeByEmail] Status:", error.response.status);
-        }
-        return null; // Trả về null thay vì throw error để tránh crash app
-    }
+export async function getLeaveApproversName(email: string): Promise<string | null> {
+  if (!email) {
+    throw new Error("Email is required");
+  }
+  try {
+    const apiUrl = `/api/method/remak.utils.user.get_fullname_by_user?user=${email}`;
+    const response = await api.get(apiUrl);    
+    const { data } = response;
+    const result = data?.message || data || '';    
+    return result;
+  } catch (error) {
+    throw error;
+  }
 }

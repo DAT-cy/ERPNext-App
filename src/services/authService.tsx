@@ -2,7 +2,6 @@
 import { api, SID_KEY } from "../config/api";
 import * as SecureStore from "expo-secure-store";
 import { LoggedUser, LoginOk, LoginFail, LoginResult , RoleUsers, InformationUser, RoleUserMap } from "../types/auth.types";
-import {getCodeNameEmployee}  from "./checkinService";
 // Hỗ trợ lấy SID từ cookie
 function extractSidFromSetCookie(setCookie?: string | string[]): string | null {
   if (!setCookie) return null;
@@ -105,6 +104,46 @@ export async function pingERP(): Promise<{ message: string }> {
   const { data } = await api.get("/api/method/ping");
   return data;
 }
+
+export async function getEmployeeCodeByEmail(): Promise<string | null> {
+  try {
+    console.log('🔍 [getEmployeeCodeByEmail] Starting function...');
+    
+    // Lấy logged user trước
+    const loggedUser = await getLoggedUser();
+    const userId = loggedUser.message;
+    console.log('👤 [getEmployeeCodeByEmail] Looking for employee with user_id:', userId);
+    
+    // Sử dụng ERPNext standard list API
+    const response = await api.get("/api/resource/Employee", {
+      params: {
+        filters: JSON.stringify([["user_id", "=", userId]]),
+        fields: JSON.stringify(["name", "employee_name", "user_id"]),
+        limit: 1
+      }
+    });
+    
+    console.log('📡 [getEmployeeCodeByEmail] API response:', response.data);
+    
+    const employees = response.data?.data;
+    if (Array.isArray(employees) && employees.length > 0) {
+      const employeeCode = employees[0].name;
+      console.log('✅ [getEmployeeCodeByEmail] Found employee code:', employeeCode);
+      return employeeCode;
+    } else {
+      console.warn('⚠️ [getEmployeeCodeByEmail] No employee found for user:', userId);
+      return null;
+    }
+  } catch (error: any) {
+    console.error('❌ [getEmployeeCodeByEmail] Error:', error);
+    if (error?.response) {
+      console.error('📡 [getEmployeeCodeByEmail] Response error:', error.response.data);
+      console.error('📡 [getEmployeeCodeByEmail] Status:', error.response.status);
+    }
+    return null;
+  }
+}
+
 
 
 

@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, TextInput } from 'react-native';
 import { FormSection, FormField } from '../../components';
 import { getCodeNameEmployee1 } from '../../services/applicationLeave';
-import {getCodeNameEmployee} from '../../services/checkinService';
+import {getEmployeeCodeByEmail} from '../../services/authService';
 import { get } from 'react-native/Libraries/TurboModule/TurboModuleRegistry';
 
 interface ApprovalSectionProps {
@@ -11,11 +11,13 @@ interface ApprovalSectionProps {
         emailNotify: boolean;
         approverName?: string;
         recordDate?: string;
+        username?: string;
     };
     errors: {
         approver?: string;
         approverName?: string;
         recordDate?: string;
+        username?: string;
         [key: string]: string | undefined;
     };
     approverText: string;
@@ -60,7 +62,7 @@ const ApprovalSection: React.FC<ApprovalSectionProps> = ({
                         value={approverText}
                         onChangeText={onChangeApproverText}
                         placeholder="Nhập người phê duyệt"
-                        editable={!loading}
+                        editable={false}
                     />
                 </View>
             </FormField>
@@ -71,13 +73,13 @@ const ApprovalSection: React.FC<ApprovalSectionProps> = ({
                 required
                 error={errors.approverName}
             >
-                <View style={[styles.selectInput, { backgroundColor: '#fff' }]}>
+                <View style={[styles.selectInput, { backgroundColor: '#f8f9fa' }]}>
                     <TextInput
-                        style={styles.selectText}
-                        value={'hi'}
+                        style={[styles.selectText, { color: formData.approverName ? '#1e293b' : '#64748b' }]}
+                        value={formData.username || 'Đang tải tên người phê duyệt...'}
                         onChangeText={text => onChangeApproverName(text)}
-                        placeholder="Nhập tên người phê duyệt"
-                        editable={!loading}
+                        placeholder="Tên sẽ được tự động điền"
+                        editable={false}
                     />
                 </View>
             </FormField>
@@ -89,6 +91,7 @@ const ApprovalSection: React.FC<ApprovalSectionProps> = ({
                 label="Ngày Ghi Sổ"
                 required
                 error={errors.recordDate}
+                
             >
                 <View style={[styles.selectInput, { backgroundColor: '#fff' }]}>
                     <TextInput
@@ -101,30 +104,11 @@ const ApprovalSection: React.FC<ApprovalSectionProps> = ({
                             }
                         })}
                         placeholder="Nhập ngày ghi sổ (DD/MM/YYYY)"
-                        editable={!loading}
+                        editable={false}
                         keyboardType="numeric"
                     />
                 </View>
             </FormField>
-
-            {/* Email Notification */}
-            <TouchableOpacity
-                style={styles.checkboxGroup}
-                onPress={toggleEmailNotify}
-            >
-                <View style={[styles.checkbox, formData.emailNotify && styles.checkboxChecked]}>
-                    {formData.emailNotify && <Text style={styles.checkmark}>✓</Text>}
-                </View>
-                <Text style={styles.checkboxLabel}>Gửi thông báo qua email</Text>
-            </TouchableOpacity>
-
-            {/* Status */}
-            <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>Trạng thái</Text>
-                <View style={styles.statusBadge}>
-                    <Text style={styles.statusText}>⏳ Đang soạn thảo</Text>
-                </View>
-            </View>
         </FormSection>
     );
 };

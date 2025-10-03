@@ -17,8 +17,11 @@ const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({ userInfo }) =
         </View>
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>Nhân viên:</Text>
-          <Text style={styles.infoValue}>{userInfo?.employee_name || 'N/A'}</Text>
-          <Text style={styles.infoValue}>{userInfo?.name || 'N/A'}</Text>
+          {/* Dưới đây là phần thay đổi */}
+          <View style={styles.infoValueContainer}>
+            <Text style={styles.infoValue}>{userInfo?.employee_name || 'N/A'}</Text>
+            <Text style={styles.infoValue}>{userInfo?.name || 'N/A'}</Text>
+          </View>
         </View>
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>Công ty:</Text>
@@ -57,6 +60,10 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     flex: 1,
     marginLeft: 16,
+  },
+  infoValueContainer: {
+    flexDirection: 'column',  
+    alignItems: 'flex-end',   
   },
 });
 

@@ -13,9 +13,6 @@ const Header: React.FC<HeaderProps> = ({ onBack, onSaveDraft }) => {
         <TouchableOpacity style={styles.navBtn} onPress={onBack}>
           <Text style={styles.navBtnText}>← Quay lại</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.navBtn} onPress={onSaveDraft}>
-          <Text style={styles.navBtnText}>💾 Lưu nháp</Text>
-        </TouchableOpacity>
       </View>
       <View style={styles.headerTitle}>
         <Text style={styles.headerTitleText}>📝 Đơn Xin Nghỉ Phép</Text>

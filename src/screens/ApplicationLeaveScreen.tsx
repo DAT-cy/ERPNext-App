@@ -7,12 +7,14 @@ import {
   Alert,
   Animated,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { InformationUser } from '../types';
 import { getInformationEmployee  } from '../services/checkinService';
 import { useApplicationLeave } from '../hooks/useApplicationLeave';
 import { SelectOption } from '../components';
-import { saveLeaveApplication } from '../services/applicationLeave';
+import { saveLeaveApplication , getLeaveApproversName} from '../services/applicationLeave';
 import { SaveLeaveApplicationPayload } from '../types/applicationLeave.types';
+
 // Import các components đã tách
 import PersonalInfoSection from './ApplicationLeave/PersonalInfoSection';
 import LeaveDetailsSection from './ApplicationLeave/LeaveDetailsSection';
@@ -34,6 +36,7 @@ interface FormData {
   halfDayDate: string; // Ngày cụ thể cho nửa ngày
   timeFrom: string;
   timeTo: string;
+  username?: string;
 }
 
 interface FormErrors {
@@ -53,14 +56,15 @@ interface FormErrors {
 }
 
 const ApplicationLeave: React.FC = () => {
+  // Navigation hook
+  const navigation = useNavigation();
+  
   // Use ApplicationLeave hook
   const {
     loading,
     approvers,
-    loadApprovers,
     leaveTypes,
     loadLeaveTypes,
-    error
   } = useApplicationLeave();
 
   // State for form data
@@ -78,6 +82,7 @@ const ApplicationLeave: React.FC = () => {
     halfDayDate: '', // Ngày cụ thể cho nửa ngày
     timeFrom: '',
     timeTo: '',
+    username: '',
   });
 
   const [errors, setErrors] = useState<FormErrors>({});
@@ -103,6 +108,7 @@ const ApplicationLeave: React.FC = () => {
     loadLeaveTypesData();
   }, [loadLeaveTypes]);
 
+
   // Chuyển đổi leaveTypes từ API thành leaveTypeOptions
   useEffect(() => {
     if (leaveTypes && leaveTypes.length > 0) {
@@ -116,10 +122,32 @@ const ApplicationLeave: React.FC = () => {
     }
   }, [leaveTypes]);
 
-  // Cập nhật approverText khi approvers thay đổi
+  // Cập nhật approverText và formData.approver khi approvers thay đổi
   useEffect(() => {
+    console.log('🔍 [DEBUG] Approvers effect triggered, approvers:', approvers);
+    
     if (approvers && typeof approvers === 'string') {
+      console.log('✅ [DEBUG] Setting approverText with string approvers:', approvers);
       setApproverText(approvers);
+      
+      // Set email approver vào formData
+      setFormData(prev => ({
+        ...prev,
+        approver: approvers // Giả sử approvers là email
+      }));
+    } else if (Array.isArray(approvers) && approvers.length > 0) {
+      // Nếu approvers là array, lấy phần tử đầu tiên
+      const firstApprover = approvers[0];
+      console.log('✅ [DEBUG] Setting approverText with first approver:', firstApprover);
+      
+      // Kiểm tra xem approver có email property không
+      const approverEmail = firstApprover.email || firstApprover.user_id || firstApprover.name || firstApprover;
+      setApproverText(approverEmail);
+      
+      setFormData(prev => ({
+        ...prev,
+        approver: approverEmail
+      }));
     }
   }, [approvers]);
 
@@ -141,6 +169,31 @@ const ApplicationLeave: React.FC = () => {
     fetchEmployeeInfo();
   }, []);
 
+    // load tên người dùng 
+  useEffect(() => {
+    const loadUserName = async () => {
+      if (!formData.approver || formData.approver.trim() === '') {
+        return;
+      }
+      
+      try {
+        const approver = formData.approver
+        const employeeInfo = await getLeaveApproversName(approver);
+    
+        console.log('✅ [DEBUG] Got employee info:', employeeInfo);
+        setFormData(prev => ({
+          ...prev,
+          username: employeeInfo || '',
+          approverName: employeeInfo || '', // Set tên người phê duyệt
+        }));
+      } catch (error) {
+        console.error("❌ ApplicationLeave: Error loading user name:", error);
+      }
+    };
+
+    loadUserName();
+  }, [formData.approver]); // Dependency: chỉ chạy khi formData.approver thay đổi
+
   // Handle approver input change
   const handleApproverChange = (text: string) => {
     setApproverText(text);
@@ -150,6 +203,8 @@ const ApplicationLeave: React.FC = () => {
       setErrors({ ...errors, approver: undefined });
     }
   };
+
+  
 
   // Form field validation
   const validateField = (field: string, value: any): boolean => {
@@ -380,7 +435,12 @@ const ApplicationLeave: React.FC = () => {
       'Bạn có chắc muốn hủy? Dữ liệu chưa lưu sẽ bị mất.',
       [
         { text: 'Không', style: 'cancel' },
-        { text: 'Có', onPress: () => showNotification('Quay lại danh sách nghỉ phép') },
+        { 
+          text: 'Có', 
+          onPress: () => {
+            navigation.goBack();
+          }
+        },
       ]
     );
   };
