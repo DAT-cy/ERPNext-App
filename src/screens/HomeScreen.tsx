@@ -569,53 +569,62 @@ export default function HomeScreen() {
                     <html>
                     <head>
                         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+                        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+                            integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+                            crossorigin=""/>
+                        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+                            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+                            crossorigin=""></script>
                         <style>
                             body { margin: 0; padding: 0; }
                             #map { height: 100vh; width: 100%; }
+                            .custom-marker {
+                                background-color: #0068FF;
+                                width: 30px;
+                                height: 30px;
+                                border-radius: 50%;
+                                border: 3px solid white;
+                                box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+                            }
                         </style>
                     </head>
                     <body>
                         <div id="map"></div>
-                        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
                         <script>
-                            const map = L.map('map', {
-                                center: [${userLocation.latitude}, ${userLocation.longitude}],
-                                zoom: 16,
+                            var map = L.map('map', {
                                 zoomControl: false,
-                                scrollWheelZoom: false,
-                                doubleClickZoom: false,
                                 dragging: false,
                                 touchZoom: false,
+                                doubleClickZoom: false,
+                                scrollWheelZoom: false,
                                 boxZoom: false,
                                 keyboard: false
-                            });
+                            }).setView([${userLocation.latitude}, ${userLocation.longitude}], 16);
                             
                             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                                 attribution: '© OpenStreetMap contributors'
                             }).addTo(map);
                             
-                            const marker = L.marker([${userLocation.latitude}, ${userLocation.longitude}])
+                            var customIcon = L.divIcon({
+                                className: 'custom-marker',
+                                iconSize: [30, 30],
+                                iconAnchor: [15, 15]
+                            });
+                            
+                            L.marker([${userLocation.latitude}, ${userLocation.longitude}], {icon: customIcon})
                                 .addTo(map)
-                                .bindPopup('Vị trí chấm công của bạn')
-                                .openPopup();
-                                
-                            console.log('✅ OpenStreetMap loaded successfully');
+                                .bindPopup('<b>Vị trí chấm công</b><br>Vị trí đã xác định của bạn');
                         </script>
                     </body>
                     </html>
                     `
                   }}
-                  javaScriptEnabled={true}
-                  domStorageEnabled={true}
-                  startInLoadingState={true}
                   onLoad={() => {
-                    console.log('✅ OpenStreetMap WebView loaded successfully');
+                    console.log('✅ OpenStreetMap loaded successfully');
                   }}
-                  onError={(syntheticEvent: any) => {
-                    const { nativeEvent } = syntheticEvent;
-                    console.warn('❌ WebView error: ', nativeEvent);
-                  }}
+                  scrollEnabled={false}
+                  showsHorizontalScrollIndicator={false}
+                  showsVerticalScrollIndicator={false}
                 />
               ) : (
                 <View style={[homeScreenStyles.map, { justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5' }]}>
