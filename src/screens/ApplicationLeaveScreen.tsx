@@ -109,28 +109,64 @@ const ApplicationLeave: React.FC = () => {
   }, [loadLeaveTypes]);
 
 
-  // Chuyển đổi leaveTypes từ API thành leaveTypeOptions
+  // Mapping từ tiếng Anh (API) sang tiếng Việt (hiển thị)
+  const leaveTypeMapping: Record<string, string> = {
+    'Compensatory Off': 'Nghỉ bù',
+    'Annual Leave': 'Nghỉ phép năm',
+    'Sick Leave': 'Nghỉ ốm',
+    'Casual Leave': 'Nghỉ có phép',
+    'Emergency Leave': 'Nghỉ khẩn cấp',
+    'Maternity Leave': 'Nghỉ thai sản',
+    'Paternity Leave': 'Nghỉ chăm con',
+    'Compensatory Leave': 'Nghỉ bù',
+    'Study Leave': 'Nghỉ học tập',
+    'Marriage Leave': 'Nghỉ cưới',
+    'Bereavement Leave': 'Nghỉ tang lễ',
+    'Medical Leave': 'Nghỉ điều trị',
+    'Personal Leave': 'Nghỉ cá nhân',
+    'Unpaid Leave': 'Nghỉ không lương',
+    'Leave Without Pay': 'Nghỉ không lương',
+    'Privilege Leave': 'Nghỉ đặc biệt',
+    'Earned Leave': 'Nghỉ tích lũy',
+    'Half Day': 'Nghỉ nửa ngày',
+    'Work From Home': 'Làm việc tại nhà',
+    'Quarantine Leave': 'Nghỉ cách ly',
+    'Vaccination Leave': 'Nghỉ tiêm chủng'
+  };
+
+  // Chuyển đổi leaveTypes từ API thành leaveTypeOptions với tiếng Việt
   useEffect(() => {
     if (leaveTypes && leaveTypes.length > 0) {
       console.log('📋 ApplicationLeave: Converting leaveTypes to options:', leaveTypes);
-      const options: SelectOption[] = leaveTypes.map(type => ({
-        label: type.name || type.leave_type_name || type.type_name || 'Không xác định',
-        value: type.name || type.leave_type_name || type.type_name || 'unknown'
-      }));
-      console.log('✅ ApplicationLeave: Leave type options:', options);
+      const options: SelectOption[] = leaveTypes.map(type => {
+        const englishValue = type.name || type.leave_type_name || type.type_name || 'unknown';
+        const vietnameseLabel = leaveTypeMapping[englishValue] || englishValue;
+        
+        return {
+          label: vietnameseLabel, // Hiển thị tiếng Việt
+          value: englishValue     // Gửi lên API bằng tiếng Anh
+        };
+      });
+      console.log('✅ ApplicationLeave: Leave type options with Vietnamese labels:', options);
       setLeaveTypeOptions(options);
+      
+      // Tự động chọn mặc định "Leave Without Pay" nếu có trong danh sách
+      const defaultLeaveType = options.find(option => option.value === 'Leave Without Pay');
+      if (defaultLeaveType && !formData.leaveType) {
+        console.log('🎯 Setting default leave type to "Leave Without Pay"');
+        setFormData(prev => ({
+          ...prev,
+          leaveType: 'Leave Without Pay'
+        }));
+      }
     }
   }, [leaveTypes]);
 
   // Cập nhật approverText và formData.approver khi approvers thay đổi
-  useEffect(() => {
-    console.log('🔍 [DEBUG] Approvers effect triggered, approvers:', approvers);
-    
+  useEffect(() => {    
     if (approvers && typeof approvers === 'string') {
-      console.log('✅ [DEBUG] Setting approverText with string approvers:', approvers);
       setApproverText(approvers);
       
-      // Set email approver vào formData
       setFormData(prev => ({
         ...prev,
         approver: approvers // Giả sử approvers là email
@@ -138,9 +174,6 @@ const ApplicationLeave: React.FC = () => {
     } else if (Array.isArray(approvers) && approvers.length > 0) {
       // Nếu approvers là array, lấy phần tử đầu tiên
       const firstApprover = approvers[0];
-      console.log('✅ [DEBUG] Setting approverText with first approver:', firstApprover);
-      
-      // Kiểm tra xem approver có email property không
       const approverEmail = firstApprover.email || firstApprover.user_id || firstApprover.name || firstApprover;
       setApproverText(approverEmail);
       
@@ -179,15 +212,13 @@ const ApplicationLeave: React.FC = () => {
       try {
         const approver = formData.approver
         const employeeInfo = await getLeaveApproversName(approver);
-    
-        console.log('✅ [DEBUG] Got employee info:', employeeInfo);
-        setFormData(prev => ({
+            setFormData(prev => ({
           ...prev,
           username: employeeInfo || '',
-          approverName: employeeInfo || '', // Set tên người phê duyệt
+          approverName: employeeInfo || '', 
         }));
       } catch (error) {
-        console.error("❌ ApplicationLeave: Error loading user name:", error);
+          console.error("❌ ApplicationLeave: Error loading user name:", error);
       }
     };
 
@@ -384,15 +415,9 @@ const ApplicationLeave: React.FC = () => {
         doctype: 'Leave Application',
         web_form_name: 'leave-application'
       };
-
-      console.log('🚀 Submitting leave application with payload:', payload);
-      console.log('👤 User Info:', userInfo);
-      console.log('📋 Form Data:', formData);
-      
       const result = await saveLeaveApplication(payload);
       
-      console.log('✅ Leave application submitted successfully:', result);
-      showNotification('Đơn xin nghỉ phép đã được gửi thành công! ✅', 'success');
+      showNotification('Đơn xin nghỉ phép đã được gửi thành công! ', 'success');
       
       // Reset form sau khi submit thành công
       setFormData({
@@ -412,12 +437,90 @@ const ApplicationLeave: React.FC = () => {
       });
       setErrors({});
       
-    } catch (error) {
-      console.error('❌ Error submitting leave application:', error);
-      showNotification(
-        'Có lỗi xảy ra khi gửi đơn xin nghỉ phép. Vui lòng thử lại.',
-        'error'
-      );
+    } catch (error: any) {
+      let errorMessage = 'Có lỗi xảy ra khi gửi đơn xin nghỉ phép. Vui lòng thử lại.';
+            if (error?.type) {
+        switch (error.type) {
+          case 'overlap':
+            const { leaveType, dateRange, docId } = error.details;
+            const vietnameseLeaveType = leaveTypeMapping[leaveType] || leaveType || formData.leaveType;
+            const displayDateRange = dateRange || `${formData.dateFrom} - ${formData.dateTo}`;
+            
+            errorMessage = `⚠️ Đơn nghỉ phép bị trùng lặp!\n\n` +
+              `📅 Bạn đã đăng ký nghỉ phép "${vietnameseLeaveType}" trong khoảng thời gian ${displayDateRange}\n\n` +
+              `📝 Mã đơn đã tồn tại: ${docId}\n\n` +
+              `💡 Giải pháp:\n` +
+              `• Kiểm tra lại ngày nghỉ\n` +
+              `• Chọn thời gian khác\n` +
+              `• Hoặc hủy đơn cũ trước khi tạo đơn mới`;
+            break;
+            
+          case 'insufficient_balance':
+            errorMessage = `❌ Không đủ số ngày nghỉ phép!\n\n` +
+              `📊 Số ngày nghỉ còn lại không đủ cho đơn này.\n\n` +
+              `💡 Giải pháp:\n` +
+              `• Kiểm tra số ngày nghỉ còn lại\n` +
+              `• Giảm số ngày nghỉ trong đơn\n` +
+              `• Hoặc chọn loại nghỉ khác`;
+            break;
+            
+          case 'network':
+            errorMessage = `🌐 Lỗi kết nối mạng!\n\n` +
+              `💡 Giải pháp:\n` +
+              `• Kiểm tra kết nối internet\n` +
+              `• Thử lại sau vài phút`;
+            break;
+            
+          case 'api_error':
+            errorMessage = `🔧 Lỗi từ server!\n\n` +
+              `💡 Giải pháp:\n` +
+              `• Thử lại sau vài phút\n` +
+              `• Liên hệ quản trị viên nếu lỗi tiếp tục`;
+            break;
+            
+          default:
+            // Fallback cho các lỗi chưa được xử lý
+            const rawException = error.details?.rawException || '';
+            if (rawException.includes('Invalid date')) {
+              errorMessage = `📅 Ngày tháng không hợp lệ!\n\n` +
+                `💡 Giải pháp:\n` +
+                `• Ngày bắt đầu phải trước ngày kết thúc\n` +
+                `• Không được chọn ngày trong quá khứ\n` +
+                `• Định dạng ngày phải đúng (YYYY-MM-DD)`;
+            } else if (rawException.includes('unauthorized') || rawException.includes('permission')) {
+              errorMessage = `🔒 Không có quyền thực hiện!\n\n` +
+                `💡 Bạn không có quyền tạo đơn nghỉ phép.\n` +
+                `Vui lòng liên hệ quản trị viên.`;
+            }
+            break;
+        }
+      }
+      // Fallback cho error cũ (backward compatibility)
+      else if (error?.exception || error?.message) {
+        const errorText = error.exception || error.message || '';
+        
+        if (errorText.includes('OverlapError') || errorText.includes('has already applied for')) {
+          const employeeMatch = errorText.match(/Employee\s+([^\s]+)/);
+          const leaveTypeMatch = errorText.match(/for\s+([^b]+)\s+between/);
+          const dateMatch = errorText.match(/between\s+([^:]+)/);
+          const docIdMatch = errorText.match(/HR-LAP-\d+-\d+/);
+          
+          const leaveType = leaveTypeMatch ? leaveTypeMatch[1].trim() : formData.leaveType;
+          const dateRange = dateMatch ? dateMatch[1].trim() : `${formData.dateFrom} - ${formData.dateTo}`;
+          const docId = docIdMatch ? docIdMatch[0] : '';
+          const vietnameseLeaveType = leaveTypeMapping[leaveType] || leaveType;
+          
+          errorMessage = `⚠️ Đơn nghỉ phép bị trùng lặp!\n\n` +
+            `📅 Bạn đã đăng ký nghỉ phép "${vietnameseLeaveType}" trong khoảng thời gian ${dateRange}\n\n` +
+            `📝 Mã đơn đã tồn tại: ${docId}\n\n` +
+            `💡 Giải pháp:\n` +
+            `• Kiểm tra lại ngày nghỉ\n` +
+            `• Chọn thời gian khác\n` +
+            `• Hoặc hủy đơn cũ trước khi tạo đơn mới`;
+        }
+      }
+      
+      showNotification(errorMessage, 'error');
     } finally {
       setSubmitting(false);
     }

@@ -8,7 +8,7 @@ import { useNavigation } from "@react-navigation/native";
 import TopTabBar from "../components/TabBar/TopTabBar";
 import BottomTabBar from "../components/TabBar/BottomTabBar";
 import { NavigationSidebarMenu } from "../components/SidebarMenu";
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import { WebView } from 'react-native-webview';
 import * as Location from 'expo-location';
 import { useAuth, useScreenTabBar } from "../hooks";
 import { useCheckin } from "../hooks/useCheckin";
@@ -558,34 +558,65 @@ export default function HomeScreen() {
               </View>
             )}
             
-            {/* Google Maps - Vị trí đã khóa */}
+            {/* OpenStreetMap - Vị trí đã khóa */}
             <View style={homeScreenStyles.mapContainer}>
               {userLocation ? (
-                <MapView
-                  provider={PROVIDER_GOOGLE}
+                <WebView
                   style={homeScreenStyles.map}
-                  region={userLocation}
-                  initialRegion={userLocation}
-                  showsUserLocation={true}
-                  showsCompass={false}
-                  showsMyLocationButton={false}
-                  zoomEnabled={false}
-                  scrollEnabled={false}
-                  rotateEnabled={false}
-                  pitchEnabled={false}
-                  toolbarEnabled={false}
-                  moveOnMarkerPress={false}
-                >
-                  <Marker
-                    coordinate={{
-                      latitude: userLocation.latitude,
-                      longitude: userLocation.longitude
-                    }}
-                    title="Vị trí đã xác định"
-                    description="Vị trí chấm công của bạn"
-                    pinColor="#0068FF"
-                  />
-                </MapView>
+                  source={{
+                    html: `
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+                        <style>
+                            body { margin: 0; padding: 0; }
+                            #map { height: 100vh; width: 100%; }
+                        </style>
+                    </head>
+                    <body>
+                        <div id="map"></div>
+                        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+                        <script>
+                            const map = L.map('map', {
+                                center: [${userLocation.latitude}, ${userLocation.longitude}],
+                                zoom: 16,
+                                zoomControl: false,
+                                scrollWheelZoom: false,
+                                doubleClickZoom: false,
+                                dragging: false,
+                                touchZoom: false,
+                                boxZoom: false,
+                                keyboard: false
+                            });
+                            
+                            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                                attribution: '© OpenStreetMap contributors'
+                            }).addTo(map);
+                            
+                            const marker = L.marker([${userLocation.latitude}, ${userLocation.longitude}])
+                                .addTo(map)
+                                .bindPopup('Vị trí chấm công của bạn')
+                                .openPopup();
+                                
+                            console.log('✅ OpenStreetMap loaded successfully');
+                        </script>
+                    </body>
+                    </html>
+                    `
+                  }}
+                  javaScriptEnabled={true}
+                  domStorageEnabled={true}
+                  startInLoadingState={true}
+                  onLoad={() => {
+                    console.log('✅ OpenStreetMap WebView loaded successfully');
+                  }}
+                  onError={(syntheticEvent: any) => {
+                    const { nativeEvent } = syntheticEvent;
+                    console.warn('❌ WebView error: ', nativeEvent);
+                  }}
+                />
               ) : (
                 <View style={[homeScreenStyles.map, { justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5' }]}>
                   <Text style={{ color: '#666', fontSize: 16, textAlign: 'center' }}>

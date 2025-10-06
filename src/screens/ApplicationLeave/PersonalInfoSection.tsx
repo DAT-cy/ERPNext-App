@@ -9,7 +9,7 @@ interface PersonalInfoSectionProps {
 
 const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({ userInfo }) => {
   return (
-    <FormSection title="👤 Thông tin cơ bản">
+    <FormSection title="Thông tin cơ bản">
       <View style={styles.infoCard}>
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>Mã số:</Text>

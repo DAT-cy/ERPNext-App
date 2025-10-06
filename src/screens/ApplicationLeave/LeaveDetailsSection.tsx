@@ -120,7 +120,7 @@ const LeaveDetailsSection: React.FC<LeaveDetailsProps> = ({
 
   return (
     <>
-    <FormSection title="🗓️ Chi tiết nghỉ phép">
+    <FormSection title="Chi tiết nghỉ phép">
       {/* Leave Type - Professional Select */}
       <FormField 
         label="Loại nghỉ phép" 

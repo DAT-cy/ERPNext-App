@@ -23,6 +23,88 @@ import { InformationUser } from '../../types';
 
 const { width } = Dimensions.get('window');
 
+// Helper function to generate avatar from initials
+const generateAvatarFromInitials = (name: string): { initials: string; backgroundColor: string } => {
+  if (!name || name.trim() === '') {
+    return { initials: 'UN', backgroundColor: '#9CA3AF' }; // Unknown user
+  }
+
+  // Get first 2 letters from name
+  const words = name.trim().split(' ');
+  let initials = '';
+  
+  if (words.length >= 2) {
+    // Take first letter of first 2 words
+    initials = (words[0].charAt(0) + words[1].charAt(0)).toUpperCase();
+  } else {
+    // Take first 2 letters of the single word
+    initials = words[0].substring(0, 2).toUpperCase();
+  }
+
+  // Generate consistent color based on name
+  const colors = [
+    '#EF4444', // Red
+    '#F97316', // Orange  
+    '#F59E0B', // Amber
+    '#10B981', // Emerald
+    '#06B6D4', // Cyan
+    '#3B82F6', // Blue
+    '#8B5CF6', // Violet
+    '#EC4899', // Pink
+    '#6366F1', // Indigo
+    '#84CC16', // Lime
+  ];
+  
+  // Simple hash function to get consistent color
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const colorIndex = Math.abs(hash) % colors.length;
+  
+  return {
+    initials,
+    backgroundColor: colors[colorIndex]
+  };
+};
+
+// Avatar Component
+const Avatar: React.FC<{ name: string; size?: number; style?: any }> = ({ 
+  name, 
+  size = 60, 
+  style 
+}) => {
+  const { initials, backgroundColor } = generateAvatarFromInitials(name);
+  
+  return (
+    <View style={[
+      {
+        width: size,
+        height: size,
+        borderRadius: size / 2,
+        backgroundColor,
+        justifyContent: 'center',
+        alignItems: 'center',
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.2,
+        shadowRadius: 2,
+      },
+      style
+    ]}>
+      <Text style={{
+        color: '#FFFFFF',
+        fontSize: size * 0.35,
+        fontWeight: '600',
+        letterSpacing: 0.5,
+      }}>
+        {initials}
+      </Text>
+    </View>
+  );
+};
+
 export interface MenuItem {
   id: string;
   title: string;
@@ -332,8 +414,9 @@ export default function SidebarMenu({
         {/* Profile Section */}
         <View style={styles.profileSection}>
           <View style={styles.profileImageContainer}>
-            <Image
-              source={{ uri: 'https://via.placeholder.com/60x60/007AFF/FFFFFF?text=SR' }}
+            <Avatar 
+              name={userInfo?.employee_name || userInfo?.name || 'Unknown User'}
+              size={60}
               style={styles.profileImage}
             />
           </View>
@@ -562,7 +645,7 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#F0F0F0',
+    backgroundColor: '#1ec077ff',
   },
   profileInfo: {
     flex: 1,

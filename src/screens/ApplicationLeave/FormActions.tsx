@@ -17,7 +17,7 @@ const FormActions: React.FC<FormActionsProps> = ({ onCancel, onSubmit, loading =
         disabled={loading}
       >
         <Text style={[styles.btnSecondaryText, loading && styles.btnDisabledText]}>
-          ❌ Hủy
+          Hủy
         </Text>
       </TouchableOpacity>
       <TouchableOpacity 
@@ -26,7 +26,7 @@ const FormActions: React.FC<FormActionsProps> = ({ onCancel, onSubmit, loading =
         disabled={loading}
       >
         <Text style={[styles.btnPrimaryText, loading && styles.btnDisabledText]}>
-          {loading ? '⏳ Đang gửi...' : '📤 Gửi đơn'}
+          {loading ? 'Đang gửi...' : 'Gửi đơn'}
         </Text>
       </TouchableOpacity>
     </View>

@@ -21,25 +21,27 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/remak.jpg",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
       "package": "com.remak.app",
-      "config": {
-        "googleMaps": {
-          "apiKey": "AIzaSyCJr8Vvm2ZJ1gJ5kiKefflHt7duDxECmUQ"
-        }
-      }
+      "permissions": [
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.ACCESS_WIFI_STATE",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION"
+      ]
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/remak.jpg"
     },
     "extra": {
       "eas": {
-        "projectId": "bf0f1003-8149-4f3d-8a14-d1d2421907c9"
+        "projectId": "bcaf9a74-617d-4ffa-be5b-5b3bc6020a36"
       }
     },
-    "owner": "admin1234123"
+    "owner": "aaaa123"
   }
 }

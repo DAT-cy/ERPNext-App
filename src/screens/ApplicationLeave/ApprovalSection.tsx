@@ -49,7 +49,7 @@ const ApprovalSection: React.FC<ApprovalSectionProps> = ({
 
 
     return (
-        <FormSection title="✅ Phê duyệt">
+        <FormSection title="Phê duyệt">
             {/* Approver */}
             <FormField
                 label="Người phê duyệt"

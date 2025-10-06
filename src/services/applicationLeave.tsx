@@ -219,39 +219,90 @@ export async function saveLeaveApplication(payload: SaveLeaveApplicationPayload)
         formData.append('data', JSON.stringify(payload)); // Dữ liệu JSON đã được mã hóa
         formData.append('web_form', 'leave-application');
         formData.append('for_payment', 'false');
-        formData.append('cmd', 'frappe.website.doctype.web_form.web_form.accept');
-
-        console.log('  - data:', JSON.stringify(payload));
-        
+        formData.append('cmd', 'frappe.website.doctype.web_form.web_form.accept');        
         // Gửi yêu cầu POST
-        console.log('🚀 [saveLeaveApplication] Sending POST request to "/"');
         const res = await api.post("/", formData, {
             headers: {
                 'Content-Type': 'multipart/form-data',
             }
         });
-
-        console.log('✅ [saveLeaveApplication] Response status:', res.status);
-        console.log('✅ [saveLeaveApplication] Response headers:', res.headers);
-        console.log('✅ [saveLeaveApplication] Response data:', JSON.stringify(res.data, null, 2));
         return res.data || {};
     } catch (error: any) {
-        console.error("❌ [saveLeaveApplication] Error occurred:");
-        console.error("❌ [saveLeaveApplication] Error message:", error.message);
-        console.error("❌ [saveLeaveApplication] Error stack:", error.stack);
+        let customError = {
+            originalError: error,
+            type: 'unknown',
+            message: 'Có lỗi xảy ra khi gửi đơn xin nghỉ phép.',
+            details: {}
+        };
 
         if (error.response) {
-            console.error("❌ [saveLeaveApplication] Response status:", error.response.status);
-            console.error("❌ [saveLeaveApplication] Response statusText:", error.response.statusText);
-            console.error("❌ [saveLeaveApplication] Response headers:", error.response.headers);
-            console.error("❌ [saveLeaveApplication] Response data:", JSON.stringify(error.response.data, null, 2));
+            // Parse response data để tạo custom error
+            const responseData = error.response.data;
+            if (responseData && responseData.exception) {
+                const exceptionText = responseData.exception;
+                
+                // Kiểm tra lỗi OverlapError
+                if (exceptionText.includes('OverlapError') || exceptionText.includes('has already applied for')) {
+                    const employeeMatch = exceptionText.match(/Employee\s+([^\s]+)/);
+                    const leaveTypeMatch = exceptionText.match(/for\s+([^b]+)\s+between/);
+                    const dateMatch = exceptionText.match(/between\s+([^:]+)/);
+                    const docIdMatch = exceptionText.match(/HR-LAP-\d+-\d+/);
+                    
+                    customError = {
+                        originalError: error,
+                        type: 'overlap',
+                        message: 'Đơn nghỉ phép bị trùng lặp',
+                        details: {
+                            employeeId: employeeMatch ? employeeMatch[1] : '',
+                            leaveType: leaveTypeMatch ? leaveTypeMatch[1].trim() : '',
+                            dateRange: dateMatch ? dateMatch[1].trim() : '',
+                            docId: docIdMatch ? docIdMatch[0] : '',
+                            rawException: exceptionText
+                        }
+                    };
+                }
+                // Kiểm tra lỗi insufficient leave balance
+                else if (exceptionText.includes('insufficient leave balance')) {
+                    customError = {
+                        originalError: error,
+                        type: 'insufficient_balance',
+                        message: 'Không đủ số ngày nghỉ phép',
+                        details: {
+                            rawException: exceptionText
+                        }
+                    };
+                }
+                // Các lỗi khác
+                else {
+                    customError = {
+                        originalError: error,
+                        type: 'api_error',
+                        message: 'Lỗi từ server',
+                        details: {
+                            rawException: exceptionText,
+                            status: error.response.status
+                        }
+                    };
+                }
+            }
         } else if (error.request) {
-            console.error("❌ [saveLeaveApplication] Request was made but no response:", error.request);
+            customError = {
+                originalError: error,
+                type: 'network',
+                message: 'Lỗi kết nối mạng',
+                details: {}
+            };
         } else {
-            console.error("❌ [saveLeaveApplication] Error setting up request:", error.message);
+            customError = {
+                originalError: error,
+                type: 'request_setup',
+                message: 'Lỗi thiết lập yêu cầu',
+                details: {}
+            };
         }
 
-        throw error;
+        // Throw custom error thay vì error gốc
+        throw customError;
     }
 }
 
