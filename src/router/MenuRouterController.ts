@@ -23,14 +23,48 @@ class MenuRouterController {
   ): boolean {
     // Kiểm tra quyền truy cập menu
     if (!this.canAccessMenu(menuId, subMenuId, userRoles)) {
-      console.warn(
-        `User không có quyền truy cập menu: ${menuId}, submenu: ${subMenuId}`
-      );
       return false;
     }
 
     // Thực hiện điều hướng
-    return menuRouter.navigateByMenuId(menuId, subMenuId, params);
+    const success = menuRouter.navigateByMenuId(menuId, subMenuId, params);
+    return success;
+  }
+
+  /**
+   * Xử lý sự kiện click vào nested submenu (3 cấp)
+   * @param parentMenuId ID của menu cha (ví dụ: 'inventory')
+   * @param menuId ID của menu con (ví dụ: 'inventory-operations') 
+   * @param nestedSubMenuId ID của nested submenu (ví dụ: 'stock-entry')
+   * @param userRoles Roles của người dùng hiện tại
+   * @param params Tham số tùy chỉnh truyền vào route
+   * @returns boolean - true nếu điều hướng thành công, false nếu không
+   */
+  handleNestedMenuNavigation(
+    parentMenuId: string,
+    menuId: string,
+    nestedSubMenuId: string,
+    userRoles: string[],
+    params?: any
+  ): boolean {
+    // Kiểm tra quyền truy cập nested menu bằng hasSubItemAccess với nestedSubItemId
+    const hasAccess = hasSubItemAccess(userRoles, parentMenuId, menuId, nestedSubMenuId);
+    
+    if (!hasAccess) {
+      return false;
+    }
+
+    // Tạo route key cho nested menu
+    const routeKey = `${menuId}:${nestedSubMenuId}`;
+    
+    // Kiểm tra xem có route mapping không
+    if (!MENU_ROUTE_MAP[routeKey]) {
+      return false;
+    }
+
+    // Thực hiện điều hướng
+    const success = menuRouter.navigateByMenuId(menuId, nestedSubMenuId, params);
+    return success;
   }
 
   /**

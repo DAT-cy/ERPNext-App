@@ -1,10 +1,8 @@
-import { api, SID_KEY } from "../config/api";
-import * as SecureStore from "expo-secure-store";
+import { api } from "../config/api";
 import { getEmployeeCodeByEmail } from "./authService";
 import { 
   ApplicationLeaveErrorHandler, 
-  ApplicationLeaveResult,
-  ApplicationLeaveErrorCode 
+  ApplicationLeaveResult 
 } from "../utils/error/applicationLeave";
 import { InformationUser, RoleUserMap } from "../types";
 import { LeaveApplication, LeaveApprover, SaveLeaveApplicationPayload } from "../types/applicationLeave.types";

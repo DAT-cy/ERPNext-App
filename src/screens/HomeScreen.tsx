@@ -8,7 +8,7 @@ import { useNavigation } from "@react-navigation/native";
 import TopTabBar from "../components/TabBar/TopTabBar";
 import BottomTabBar from "../components/TabBar/BottomTabBar";
 import { NavigationSidebarMenu } from "../components/SidebarMenu";
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import { WebView } from 'react-native-webview';
 import * as Location from 'expo-location';
 import { useAuth, useScreenTabBar } from "../hooks";
 import { useCheckin } from "../hooks/useCheckin";
@@ -42,6 +42,24 @@ const formatDate = (dateTimeStr: string): string => {
 // Lấy ngày hiện tại dạng chuỗi
 const getTodayDateString = (): string => {
   return formatDate(new Date().toISOString());
+};
+
+// Translate custom_status to Vietnamese
+const translateStatus = (status: string): string => {
+  const statusMap: { [key: string]: string } = {
+    'Draft': 'Nháp',
+    'Submitted': 'Đã gửi',
+    'Approved': 'Đã duyệt',
+    'Rejected': 'Đã từ chối',
+    'Cancelled': 'Đã hủy',
+    'Pending': 'Đang chờ',
+    'In Progress': 'Đang xử lý',
+    'Completed': 'Hoàn thành',
+    'Failed': 'Thất bại',
+    'Success': 'Thành công'
+  };
+  
+  return statusMap[status] || status;
 };
 
 export default function HomeScreen() {
@@ -404,7 +422,85 @@ export default function HomeScreen() {
     }
   }, [userLocation, loadCheckinData, handleSubmitCheckin, user, hasValidLocation, locationError, getCurrentLocation]);
   
-  // Render checkin item
+  // Group records by date and create pairs for weekly view
+  const groupedRecords = useMemo(() => {
+    if (activeContentTab !== 'week') return [];
+    
+    const grouped: { [key: string]: CheckinRecord[] } = {};
+    
+    // Group records by date
+    displayRecords.forEach(record => {
+      const dateKey = record.time.split(' ')[0]; // YYYY-MM-DD format
+      
+      if (!grouped[dateKey]) {
+        grouped[dateKey] = [];
+      }
+      
+      grouped[dateKey].push(record);
+    });
+    
+    // Create pairs for each date
+    const result: Array<{ 
+      date: string; 
+      pairs: Array<{ inRecord?: CheckinRecord; outRecord?: CheckinRecord }> 
+    }> = [];
+    
+    Object.keys(grouped).forEach(dateKey => {
+      const dayRecords = grouped[dateKey].sort((a, b) => 
+        new Date(a.time).getTime() - new Date(b.time).getTime()
+      );
+      
+      const pairs: Array<{ inRecord?: CheckinRecord; outRecord?: CheckinRecord }> = [];
+      let currentPair: { inRecord?: CheckinRecord; outRecord?: CheckinRecord } = {};
+      
+      dayRecords.forEach(record => {
+        if (record.log_type === 'IN') {
+          // Start new pair or continue if no OUT yet
+          if (currentPair.inRecord && !currentPair.outRecord) {
+            // Previous IN without OUT, start new pair
+            pairs.push(currentPair);
+            currentPair = { inRecord: record };
+          } else {
+            currentPair.inRecord = record;
+          }
+        } else if (record.log_type === 'OUT') {
+          // Complete current pair
+          currentPair.outRecord = record;
+          pairs.push(currentPair);
+          currentPair = {};
+        }
+      });
+      
+      // Add incomplete pair if exists
+      if (currentPair.inRecord || currentPair.outRecord) {
+        pairs.push(currentPair);
+      }
+      
+      // If no pairs but has records, create pairs from records
+      if (pairs.length === 0 && dayRecords.length > 0) {
+        dayRecords.forEach(record => {
+          if (record.log_type === 'IN') {
+            pairs.push({ inRecord: record });
+          } else {
+            pairs.push({ outRecord: record });
+          }
+        });
+      }
+      
+      // Reverse pairs to show newest first
+      pairs.reverse();
+      
+      result.push({
+        date: dateKey,
+        pairs: pairs
+      });
+    });
+    
+    // Sort by date (newest first)
+    return result.sort((a, b) => b.date.localeCompare(a.date));
+  }, [displayRecords, activeContentTab]);
+
+  // Render checkin item for today view
   const renderCheckinItem = useCallback(({ item }: { item: CheckinRecord }) => (
     <View style={homeScreenStyles.checkinItem}>
       <View style={homeScreenStyles.logTypeIndicator}>
@@ -418,10 +514,126 @@ export default function HomeScreen() {
       <View style={homeScreenStyles.checkinInfo}>
         <Text style={homeScreenStyles.checkinTime}>{formatTime(item.time)}</Text>
         <Text style={homeScreenStyles.checkinDate}>{formatDate(item.time)}</Text>
-        <Text style={homeScreenStyles.checkinStatus}>{item.custom_status}</Text>
+        <Text style={homeScreenStyles.checkinStatus}>{translateStatus(item.custom_status)}</Text>
       </View>
     </View>
   ), []);
+
+  // Render single pair
+  const renderSinglePair = useCallback((pair: { inRecord?: CheckinRecord, outRecord?: CheckinRecord }, index: number, totalPairs?: number) => {
+    const inTime = pair.inRecord ? formatTime(pair.inRecord.time) : '--:--';
+    const outTime = pair.outRecord ? formatTime(pair.outRecord.time) : '--:--';
+    const inStatus = pair.inRecord ? translateStatus(pair.inRecord.custom_status) : 'Chưa có';
+    const outStatus = pair.outRecord ? translateStatus(pair.outRecord.custom_status) : 'Chưa có';
+    
+    // Calculate work duration if both times exist
+    let workDuration = '';
+    if (pair.inRecord && pair.outRecord) {
+      const inDateTime = new Date(pair.inRecord.time);
+      const outDateTime = new Date(pair.outRecord.time);
+      const diff = outDateTime.getTime() - inDateTime.getTime();
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      workDuration = `${hours}h ${minutes}m`;
+    }
+    
+    return (
+      <View key={index} style={homeScreenStyles.pairContainer}>
+        {/* Pair number if multiple pairs */}
+        {totalPairs && totalPairs > 1 && (
+          <Text style={homeScreenStyles.pairNumber}>
+            {index === 0 ? 'Cặp mới nhất' : `Cặp ${totalPairs - index}`}
+          </Text>
+        )}
+        
+        {/* Labels Row */}
+        <View style={homeScreenStyles.labelsRow}>
+          <Text style={homeScreenStyles.inLabel}>[IN] Vào ca</Text>
+          <Text style={homeScreenStyles.arrowSymbol}>→</Text>
+          <Text style={homeScreenStyles.outLabel}>[OUT] Ra ca</Text>
+        </View>
+        
+        {/* Times Row */}
+        <View style={homeScreenStyles.timesRowDisplay}>
+          <Text style={[homeScreenStyles.timeDisplay, inTime === '--:--' && homeScreenStyles.missingTimeDisplay]}>
+            {inTime}
+          </Text>
+          <View style={homeScreenStyles.timesSpacer} />
+          <Text style={[homeScreenStyles.timeDisplay, outTime === '--:--' && homeScreenStyles.missingTimeDisplay]}>
+            {outTime}
+          </Text>
+        </View>
+        
+        {/* Status Row */}
+        <View style={homeScreenStyles.statusRow}>
+          <Text style={[homeScreenStyles.statusDisplay, inTime === '--:--' && homeScreenStyles.missingStatusDisplay]}>
+            {inStatus}
+          </Text>
+          <View style={homeScreenStyles.statusSpacer} />
+          <Text style={[homeScreenStyles.statusDisplay, outTime === '--:--' && homeScreenStyles.missingStatusDisplay]}>
+            {outStatus}
+          </Text>
+        </View>
+        
+        {/* Work Duration */}
+        {workDuration && (
+          <View style={homeScreenStyles.durationContainer}>
+            <Text style={homeScreenStyles.durationText}>Thời gian: </Text>
+            <Text style={homeScreenStyles.durationValue}>{workDuration}</Text>
+          </View>
+        )}
+      </View>
+    );
+  }, []);
+
+  // Render weekly checkin day with multiple pairs
+  const renderWeeklyCheckinDay = useCallback(({ item }: { item: { date: string, pairs: Array<{ inRecord?: CheckinRecord, outRecord?: CheckinRecord }> } }) => {
+    // Parse date properly - item.date is in YYYY-MM-DD format
+    const date = new Date(item.date + 'T12:00:00'); // Use noon to avoid timezone issues
+    const dayName = date.toLocaleDateString('vi-VN', { weekday: 'short' });
+    const dayNumber = date.getDate();
+    const monthName = date.toLocaleDateString('vi-VN', { month: 'short' });
+    const isToday = item.date === new Date().toISOString().split('T')[0];
+    
+    // Calculate total work duration for the day
+    let totalMinutes = 0;
+    item.pairs.forEach(pair => {
+      if (pair.inRecord && pair.outRecord) {
+        const inDateTime = new Date(pair.inRecord.time);
+        const outDateTime = new Date(pair.outRecord.time);
+        const diff = outDateTime.getTime() - inDateTime.getTime();
+        totalMinutes += diff / (1000 * 60);
+      }
+    });
+    
+    const totalHours = Math.floor(totalMinutes / 60);
+    const remainingMinutes = Math.floor(totalMinutes % 60);
+    const totalDuration = totalMinutes > 0 ? `${totalHours}h ${remainingMinutes}m` : '';
+    
+    return (
+      <View style={[homeScreenStyles.weeklyCard, isToday && homeScreenStyles.todayCard]}>
+        {/* Header with date */}
+        <View style={homeScreenStyles.weeklyHeader}>
+          <Text style={homeScreenStyles.weeklyHeaderText}>
+            {dayName.toUpperCase()} {dayNumber} {monthName.toUpperCase()}{isToday && ' - HÔM NAY'}
+          </Text>
+        </View>
+        
+        {/* All pairs for this day */}
+        <View style={homeScreenStyles.inOutRow}>
+          {item.pairs.map((pair, index) => renderSinglePair(pair, index, item.pairs.length))}
+        </View>
+        
+        {/* Total work duration for the day */}
+        {totalDuration && item.pairs.length > 1 && (
+          <View style={[homeScreenStyles.durationContainer, homeScreenStyles.totalDurationContainer]}>
+            <Text style={homeScreenStyles.durationText}>Tổng thời gian ngày: </Text>
+            <Text style={[homeScreenStyles.durationValue, homeScreenStyles.totalDurationValue]}>{totalDuration}</Text>
+          </View>
+        )}
+      </View>
+    );
+  }, [renderSinglePair]);
 
 
   return (
@@ -558,34 +770,74 @@ export default function HomeScreen() {
               </View>
             )}
             
-            {/* Google Maps - Vị trí đã khóa */}
+            {/* OpenStreetMap - Vị trí đã khóa */}
             <View style={homeScreenStyles.mapContainer}>
               {userLocation ? (
-                <MapView
-                  provider={PROVIDER_GOOGLE}
+                <WebView
                   style={homeScreenStyles.map}
-                  region={userLocation}
-                  initialRegion={userLocation}
-                  showsUserLocation={true}
-                  showsCompass={false}
-                  showsMyLocationButton={false}
-                  zoomEnabled={false}
+                  source={{
+                    html: `
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+                            integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+                            crossorigin=""/>
+                        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+                            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+                            crossorigin=""></script>
+                        <style>
+                            body { margin: 0; padding: 0; }
+                            #map { height: 100vh; width: 100%; }
+                            .custom-marker {
+                                background-color: #0068FF;
+                                width: 30px;
+                                height: 30px;
+                                border-radius: 50%;
+                                border: 3px solid white;
+                                box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        <div id="map"></div>
+                        <script>
+                            var map = L.map('map', {
+                                zoomControl: false,
+                                dragging: false,
+                                touchZoom: false,
+                                doubleClickZoom: false,
+                                scrollWheelZoom: false,
+                                boxZoom: false,
+                                keyboard: false
+                            }).setView([${userLocation.latitude}, ${userLocation.longitude}], 16);
+                            
+                            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                                attribution: '© OpenStreetMap contributors'
+                            }).addTo(map);
+                            
+                            var customIcon = L.divIcon({
+                                className: 'custom-marker',
+                                iconSize: [30, 30],
+                                iconAnchor: [15, 15]
+                            });
+                            
+                            L.marker([${userLocation.latitude}, ${userLocation.longitude}], {icon: customIcon})
+                                .addTo(map)
+                                .bindPopup('<b>Vị trí chấm công</b><br>Vị trí đã xác định của bạn');
+                        </script>
+                    </body>
+                    </html>
+                    `
+                  }}
+                  onLoad={() => {
+                    console.log('✅ OpenStreetMap loaded successfully');
+                  }}
                   scrollEnabled={false}
-                  rotateEnabled={false}
-                  pitchEnabled={false}
-                  toolbarEnabled={false}
-                  moveOnMarkerPress={false}
-                >
-                  <Marker
-                    coordinate={{
-                      latitude: userLocation.latitude,
-                      longitude: userLocation.longitude
-                    }}
-                    title="Vị trí đã xác định"
-                    description="Vị trí chấm công của bạn"
-                    pinColor="#0068FF"
-                  />
-                </MapView>
+                  showsHorizontalScrollIndicator={false}
+                  showsVerticalScrollIndicator={false}
+                />
               ) : (
                 <View style={[homeScreenStyles.map, { justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5' }]}>
                   <Text style={{ color: '#666', fontSize: 16, textAlign: 'center' }}>
@@ -605,6 +857,33 @@ export default function HomeScreen() {
               </TouchableOpacity>
             </View>
           </ScrollView>
+            ) : activeContentTab === "week" ? (
+              <FlatList
+                data={groupedRecords}
+                keyExtractor={(item) => item.date}
+                renderItem={renderWeeklyCheckinDay}
+                contentContainerStyle={homeScreenStyles.scrollContentContainer}
+                refreshing={loading}
+                onRefresh={loadCheckinData}
+                ListHeaderComponent={
+                  <View style={homeScreenStyles.headerContainer}>
+                    <Text style={homeScreenStyles.headerTitle}>Chấm công tuần này</Text>
+                    <View style={homeScreenStyles.checkinStatusBadge}>
+                      <Text style={[
+                        homeScreenStyles.checkinStatusText,
+                        { color: checkinStatus ? '#4CAF50' : '#F44336' }
+                      ]}>
+                        {checkinStatus ? "Đã check-in" : "Chưa check-in"}
+                      </Text>
+                    </View>
+                  </View>
+                }
+                ListEmptyComponent={
+                  <View style={homeScreenStyles.centerContainer}>
+                    <Text style={homeScreenStyles.noDataText}>Chưa có dữ liệu chấm công tuần này</Text>
+                  </View>
+                }
+              />
             ) : (
               <FlatList
                 data={displayRecords}
@@ -615,9 +894,7 @@ export default function HomeScreen() {
                 onRefresh={loadCheckinData}
                 ListHeaderComponent={
                   <View style={homeScreenStyles.headerContainer}>
-                    <Text style={homeScreenStyles.headerTitle}>
-                      {activeContentTab === "today" ? "Chấm công hôm nay" : "Chấm công tuần này"}
-                    </Text>
+                    <Text style={homeScreenStyles.headerTitle}>Chấm công hôm nay</Text>
                     <View style={homeScreenStyles.checkinStatusBadge}>
                       <Text style={[
                         homeScreenStyles.checkinStatusText,
@@ -626,6 +903,11 @@ export default function HomeScreen() {
                         {checkinStatus ? "Đã check-in" : "Chưa check-in"}
                       </Text>
                     </View>
+                  </View>
+                }
+                ListEmptyComponent={
+                  <View style={homeScreenStyles.centerContainer}>
+                    <Text style={homeScreenStyles.noDataText}>Chưa có dữ liệu chấm công hôm nay</Text>
                   </View>
                 }
               />

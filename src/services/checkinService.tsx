@@ -63,19 +63,29 @@ export async function fetchCheckinRecords(): Promise<CheckinRecord[]> {
     
     let loggedUser;
     try {
+        console.log('🔄 [fetchCheckinRecords] Getting logged user...');
         loggedUser = await getLoggedUser();
         console.log('✅ [fetchCheckinRecords] Got logged user:', loggedUser.message);
-    } catch (error) {
-        console.error('❌ [fetchCheckinRecords] Error getting lsogged user:', error);
+    } catch (error: any) {
+        console.error('❌ [fetchCheckinRecords] Error getting logged user:', {
+            message: error?.message,
+            code: error?.code,
+            timeout: error?.code === 'ECONNABORTED' || error?.message?.includes('timeout')
+        });
+        
+        // Return empty array for timeout or network errors
+        if (error?.code === 'ECONNABORTED' || error?.message?.includes('timeout')) {
+            console.log('⏰ [fetchCheckinRecords] Request timeout - returning empty array');
+        }
         return [];
     }
     
     const employeeCode = await getEmployeeCodeByEmail();
     if (!employeeCode) {
-        console.warn('⚠️ [fetchCheckinRecords] No employee code found');
+        console.log('⚠️ [fetchCheckinRecords] No employee code found');
         return [];
     }
-    
+
     console.log('👤 [fetchCheckinRecords] Using employee code:', employeeCode);
 
     const filters = JSON.stringify([["employee", "=", employeeCode]]);
@@ -89,23 +99,51 @@ export async function fetchCheckinRecords(): Promise<CheckinRecord[]> {
     ]);
     
     try {
+        console.log('🚀 [fetchCheckinRecords] Making API request...');
+        
+        const requestParams = {
+            cmd: "frappe.www.list.get_list_data",
+            doctype: "Employee Checkin",
+            limit_start: 0,
+            limit: 10,
+            web_form_name: "checkin",
+            filters,
+            fields,
+        };
+        
+        console.log('📤 [fetchCheckinRecords] Request params:', requestParams);
+        
         const res = await api.get("/", {
-            params: {
-                cmd: "frappe.www.list.get_list_data",
-                doctype: "Employee Checkin",
-                limit_start: 0,
-                limit: 20,
-                web_form_name: "checkin",
-                filters,
-                fields,
-            },
+            params: requestParams
         });
         
-        console.log('📡 [fetchCheckinRecords] API response:', res.data);
-        return res.data.message;
-    } catch (error) {
-        console.error("❌ [fetchCheckinRecords] Error fetching checkins:", error);
-        throw error;
+        console.log('📡 [fetchCheckinRecords] API response:', {
+            status: res.status,
+            dataExists: !!res.data,
+            messageExists: !!(res.data && res.data.message),
+            recordCount: res.data?.message?.length || 0
+        });
+        
+        console.log('✅ [fetchCheckinRecords] Successfully fetched records');
+        return res.data.message || [];
+    } catch (error: any) {
+        console.error('❌ [fetchCheckinRecords] Error details:', {
+            message: error?.message,
+            code: error?.code,
+            status: error?.response?.status,
+            timeout: error?.code === 'ECONNABORTED' || error?.message?.includes('timeout'),
+            network: !error?.response
+        });
+        
+        // Specific handling for timeout errors
+        if (error?.code === 'ECONNABORTED' || error?.message?.includes('timeout')) {
+            console.error('⏰ [fetchCheckinRecords] Request timeout exceeded - returning empty array');
+            return [];
+        }
+        
+        // For other errors, still return empty array instead of throwing
+        console.warn('🔄 [fetchCheckinRecords] Returning empty array due to error');
+        return [];
     }
 }
 export async function getInformationEmployee(): Promise<InformationUser> {

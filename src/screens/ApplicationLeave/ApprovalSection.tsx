@@ -3,7 +3,6 @@ import { View, Text, TouchableOpacity, StyleSheet, TextInput } from 'react-nativ
 import { FormSection, FormField } from '../../components';
 import { getCodeNameEmployee1 } from '../../services/applicationLeave';
 import {getEmployeeCodeByEmail} from '../../services/authService';
-import { get } from 'react-native/Libraries/TurboModule/TurboModuleRegistry';
 
 interface ApprovalSectionProps {
     formData: {
@@ -49,7 +48,7 @@ const ApprovalSection: React.FC<ApprovalSectionProps> = ({
 
 
     return (
-        <FormSection title="✅ Phê duyệt">
+        <FormSection title="Phê duyệt">
             {/* Approver */}
             <FormField
                 label="Người phê duyệt"

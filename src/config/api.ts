@@ -36,7 +36,8 @@ export const api: AxiosInstance = axios.create({
   baseURL: getBaseURL(),
   headers: { Accept: "application/json", "Content-Type": "application/json" },
   withCredentials: true,
-  timeout: 3000, // Siêu nhanh - chỉ 3s timeout
+  timeout: 30000, // 30 second timeout
+  timeoutErrorMessage: "Request timeout - Vui lòng kiểm tra kết nối mạng",
 });
 
 // Thêm interceptor cho request

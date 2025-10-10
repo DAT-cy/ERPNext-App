@@ -53,4 +53,10 @@ export const SCREEN_TAB_CONFIG = {
     initialTopTab: '', // Không có tab nào active
     initialBottomTab: '' // Không có tab nào active
   },
+  inventory: {
+    topTabs: getDefaultTopTabs(), // Trống
+    bottomTabs: getDefaultBottomTabs(), // Chỉ có "Trang chủ" và "Hồ sơ"
+    initialTopTab: '', // Không có tab nào active
+    initialBottomTab: '' // Không có tab nào active
+  },
 } as const;

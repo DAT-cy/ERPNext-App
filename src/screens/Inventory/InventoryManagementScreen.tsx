@@ -9,59 +9,32 @@ import {
   SafeAreaView,
   Platform
 } from 'react-native';
-import { ss, fs } from '../utils/responsive';
-import { useScreenTabBar } from "../hooks";
-import { BottomTabBar, NavigationSidebarMenu, TopTabBar } from '../components';
-import { MENU_DEFINITIONS, SubMenuItemDef } from '../utils/menuPermissions';
-import { useFeatureNavigation } from '../utils/navigationHelpers';
-import { getInformationEmployee } from '../services/checkinService';
+import { ss, fs } from '../../utils/responsive';
+import { useScreenTabBar } from "../../hooks";
+import { BottomTabBar, NavigationSidebarMenu, TopTabBar } from '../../components';
+import { MENU_DEFINITIONS, SubMenuItemDef } from '../../utils/menuPermissions';
+import { useFeatureNavigation } from '../../utils/navigationHelpers';
 
-interface LeaveFeature extends SubMenuItemDef {
+interface InventoryFeature extends SubMenuItemDef {
   description: string;
   backgroundColor: string;
 }
 
-interface RouteParams {
-  selectedDate?: string;
-  initialTab?: 'pending' | 'approved' | 'rejected';
-}
-
-const LeaveManagementScreen = ({ route }: { route?: { params?: RouteParams } }) => {
+const InventoryManagementScreen = () => {
   const [notification, setNotification] = useState<string | null>(null);
-  const tabBar = useScreenTabBar('leave_hr');
+  const tabBar = useScreenTabBar('inventory');
 
-  // Lấy tham số từ navigation
-  const { params } = route || {};
-  const selectedDate = params?.selectedDate;
-  const initialTab = params?.initialTab || 'pending';
-  
-
-  // Parameters received from navigation
-
-
-  // Get leave management features from menuPermissions - từ submenu của leaves-hr
-  const hrMenu = MENU_DEFINITIONS.find(menu => menu.id === 'hr');
-  const leavesHrSubmenu = hrMenu?.subItems?.find(subItem => subItem.id === 'leaves-hr');
-  const features: LeaveFeature[] = (leavesHrSubmenu?.subItems || []).map(item => ({
+  // Get inventory operations features from menuPermissions
+  const inventoryMenu = MENU_DEFINITIONS.find(menu => menu.id === 'inventory');
+  const inventoryOperationsSubmenu = inventoryMenu?.subItems?.find(subItem => subItem.id === 'inventory-operations');
+  const features: InventoryFeature[] = (inventoryOperationsSubmenu?.subItems || []).map(item => ({
     ...item,
-    description: item.description || '',
+    description: item.description || 'Quản lý nghiệp vụ kho hàng',
     backgroundColor: item.backgroundColor || '#6b7280'
   }));
 
-  // Features loaded successfully
-
-  // Initialize employee information on mount
-  React.useEffect(() => {
-    const initializeEmployeeInfo = async () => {
-      try {
-        await getInformationEmployee();
-      } catch (error) {
-        // Handle error silently or show user-friendly message
-      }
-    };
-
-    initializeEmployeeInfo();
-  }, []);
+  // Debug log để kiểm tra dữ liệu được load
+  // Debug log removed for production
 
   // Xử lý hiển thị thông báo
   const showNotification = (message: string) => {
@@ -71,21 +44,13 @@ const LeaveManagementScreen = ({ route }: { route?: { params?: RouteParams } }) 
     }, 3000);
   };
 
-  // Sử dụng navigation helper
-  const navigate = useFeatureNavigation();
+  // Sử dụng navigation hook
+  const handleNavigateToFeature = useFeatureNavigation();
 
-  // Xử lý điều hướng đến tính năng
-  const handleNavigateToFeature = (feature: LeaveFeature) => {
-    try {
-      navigate(feature);
-      showNotification(`Đang mở ${feature.title}...`);
-    } catch (error) {
-      showNotification(`Tính năng ${feature.title} đang được phát triển...`);
-    }
-  };
+
 
   // Render card tính năng
-  const renderFeatureCard = (feature: LeaveFeature) => (
+  const renderFeatureCard = (feature: InventoryFeature) => (
     <TouchableOpacity 
       key={feature.id}
       style={styles.featureCard}
@@ -108,17 +73,17 @@ const LeaveManagementScreen = ({ route }: { route?: { params?: RouteParams } }) 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" />
-    <TopTabBar
-            {...tabBar.topTabBarProps}
-          />
+      <TopTabBar {...tabBar.topTabBarProps} />
 
       {/* Main Content */}
       <ScrollView 
         style={styles.mainContent}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: ss(80) }}
-      >
-         {/* Feature Cards */}
+        contentContainerStyle={{ paddingBottom: ss(80) }}>
+
+
+        {/* Feature Cards */}
+        <Text style={styles.sectionTitle}>Nghiệp vụ kho hàng</Text>
         {features.map(feature => renderFeatureCard(feature))}
       </ScrollView>
 
@@ -331,6 +296,36 @@ const styles = StyleSheet.create({
     fontSize: fs(14),
     fontWeight: '500',
   },
+  
+  // New styles for Inventory Management
+  headerSubtitle: {
+    fontSize: fs(14),
+    color: 'rgba(255,255,255,0.8)',
+    marginTop: ss(4),
+  },
+  statsContainer: {
+    backgroundColor: 'white',
+    borderRadius: ss(12),
+    padding: ss(16),
+    marginHorizontal: ss(20),
+    marginBottom: ss(20),
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  sectionTitle: {
+    fontSize: fs(18),
+    fontWeight: 'bold',
+    color: '#1f2937',
+    marginHorizontal: ss(20),
+    marginBottom: ss(16),
+  },
 });
 
-export default LeaveManagementScreen;
+export default InventoryManagementScreen;

@@ -13,7 +13,6 @@ export const formatDisplayDate = (dateString: string, isHalfDay: boolean = false
     
     // Validate date object
     if (isNaN(date.getTime())) {
-      console.error('❌ Invalid date:', dateString);
       return dateString;
     }
     

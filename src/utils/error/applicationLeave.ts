@@ -173,9 +173,7 @@ export class ApplicationLeaveErrorHandler {
     context: string = 'Application Leave Operation'
   ): Promise<ApplicationLeaveResult<T>> {
     try {
-      console.log(`🔄 ${context} - Starting...`);
       const data = await operation();
-      console.log(`✅ ${context} - Success`);
       
       return {
         success: true,
@@ -204,15 +202,7 @@ export class ApplicationLeaveErrorHandler {
     }
 
     // Log chi tiết cho debugging
-    if (__DEV__) {
-      console.group('🐛 Application Leave Error Details');
-      console.log('Code:', error.code);
-      console.log('Message:', error.message);
-      console.log('User Message:', error.userMessage);
-      console.log('Timestamp:', error.timestamp);
-      console.log('Details:', error.details);
-      console.groupEnd();
-    }
+    // Debug info removed for production
   }
 
   /**

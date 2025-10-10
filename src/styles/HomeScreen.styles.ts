@@ -184,16 +184,6 @@ export const homeScreenStyles = StyleSheet.create({
     backgroundColor: colors.border,
     marginHorizontal: spacing.md,
   },
-  timeLabel: {
-    fontSize: fs(12),
-    color: colors.textSecondary,
-    marginBottom: spacing.xs,
-  },
-  timeValue: {
-    fontSize: fs(18),
-    fontWeight: 'bold',
-    color: colors.textPrimary,
-  },
   noDataText: {
     fontSize: fs(16),
     color: colors.textSecondary,
@@ -372,5 +362,263 @@ export const homeScreenStyles = StyleSheet.create({
     fontSize: fs(12),
     color: colors.white,
     fontWeight: '500',
+  },
+
+  // Weekly Checkin Styles
+  weeklyCard: {
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.lg,
+    marginVertical: spacing.xs,
+    marginHorizontal: spacing.md,
+    padding: spacing.lg,
+    borderLeftWidth: 4,
+    borderLeftColor: colors.gray200,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  todayCard: {
+    borderLeftColor: colors.primary,
+    shadowOpacity: 0.12,
+    elevation: 5,
+  },
+  weeklyHeader: {
+    alignItems: 'center',
+    marginBottom: spacing.md,
+    paddingBottom: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.gray100,
+  },
+  weeklyHeaderText: {
+    fontSize: fs(14),
+    fontWeight: 'bold',
+    color: colors.textPrimary,
+    textAlign: 'center',
+    letterSpacing: 0.5,
+  },
+  dateInfo: {
+    alignItems: 'center',
+  },
+  dayName: {
+    fontSize: fs(11),
+    fontWeight: '600',
+    color: colors.textSecondary,
+    letterSpacing: 1,
+    marginBottom: spacing.xs / 2,
+  },
+  dayNumber: {
+    fontSize: fs(24),
+    fontWeight: 'bold',
+    color: colors.textPrimary,
+    lineHeight: fs(26),
+  },
+  todayText: {
+    color: colors.primary,
+  },
+  monthName: {
+    fontSize: fs(10),
+    color: colors.textSecondary,
+    fontWeight: '500',
+    marginTop: spacing.xs / 2,
+  },
+  todayBadge: {
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs / 2,
+  },
+  todayBadgeText: {
+    fontSize: fs(10),
+    color: colors.white,
+    fontWeight: 'bold',
+    letterSpacing: 0.5,
+  },
+  timesContainer: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+  },
+  timeSection: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  timeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+  },
+  timeIcon: {
+    width: ss(24),
+    height: ss(24),
+    borderRadius: ss(12),
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing.xs,
+  },
+  timeIconText: {
+    fontSize: fs(9),
+    color: colors.white,
+    fontWeight: 'bold',
+  },
+  timeLabel: {
+    fontSize: fs(12),
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  timeValue: {
+    fontSize: fs(18),
+    fontWeight: 'bold',
+    color: colors.textPrimary,
+    marginBottom: spacing.xs / 2,
+  },
+  missingTime: {
+    color: colors.textSecondary,
+    fontStyle: 'italic',
+  },
+  statusText: {
+    fontSize: fs(11),
+    color: colors.textSecondary,
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
+  missingStatus: {
+    color: colors.gray400,
+  },
+  separator: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.md,
+  },
+  separatorLine: {
+    width: ss(16),
+    height: 1,
+    backgroundColor: colors.gray300,
+  },
+  arrowText: {
+    fontSize: fs(16),
+    color: colors.primary,
+    fontWeight: 'bold',
+    marginVertical: spacing.xs / 2,
+  },
+  durationContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: spacing.md,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.gray100,
+  },
+  durationText: {
+    fontSize: fs(12),
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  durationValue: {
+    fontSize: fs(12),
+    color: colors.success,
+    fontWeight: 'bold',
+    backgroundColor: '#E8F5E8',
+    paddingHorizontal: spacing.xs,
+    paddingVertical: spacing.xs / 2,
+    borderRadius: borderRadius.sm,
+  },
+
+  // New simplified layout styles
+  inOutRow: {
+    paddingVertical: spacing.sm,
+  },
+  labelsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+  },
+  inLabel: {
+    fontSize: fs(12),
+    fontWeight: '600',
+    color: colors.success,
+    flex: 1,
+    textAlign: 'left',
+  },
+  outLabel: {
+    fontSize: fs(12),
+    fontWeight: '600',
+    color: colors.error,
+    flex: 1,
+    textAlign: 'right',
+  },
+  arrowSymbol: {
+    fontSize: fs(16),
+    color: colors.primary,
+    fontWeight: 'bold',
+    paddingHorizontal: spacing.sm,
+  },
+  timesRowDisplay: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+  },
+  timeDisplay: {
+    fontSize: fs(18),
+    fontWeight: 'bold',
+    color: colors.textPrimary,
+    flex: 1,
+    textAlign: 'center',
+  },
+  missingTimeDisplay: {
+    color: colors.textSecondary,
+    fontStyle: 'italic',
+  },
+  timesSpacer: {
+    width: ss(40),
+  },
+  statusRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  statusDisplay: {
+    fontSize: fs(11),
+    color: colors.textSecondary,
+    flex: 1,
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
+  missingStatusDisplay: {
+    color: colors.gray400,
+  },
+  statusSpacer: {
+    width: ss(40),
+  },
+
+  // Multiple pairs styles
+  pairContainer: {
+    marginVertical: spacing.xs,
+    paddingVertical: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.gray100,
+  },
+  pairNumber: {
+    fontSize: fs(10),
+    fontWeight: '600',
+    color: colors.primary,
+    textAlign: 'center',
+    marginBottom: spacing.xs,
+    textTransform: 'uppercase',
+  },
+  totalDurationContainer: {
+    backgroundColor: colors.primaryLight,
+    borderRadius: borderRadius.sm,
+    marginTop: spacing.sm,
+  },
+  totalDurationValue: {
+    color: colors.primary,
+    fontWeight: 'bold',
   },
 });

@@ -15,31 +15,41 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.remak.app",
+      "config": {
+        "googleMapsApiKey": "AIzaSyDSVAQs5a-iN5ZE6XlnMP9PUmIa_1qHchA"
+      },
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/remak.jpg",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
       "package": "com.remak.app",
+      "permissions": [
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.ACCESS_WIFI_STATE",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION"
+      ],
       "config": {
         "googleMaps": {
-          "apiKey": "AIzaSyCJr8Vvm2ZJ1gJ5kiKefflHt7duDxECmUQ"
+          "apiKey": "AIzaSyDSVAQs5a-iN5ZE6XlnMP9PUmIa_1qHchA"
         }
       }
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/remak.jpg"
     },
     "extra": {
       "eas": {
-        "projectId": "bf0f1003-8149-4f3d-8a14-d1d2421907c9"
+        "projectId": "d4e5a1ca-6d6c-4519-b444-a682668d795f"
       }
     },
-    "owner": "admin1234123"
+    "owner": "tiktik2202"
   }
 }

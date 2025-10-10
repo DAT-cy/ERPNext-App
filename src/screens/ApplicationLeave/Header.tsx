@@ -15,7 +15,7 @@ const Header: React.FC<HeaderProps> = ({ onBack, onSaveDraft }) => {
         </TouchableOpacity>
       </View>
       <View style={styles.headerTitle}>
-        <Text style={styles.headerTitleText}>📝 Đơn Xin Nghỉ Phép</Text>
+        <Text style={styles.headerTitleText}>Đơn Xin Nghỉ Phép</Text>
       </View>
     </View>
   );

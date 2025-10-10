@@ -13,7 +13,9 @@ export enum RouteNames {
   LOGIN = 'Login',
   HOME = 'Home',
   LEAVE_MANAGEMENT = 'LeaveManagement',
-  APPLICATION_LEAVE = 'ApplicationLeave'
+  APPLICATION_LEAVE = 'ApplicationLeave',
+  INVENTORY_MANAGEMENT = 'InventoryManagement',
+  INVENTORY_ENTRY = 'InventoryEntry'
 }
 
 /**
@@ -29,6 +31,8 @@ export type RouteParams = {
   [RouteNames.APPLICATION_LEAVE]: {
     leaveId: string;
   };
+  [RouteNames.INVENTORY_MANAGEMENT]: undefined;
+  [RouteNames.INVENTORY_ENTRY]: undefined;
 };
 
 /**
@@ -47,6 +51,10 @@ export const MENU_ROUTE_MAP: Record<string, {
   'hr:apply-hr': { routeName: RouteNames.APPLICATION_LEAVE, defaultParams: { leaveId: '' } },
   // Leave Management Screen feature navigation
   'leaves-hr:apply-hr': { routeName: RouteNames.APPLICATION_LEAVE, defaultParams: { leaveId: '' } },
+  
+  // Inventory Menu Routes
+  'inventory:inventory-operations': { routeName: RouteNames.INVENTORY_MANAGEMENT },
+  'inventory-operations:stock-entry': { routeName: RouteNames.INVENTORY_ENTRY },
 };
 
 class MenuRouter {
@@ -59,7 +67,6 @@ class MenuRouter {
     const routeInfo = MENU_ROUTE_MAP[routeKey];
 
     if (!routeInfo) {
-      console.warn(`Không tìm thấy định nghĩa route cho menu: ${menuId}, submenu: ${subMenuId}`);
       return false;
     }
 
@@ -151,7 +158,6 @@ class MenuRouter {
 
     const finalParams = params || routeInfo.defaultParams;
     this.navigate(routeInfo.routeName, finalParams);
-    console.log(`🚀 Điều hướng bottom tab: ${tabKey} -> ${routeInfo.routeName}`);
     return true;
   }
 
@@ -201,9 +207,9 @@ class MenuRouter {
    * Debug method - Log tất cả routes có sẵn
    */
   logAvailableRoutes(): void {
-    console.log('📋 Available routes:');
+    // Debug method - can be called when needed
     Object.entries(MENU_ROUTE_MAP).forEach(([key, value]) => {
-      console.log(`  ${key} -> ${value.routeName}`);
+      // Log available routes
     });
   }
 }

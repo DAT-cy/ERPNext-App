@@ -11,8 +11,6 @@ class ScreenNavigator {
       
       // Reset navigation về Login screen
       menuRouter.resetToLogin();
-      
-      console.log('Đăng xuất thành công, đã điều hướng về trang Login');
     } catch (error) {
       console.error('Lỗi khi đăng xuất:', error);
       
@@ -28,7 +26,36 @@ class ScreenNavigator {
     closeSidebar?: () => void
   ): void {
     // Thực hiện điều hướng dựa trên menu ID
-    menuRouterController.handleMenuNavigation(menuId, subMenuId, userRoles);
+    const success = menuRouterController.handleMenuNavigation(menuId, subMenuId, userRoles);
+    
+    if (!success) {
+      console.warn(`❌ Navigation failed for: ${menuId} -> ${subMenuId}`);
+    }
+    
+    // Đóng sidebar nếu có callback
+    if (closeSidebar) {
+      closeSidebar();
+    }
+  }
+
+  handleNestedSidebarMenuNavigation(
+    parentMenuId: string,
+    menuId: string, 
+    nestedSubMenuId: string, 
+    userRoles: string[],
+    closeSidebar?: () => void
+  ): void {
+    // Thực hiện điều hướng nested menu
+    const success = menuRouterController.handleNestedMenuNavigation(
+      parentMenuId, 
+      menuId, 
+      nestedSubMenuId, 
+      userRoles
+    );
+    
+    if (!success) {
+      // Handle failed navigation if needed
+    }
     
     // Đóng sidebar nếu có callback
     if (closeSidebar) {
