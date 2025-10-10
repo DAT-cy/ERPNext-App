@@ -19,6 +19,7 @@ export type InventoryItem = {
     purpose: string;
     custom_interpretation?: string;
     name: string;
+    owner: string;
 }
 
 // Interface cho filter options
@@ -107,7 +108,8 @@ export async function getAllInventory(options: InventoryQueryOptions = {}): Prom
             "creation",
             "purpose",
             "custom_interpretation",
-            "name"
+            "name",
+            "owner"
         ];
         
         const fields = options.fields || defaultFields;
@@ -124,9 +126,7 @@ export async function getAllInventory(options: InventoryQueryOptions = {}): Prom
                 queryParams.append('filters', JSON.stringify(filtersArray));
             }
         }
-        
-        console.log('📦 [getAllInventory] Request URL:', `/api/resource/Stock Entry?${queryParams.toString()}`);
-        
+                
         const { data } = await api.get(`/api/resource/Stock Entry?${queryParams.toString()}`);
         
         console.log('📦 [getAllInventory] API Response:', data);
@@ -180,3 +180,4 @@ export async function getWarehouse(): Promise<dataFill[]> {
         throw error;
     }
 }
+

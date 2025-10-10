@@ -4,11 +4,11 @@
     "slug": "erpnext-rn-base",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/remak.jpg",
+    "icon": "./assets/remak-logo.jpg",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/remak.jpg",
+      "image": "./assets/remak-logo.jpg",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -24,7 +24,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/remak.jpg",
+        "foregroundImage": "./assets/remak-logo.jpg",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
@@ -43,13 +43,13 @@
       }
     },
     "web": {
-      "favicon": "./assets/remak.jpg"
+      "favicon": "./assets/remak-logo.jpg"
     },
     "extra": {
       "eas": {
-        "projectId": "d4e5a1ca-6d6c-4519-b444-a682668d795f"
+        "projectId": "dd3a79f4-73f2-4bb1-b76d-d025540ed3ac"
       }
     },
-    "owner": "tiktik2202"
+    "owner": "tik11111"
   }
 }

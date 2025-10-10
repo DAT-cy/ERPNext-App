@@ -17,7 +17,6 @@ import { CheckinRecord, Checkin } from "../types/checkin.types";
 import { homeScreenStyles } from '../styles/HomeScreen.styles';
 import SimpleSuccessAnimation from '../components/SuccessAnimation/SimpleSuccessAnimation';
 import { homeScreenErrorHandler, HomeScreenErrorCode } from '../utils/error/homeScreen';
-import { useScreenNavigator } from '../router/ScreenNavigator';
 import { getLeaveApproversName } from "../services/applicationLeave";
 
 // Helper functions for formatting date and time
@@ -586,38 +585,40 @@ export default function HomeScreen() {
     );
   }, []);
 
-  // Render weekly checkin day with multiple pairs
   const renderWeeklyCheckinDay = useCallback(({ item }: { item: { date: string, pairs: Array<{ inRecord?: CheckinRecord, outRecord?: CheckinRecord }> } }) => {
-    // Parse date properly - item.date is in YYYY-MM-DD format
-    const date = new Date(item.date + 'T12:00:00'); // Use noon to avoid timezone issues
-    const dayName = date.toLocaleDateString('vi-VN', { weekday: 'short' });
-    const dayNumber = date.getDate();
-    const monthName = date.toLocaleDateString('vi-VN', { month: 'short' });
-    const isToday = item.date === new Date().toISOString().split('T')[0];
-    
-    // Calculate total work duration for the day
-    let totalMinutes = 0;
-    item.pairs.forEach(pair => {
-      if (pair.inRecord && pair.outRecord) {
-        const inDateTime = new Date(pair.inRecord.time);
-        const outDateTime = new Date(pair.outRecord.time);
-        const diff = outDateTime.getTime() - inDateTime.getTime();
-        totalMinutes += diff / (1000 * 60);
-      }
-    });
-    
-    const totalHours = Math.floor(totalMinutes / 60);
-    const remainingMinutes = Math.floor(totalMinutes % 60);
-    const totalDuration = totalMinutes > 0 ? `${totalHours}h ${remainingMinutes}m` : '';
+  // Parse date properly - item.date is in YYYY-MM-DD format
+  const date = new Date(item.date + 'T12:00:00'); // Use noon to avoid timezone issues
+  const dayName = date.toLocaleDateString('vi-VN', { weekday: 'long' }); // "long" để lấy tên ngày đầy đủ (ví dụ: Thứ Hai)
+  const dayNumber = date.getDate();
+  const month = date.getMonth() + 1; // Lấy tháng (lưu ý tháng bắt đầu từ 0)
+  const year = date.getFullYear();
+  
+  const formattedDate = `${dayName} - ${dayNumber}/${month}/${year}`;
+  const isToday = item.date === new Date().toISOString().split('T')[0];
+  
+  // Calculate total work duration for the day
+  let totalMinutes = 0;
+  item.pairs.forEach(pair => {
+    if (pair.inRecord && pair.outRecord) {
+      const inDateTime = new Date(pair.inRecord.time);
+      const outDateTime = new Date(pair.outRecord.time);
+      const diff = outDateTime.getTime() - inDateTime.getTime();
+      totalMinutes += diff / (1000 * 60);
+    }
+  });
+  
+  const totalHours = Math.floor(totalMinutes / 60);
+  const remainingMinutes = Math.floor(totalMinutes % 60);
+  const totalDuration = totalMinutes > 0 ? `${totalHours}h ${remainingMinutes}m` : '';
     
     return (
       <View style={[homeScreenStyles.weeklyCard, isToday && homeScreenStyles.todayCard]}>
         {/* Header with date */}
         <View style={homeScreenStyles.weeklyHeader}>
-          <Text style={homeScreenStyles.weeklyHeaderText}>
-            {dayName.toUpperCase()} {dayNumber} {monthName.toUpperCase()}{isToday && ' - HÔM NAY'}
-          </Text>
-        </View>
+        <Text style={homeScreenStyles.weeklyHeaderText}>
+          {formattedDate} {isToday && ' - Hôm Nay'}
+        </Text>
+      </View>
         
         {/* All pairs for this day */}
         <View style={homeScreenStyles.inOutRow}>

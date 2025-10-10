@@ -33,22 +33,8 @@ const InventoryManagementScreen = () => {
     backgroundColor: item.backgroundColor || '#6b7280'
   }));
 
-  // Debug log để kiểm tra dữ liệu được load
-  // Debug log removed for production
-
-  // Xử lý hiển thị thông báo
-  const showNotification = (message: string) => {
-    setNotification(message);
-    setTimeout(() => {
-      setNotification(null);
-    }, 3000);
-  };
-
   // Sử dụng navigation hook
   const handleNavigateToFeature = useFeatureNavigation();
-
-
-
   // Render card tính năng
   const renderFeatureCard = (feature: InventoryFeature) => (
     <TouchableOpacity 
