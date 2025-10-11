@@ -62,6 +62,9 @@ const SimpleSuccessAnimation: React.FC<SimpleSuccessAnimationProps> = ({
         clearTimeout(timer);
       };
     }
+    
+    // Return undefined for the case when isVisible is false
+    return undefined;
   }, [isVisible]);
 
   if (!isVisible) {

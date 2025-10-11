@@ -1,10 +1,12 @@
 {
-  "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "target": "ES2020",
     "module": "ESNext",
     "jsx": "react-native",
-    "lib": ["ES2020", "DOM"],
+    "lib": [
+      "ES2020",
+      "DOM"
+    ],
     "moduleResolution": "Bundler",
     "strict": true,
     "allowJs": true,
@@ -13,10 +15,30 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
-    // "typeRoots": ["./src/types", "./node_modules/@types"]
-    /* KHÔNG cần "types": ["expo"] */
-    /* Nếu muốn, bạn có thể để:
-       "types": ["react", "react-native"]
-    */
-  }
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitReturns": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "src/*"
+      ]
+    }
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "**/*.js",
+    "**/*.jsx"
+  ],
+  "exclude": [
+    "node_modules",
+    "babel.config.js",
+    "metro.config.js",
+    "jest.config.js"
+  ],
+  "extends": "expo/tsconfig.base"
 }

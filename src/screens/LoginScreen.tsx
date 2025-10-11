@@ -4,8 +4,7 @@ import { View, Text, StyleSheet, Pressable, ActivityIndicator, KeyboardAvoidingV
 import { useNavigation } from "@react-navigation/native";
 import { useAuth } from "../hooks";
 import { Input } from "../components";
-import { ERROR_DEFS} from "../utils";
-import { AppErrorCode, StatusCode } from "../enum";
+import { CommonException, ErrorCode, StatusCode } from "../utils/error";
 
 type FieldErrors = {
   usr?: string | null;
@@ -120,12 +119,10 @@ export default function LoginScreen() {
     try {
       const res = await authLogin(usr.trim(), pwd);
       if (!res.ok) {
-        const uiMsg =
-          res.status === StatusCode.UNAUTHORIZED || res.status === 401
-            ? ERROR_DEFS[AppErrorCode.INVALID_CREDENTIALS].uiMessage
-            : ERROR_DEFS[res.error as AppErrorCode]?.uiMessage ??
-              ERROR_DEFS[AppErrorCode.UNKNOWN].uiMessage;
-        setFormErr(uiMsg);
+        const error = res.status === StatusCode.UNAUTHORIZED || res.status === 401
+          ? new CommonException(ErrorCode.WRONG_PASSWORD)
+          : new CommonException(ErrorCode.UNKNOWN_ERROR);
+        setFormErr(error.userMessage);
         return;
       }
       // Không cần điều hướng thủ công, useEffect sẽ tự động điều hướng khi isLoggedIn = true

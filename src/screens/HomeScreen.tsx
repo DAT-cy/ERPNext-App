@@ -16,7 +16,7 @@ import { fetchCheckinRecords } from "../services/checkinService";
 import { CheckinRecord, Checkin } from "../types/checkin.types";
 import { homeScreenStyles } from '../styles/HomeScreen.styles';
 import SimpleSuccessAnimation from '../components/SuccessAnimation/SimpleSuccessAnimation';
-import { homeScreenErrorHandler, HomeScreenErrorCode } from '../utils/error/homeScreen';
+import { CommonException, ErrorCode, homeScreenErrorHandler, HomeScreenErrorCode } from '../utils/error';
 import { getLeaveApproversName } from "../services/applicationLeave";
 
 // Helper functions for formatting date and time

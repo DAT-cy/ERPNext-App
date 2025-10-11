@@ -10,6 +10,7 @@ import {
   Animated,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import Calendar from '../Calendar/Calendar';
 import { colors } from '../../styles/globalStyles';
 import { wp, hp, fs } from '../../utils/responsive';
 import { inventoryFilterStyles } from '../InventoryFilter/InventoryFilterModal.styles';
@@ -57,6 +58,13 @@ export default function InventoryFilterModal({
   const sectionRefs = useRef<Record<string, View | null>>({});
   const sectionLayouts = useRef<Record<string, { y: number; height: number }>>({});
   const isScrollingProgrammatically = useRef<boolean>(false);
+  
+  // Date picker states
+  const [showStartDatePicker, setShowStartDatePicker] = useState(false);
+  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+  const [startDate, setStartDate] = useState<Date | null>(null);
+  const [endDate, setEndDate] = useState<Date | null>(null);
+  const [dateMode, setDateMode] = useState<'single' | 'range' | null>(null);
 
   // Initialize selected options from active filters
   React.useEffect(() => {
@@ -109,9 +117,135 @@ export default function InventoryFilterModal({
   const handleReset = () => {
     setSelectedOptions({});
     onFiltersChange([]);
+    setStartDate(null);
+    setEndDate(null);
+    setDateMode(null);
     
     // Reset expanded sections
     setExpandedSections({});
+  };
+
+  // Date picker handlers
+  const handleStartDateSelect = (dateString: string) => {
+    setShowStartDatePicker(false);
+    const selectedDate = new Date(dateString);
+    setStartDate(selectedDate);
+    
+    if (dateMode === 'single') {
+      // Single date mode - set both start and end to same date
+      setEndDate(selectedDate);
+      updateDateFilters(selectedDate, selectedDate);
+    } else if (dateMode === 'range') {
+      // Range mode - only update start date
+      updateDateFilters(selectedDate, endDate);
+    }
+    // Nếu dateMode là null, không làm gì cả
+  };
+
+  const handleEndDateSelect = (dateString: string) => {
+    setShowEndDatePicker(false);
+    const selectedDate = new Date(dateString);
+    setEndDate(selectedDate);
+    
+    if (dateMode === 'range') {
+      updateDateFilters(startDate, selectedDate);
+    }
+    // Nếu dateMode là null hoặc 'single', không làm gì cả
+  };
+
+  const updateDateFilters = (start?: Date | null, end?: Date | null) => {
+    // Remove existing date filters
+    const newActiveFilters = activeFilters.filter(f => 
+      !f.key.startsWith('creation-')
+    );
+
+    if (start && end) {
+      const startStr = start.toISOString().split('T')[0];
+      const endStr = end.toISOString().split('T')[0];
+      
+      if (startStr === endStr) {
+        // Same day - from start of day to end of day
+        const startOfDay = new Date(start);
+        startOfDay.setHours(0, 0, 0, 0);
+        const endOfDay = new Date(start);
+        endOfDay.setHours(23, 59, 59, 999);
+        
+        // Format: [["creation", ">=", "2025-10-10 00:00:00"], ["creation", "<=", "2025-10-10 23:59:59"]]
+        const frappeFilters = [
+          ["creation", ">=", `${startStr} 00:00:00`],
+          ["creation", "<=", `${startStr} 23:59:59`]
+        ];
+        
+        newActiveFilters.push({
+          key: 'creation-single',
+          label: `Ngày ${startStr}`,
+          category: 'creation',
+          value: JSON.stringify(frappeFilters)
+        });
+      } else {
+        // Date range - from start of first day to end of last day
+        const startOfFirstDay = new Date(start);
+        startOfFirstDay.setHours(0, 0, 0, 0);
+        const endOfLastDay = new Date(end);
+        endOfLastDay.setHours(23, 59, 59, 999);
+        
+        // Format: [["creation", ">=", "2025-10-10 00:00:00"], ["creation", "<=", "2025-10-15 23:59:59"]]
+        const frappeFilters = [
+          ["creation", ">=", `${startStr} 00:00:00`],
+          ["creation", "<=", `${endStr} 23:59:59`]
+        ];
+        
+        newActiveFilters.push({
+          key: 'creation-range',
+          label: `Từ ${startStr} đến ${endStr}`,
+          category: 'creation',
+          value: JSON.stringify(frappeFilters)
+        });
+      }
+    }
+
+    onFiltersChange(newActiveFilters);
+  };
+
+  const formatDate = (date: Date | null) => {
+    if (!date) return 'Chọn ngày';
+    return date.toLocaleDateString('vi-VN');
+  };
+
+  // Toggle date filter - xóa hoặc thêm lại filter
+  const toggleDateFilter = () => {
+    const hasDateFilter = activeFilters.some(f => f.key.startsWith('creation-'));
+    
+    if (hasDateFilter) {
+      // Xóa filter hiện tại và reset dates
+      const newActiveFilters = activeFilters.filter(f => !f.key.startsWith('creation-'));
+      onFiltersChange(newActiveFilters);
+      setStartDate(null);
+      setEndDate(null);
+    } else {
+      // Thêm lại filter với ngày đã chọn (chỉ khi đã chọn mode)
+      if (startDate && endDate && dateMode) {
+        updateDateFilters(startDate, endDate);
+      }
+    }
+  };
+
+  // Handle mode change - xóa filter cũ khi chuyển mode hoặc toggle mode
+  const handleModeChange = (newMode: 'single' | 'range') => {
+    // Xóa filter hiện tại khi chuyển mode
+    const newActiveFilters = activeFilters.filter(f => !f.key.startsWith('creation-'));
+    onFiltersChange(newActiveFilters);
+    
+    // Reset dates khi chuyển mode
+    setStartDate(null);
+    setEndDate(null);
+    
+    // Toggle mode - nếu ấn vào mode đang được chọn thì tắt nó
+    if (dateMode === newMode) {
+      setDateMode(null);
+    } else {
+      setDateMode(newMode);
+    }
   };
 
   // Toggle section expansion
@@ -212,27 +346,130 @@ export default function InventoryFilterModal({
         </Text>
         
         <View style={inventoryFilterStyles.optionsGrid}>
-          {visibleOptions.map((option, index) => {
-            const isSelected = selectedOptions[option.category]?.has(option.value) || false;
-            
-            return (
-              <TouchableOpacity
-                key={`${option.category}-${option.value}`}
-                style={[
-                  inventoryFilterStyles.filterOption,
-                  isSelected && inventoryFilterStyles.filterOptionSelected
-                ]}
-                onPress={() => handleOptionSelect(option)}
-              >
-                <Text style={[
-                  inventoryFilterStyles.filterOptionText,
-                  isSelected && inventoryFilterStyles.filterOptionTextSelected
-                ]}>
-                  {option.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
+          {/* Special handling for creation date filter */}
+          {category.key === 'creation' ? (
+            <View style={inventoryFilterStyles.dateFilterContainer}>
+              {/* Mode selection */}
+              <View style={inventoryFilterStyles.modeSelectionContainer}>
+                <TouchableOpacity
+                  style={[
+                    inventoryFilterStyles.modeButton,
+                    dateMode === 'single' && inventoryFilterStyles.modeButtonSelected
+                  ]}
+                  onPress={() => handleModeChange('single')}
+                >
+                  <Text style={[
+                    inventoryFilterStyles.modeButtonText,
+                    dateMode === 'single' && inventoryFilterStyles.modeButtonTextSelected
+                  ]}>
+                    Một ngày
+                  </Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[
+                    inventoryFilterStyles.modeButton,
+                    dateMode === 'range' && inventoryFilterStyles.modeButtonSelected
+                  ]}
+                  onPress={() => handleModeChange('range')}
+                >
+                  <Text style={[
+                    inventoryFilterStyles.modeButtonText,
+                    dateMode === 'range' && inventoryFilterStyles.modeButtonTextSelected
+                  ]}>
+                    Nhiều ngày
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Date picker - chỉ hiển thị khi đã chọn mode */}
+              {dateMode && (
+                <View style={inventoryFilterStyles.dateRangeContainer}>
+                  <TouchableOpacity
+                    style={[
+                      inventoryFilterStyles.dateButton,
+                      activeFilters.some(f => f.key.startsWith('creation-')) && inventoryFilterStyles.dateButtonSelected
+                    ]}
+                    onPress={() => {
+                      const hasDateFilter = activeFilters.some(f => f.key.startsWith('creation-'));
+                      if (hasDateFilter) {
+                        toggleDateFilter();
+                      } else {
+                        setShowStartDatePicker(true);
+                      }
+                    }}
+                  >
+                    <Text style={[
+                      inventoryFilterStyles.dateButtonText,
+                      activeFilters.some(f => f.key.startsWith('creation-')) && inventoryFilterStyles.dateButtonTextSelected
+                    ]}>
+                      {formatDate(startDate)}
+                    </Text>
+                    <Feather 
+                      name="calendar" 
+                      size={wp(4)} 
+                      color={activeFilters.some(f => f.key.startsWith('creation-')) ? colors.warning : colors.gray600} 
+                    />
+                  </TouchableOpacity>
+
+                  {dateMode === 'range' && (
+                    <>
+                      <Text style={inventoryFilterStyles.dateSeparator}>đến</Text>
+                      
+                      <TouchableOpacity
+                        style={[
+                          inventoryFilterStyles.dateButton,
+                          activeFilters.some(f => f.key.startsWith('creation-')) && inventoryFilterStyles.dateButtonSelected
+                        ]}
+                        onPress={() => {
+                          const hasDateFilter = activeFilters.some(f => f.key.startsWith('creation-'));
+                          if (hasDateFilter) {
+                            toggleDateFilter();
+                          } else {
+                            setShowEndDatePicker(true);
+                          }
+                        }}
+                      >
+                        <Text style={[
+                          inventoryFilterStyles.dateButtonText,
+                          activeFilters.some(f => f.key.startsWith('creation-')) && inventoryFilterStyles.dateButtonTextSelected
+                        ]}>
+                          {formatDate(endDate)}
+                        </Text>
+                        <Feather 
+                          name="calendar" 
+                          size={wp(4)} 
+                          color={activeFilters.some(f => f.key.startsWith('creation-')) ? colors.warning : colors.gray600} 
+                        />
+                      </TouchableOpacity>
+                    </>
+                  )}
+                </View>
+              )}
+            </View>
+          ) : (
+            visibleOptions.map((option, index) => {
+              const isSelected = selectedOptions[option.category]?.has(option.value) || false;
+              
+              return (
+                <TouchableOpacity
+                  key={`${option.category}-${option.value}`}
+                  style={[
+                    inventoryFilterStyles.filterOption,
+                    isSelected && inventoryFilterStyles.filterOptionSelected
+                  ]}
+                  onPress={() => handleOptionSelect(option)}
+                >
+                  <Text style={[
+                    inventoryFilterStyles.filterOptionText,
+                    isSelected && inventoryFilterStyles.filterOptionTextSelected
+                  ]}>
+                    {option.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })
+          )}
           
           {hasMoreOptions && (
             <TouchableOpacity
@@ -330,6 +567,21 @@ export default function InventoryFilterModal({
           </View>
         </View>
       </View>
+      
+      {/* Date Pickers */}
+      <Calendar
+        visible={showStartDatePicker}
+        onClose={() => setShowStartDatePicker(false)}
+        onDateSelect={handleStartDateSelect}
+        selectedDate={startDate?.toISOString().split('T')[0]}
+      />
+      
+      <Calendar
+        visible={showEndDatePicker}
+        onClose={() => setShowEndDatePicker(false)}
+        onDateSelect={handleEndDateSelect}
+        selectedDate={endDate?.toISOString().split('T')[0]}
+      />
     </Modal>
   );
 }

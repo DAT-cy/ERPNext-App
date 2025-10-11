@@ -5,11 +5,7 @@ import {
   getLeaveTypes,
   getInformationEmployeeApplicationLeave
 } from '../services/applicationLeave';
-import { 
-  ApplicationLeaveResult, 
-  ApplicationLeaveError,
-  ApplicationLeaveErrorHandler
-} from '../utils/error/applicationLeave';
+import { CommonException, ErrorCode, ApplicationLeaveError, ApplicationLeaveResult, ApplicationLeaveErrorHandler } from '../utils/error';
 import { InformationUser } from '../types';
 
 export interface UseApplicationLeaveReturn {

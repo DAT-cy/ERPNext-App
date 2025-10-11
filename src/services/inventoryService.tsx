@@ -1,10 +1,6 @@
 import { api } from "../config/api";
 import { getEmployeeCodeByEmail } from "./authService";
-import { 
-  ApplicationLeaveErrorHandler, 
-  ApplicationLeaveResult,
-  ApplicationLeaveErrorCode
-} from "../utils/error/applicationLeave";
+import { CommonException, ErrorCode, ApplicationLeaveResult, ApplicationLeaveErrorCode, ApplicationLeaveErrorHandler } from "../utils/error";
 import { dataFill } from "../types/inventory.types";
 
 
@@ -24,6 +20,7 @@ export type InventoryItem = {
 
 // Interface cho filter options
 export interface InventoryFilters {
+    name?: string;
     stock_entry_type?: string;
     workflow_state?: string;
     from_warehouse?: string;
@@ -48,8 +45,13 @@ export interface InventoryQueryOptions {
 function buildFiltersArray(filters: InventoryFilters): string[][] {
     const filterArray: string[][] = [];
     
+    if (filters.name) {
+        filterArray.push(["stock_entry_type", "=", filters.name]);
+    }
+
     // Filter theo stock_entry_type
     if (filters.stock_entry_type) {
+        console.log('📦 [buildFiltersArray] Adding stock_entry_type filter:', filters.stock_entry_type);
         filterArray.push(["stock_entry_type", "=", filters.stock_entry_type]);
     }
     
@@ -78,9 +80,26 @@ function buildFiltersArray(filters: InventoryFilters): string[][] {
         filterArray.push(["docstatus", "=", String(filters.docstatus)]);
     }
     
-    // Filter theo creation date range
+    // Filter theo creation date range - expect Frappe filter format
     if (filters.creation) {
-        filterArray.push(["creation", "=", filters.creation]);
+        console.log('📅 [buildFiltersArray] Processing creation filter:', filters.creation);
+        try {
+            // Parse Frappe filter format: [["creation", ">=", "2025-10-10 00:00:00"], ["creation", "<=", "2025-10-10 23:59:59"]]
+            const frappeFilters = JSON.parse(filters.creation);
+            console.log('📅 [buildFiltersArray] Parsed Frappe filters:', frappeFilters);
+            
+            if (Array.isArray(frappeFilters)) {
+                // Add all filters from the array
+                frappeFilters.forEach((filter, index) => {
+                    console.log(`📅 [buildFiltersArray] Adding Frappe filter ${index + 1}:`, filter);
+                    if (Array.isArray(filter) && filter.length === 3) {
+                        filterArray.push(filter);
+                    }
+                });
+            }
+        } catch (error) {
+            console.error('❌ [buildFiltersArray] Error parsing creation filter:', error);
+        }
     }
     
     // Filter theo purpose
@@ -93,12 +112,13 @@ function buildFiltersArray(filters: InventoryFilters): string[][] {
         filterArray.push(["custom_interpretation", "=", filters.custom_interpretation]);
     }
     
+    console.log('✅ [buildFiltersArray] Final filter array:', filterArray);
     return filterArray;
 }
 
 export async function getAllInventory(options: InventoryQueryOptions = {}): Promise<ApplicationLeaveResult<InventoryItem[]>> {
     try {
-        // Default fields nếu không được specify
+        
         const defaultFields = [
             "stock_entry_type",
             "workflow_state", 
@@ -122,16 +142,19 @@ export async function getAllInventory(options: InventoryQueryOptions = {}): Prom
         queryParams.append('fields', JSON.stringify(fields));
         queryParams.append('limit_page_length', limit.toString());
         queryParams.append('limit_start', offset.toString());
+        queryParams.append('order_by', 'creation desc');
         
         if (options.filters) {
             const filtersArray = buildFiltersArray(options.filters);
+            console.log('🔍 [getAllInventory] Built filters array:', filtersArray);
+            
             if (filtersArray.length > 0) {
                 queryParams.append('filters', JSON.stringify(filtersArray));
+                console.log('📤 [getAllInventory] Added filters to query params:', JSON.stringify(filtersArray));
             }
         }
-                
-        const { data } = await api.get(`/api/resource/Stock Entry?${queryParams.toString()}`);
-                
+        const fullUrl = `/api/resource/Stock Entry?${queryParams.toString()}`;
+        const { data } = await api.get(fullUrl);
         if (data && data.data) {
             return {
                 success: true,
@@ -141,26 +164,17 @@ export async function getAllInventory(options: InventoryQueryOptions = {}): Prom
         
         return {
             success: false,
-            error: {
-                code: ApplicationLeaveErrorCode.UNKNOWN_ERROR,
-                message: 'Không có dữ liệu Stock Entry',
-                userMessage: 'Không có dữ liệu Stock Entry',
-                timestamp: new Date().toISOString()
-            }
+            error: new CommonException(ErrorCode.ENTITY_NOT_FOUND, 'Không có dữ liệu Stock Entry')
         };
         
     } catch (error: any) {
-        console.error('❌ [getAllInventory] Error:', error);
-        
         const processedError = ApplicationLeaveErrorHandler.analyzeError(error);
-        
         return {
             success: false,
             error: processedError
         };
     }
 }
-
 
 export async function getAllExportImportType(): Promise<dataFill[]> {
     try {

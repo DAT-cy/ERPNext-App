@@ -86,10 +86,11 @@ export default function InventoryEntryScreens() {
     const loadFilterOptions = async () => {
         try {
             setLoading(true);
-            const [stockEntryTypes, warehouseOptions , customOriginalTargetWarehouse] = await Promise.all([
+            const [stockEntryTypes, warehouseOptions , customOriginalTargetWarehouse , creationOptions] = await Promise.all([
                 loadStockEntryTypes(),
                 loadWarehouseOptions(),
-                loadCustomOriginalTargetWarehouse()
+                loadCustomOriginalTargetWarehouse(),
+                loadCreationOptions()
             ]);
 
             // Combine all options
@@ -98,6 +99,7 @@ export default function InventoryEntryScreens() {
                 stock_entry_type: stockEntryTypes,
                 from_warehouse: warehouseOptions,
                 custom_original_target_warehouse: customOriginalTargetWarehouse,
+                creation: creationOptions,
 
             };
 
@@ -107,6 +109,15 @@ export default function InventoryEntryScreens() {
             throw error;
         } finally {
             setLoading(false);
+        }
+    };
+    const loadCreationOptions = async (): Promise<FilterOption[]> => {
+        try {
+            const creationOptions = ['Một Ngày', 'Nhiều Ngày'];
+            const creationOpts = transformApiDataToFilterOptions(creationOptions, 'creation');
+            return creationOpts;
+        } catch (error) {
+            throw error;
         }
     };
 
@@ -242,13 +253,7 @@ export default function InventoryEntryScreens() {
         if (searchQuery.trim()) {
             const query = searchQuery.toLowerCase();
             filtered = filtered.filter(item =>
-                item.name.toLowerCase().includes(query) ||
-                (item.custom_interpretation || '').toLowerCase().includes(query) ||
-                item.purpose.toLowerCase().includes(query) ||
-                item.stock_entry_type.toLowerCase().includes(query) ||
-                item.workflow_state.toLowerCase().includes(query) ||
-                (item.from_warehouse || '').toLowerCase().includes(query) ||
-                (item.expense_account || '').toLowerCase().includes(query)
+                item.name.toLowerCase().includes(query)
             );
         }
         // // Apply active filters
@@ -360,10 +365,25 @@ export default function InventoryEntryScreens() {
         }
 
         try {
+            console.log('🔍 [InventoryEntryScreens] Processing active filters:', activeFilters);
+            
+            // Process filters to handle Frappe format for creation date
             const filters = activeFilters.reduce((acc, filter) => {
-                acc[filter.category] = filter.value;
+                console.log(`🔍 [InventoryEntryScreens] Processing filter: ${filter.category} = ${filter.value}`);
+                
+                if (filter.category === 'creation') {
+                    // For creation date, pass the Frappe filter format directly
+                    console.log('📅 [InventoryEntryScreens] Creation filter - passing Frappe format');
+                    acc[filter.category] = filter.value;
+                } else {
+                    // For other filters, use simple value
+                    console.log(`📦 [InventoryEntryScreens] ${filter.category} filter - using simple value`);
+                    acc[filter.category] = filter.value;
+                }
                 return acc;
             }, {} as Record<string, string>);
+
+            console.log('📤 [InventoryEntryScreens] Final processed filters:', filters);
 
             const offset = page * 10; // 10 items per page
             const response = await getAllInventory({ 

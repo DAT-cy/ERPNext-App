@@ -211,4 +211,96 @@ export const inventoryFilterStyles = StyleSheet.create({
     fontWeight: '600',
     color: colors.white,
   },
+
+  // Date picker styles
+  dateFilterContainer: {
+    width: '100%',
+    marginBottom: hp(1),
+  },
+
+  modeSelectionContainer: {
+    flexDirection: 'row',
+    marginBottom: hp(1),
+    gap: wp(2),
+  },
+
+  modeButton: {
+    flex: 1,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.gray300,
+    borderRadius: wp(2.5),
+    paddingVertical: hp(1),
+    alignItems: 'center',
+  },
+
+  modeButtonSelected: {
+    backgroundColor: colors.warning + '20',
+    borderColor: colors.warning,
+    shadowColor: colors.warning,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+
+  modeButtonText: {
+    fontSize: fs(12),
+    color: colors.gray700,
+    fontWeight: '500',
+  },
+
+  modeButtonTextSelected: {
+    color: colors.warning,
+    fontWeight: '600',
+  },
+
+  dateRangeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: hp(1),
+    gap: wp(2),
+  },
+
+  dateButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.gray300,
+    borderRadius: wp(2.5),
+    paddingHorizontal: wp(3),
+    paddingVertical: hp(1.2),
+  },
+
+  dateButtonSelected: {
+    backgroundColor: colors.warning + '20',
+    borderColor: colors.warning,
+    shadowColor: colors.warning,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+
+  dateButtonText: {
+    fontSize: fs(14),
+    color: colors.gray700,
+    flex: 1,
+  },
+
+  dateButtonTextSelected: {
+    color: colors.warning,
+    fontWeight: '600',
+  },
+
+  dateSeparator: {
+    fontSize: fs(14),
+    color: colors.gray600,
+    fontWeight: '500',
+    marginHorizontal: wp(2),
+  },
 });
