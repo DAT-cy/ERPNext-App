@@ -21,7 +21,6 @@ interface InventoryFeature extends SubMenuItemDef {
 }
 
 const InventoryManagementScreen = () => {
-  const [notification, setNotification] = useState<string | null>(null);
   const tabBar = useScreenTabBar('inventory');
 
   // Get inventory operations features from menuPermissions

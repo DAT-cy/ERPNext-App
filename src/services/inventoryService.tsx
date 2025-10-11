@@ -40,6 +40,7 @@ export interface InventoryQueryOptions {
     fields?: string[];
     filters?: InventoryFilters;
     limit?: number;
+    offset?: number;
     orderBy?: string;
 }
 
@@ -113,12 +114,14 @@ export async function getAllInventory(options: InventoryQueryOptions = {}): Prom
         ];
         
         const fields = options.fields || defaultFields;
-        const limit = options.limit || 20;
+        const limit = options.limit || 10;
+        const offset = options.offset || 0;
         
         // Build query parameters
         const queryParams = new URLSearchParams();
         queryParams.append('fields', JSON.stringify(fields));
         queryParams.append('limit_page_length', limit.toString());
+        queryParams.append('limit_start', offset.toString());
         
         if (options.filters) {
             const filtersArray = buildFiltersArray(options.filters);
@@ -128,9 +131,7 @@ export async function getAllInventory(options: InventoryQueryOptions = {}): Prom
         }
                 
         const { data } = await api.get(`/api/resource/Stock Entry?${queryParams.toString()}`);
-        
-        console.log('📦 [getAllInventory] API Response:', data);
-        
+                
         if (data && data.data) {
             return {
                 success: true,

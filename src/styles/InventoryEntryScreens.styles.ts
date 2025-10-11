@@ -390,4 +390,31 @@ export const inventoryEntryStyles = StyleSheet.create({
     fontWeight: '600',
     color: colors.white,
   },
+  
+  // Loading More Styles
+  loadingMoreContainer: {
+    flexDirection: 'row',
+    paddingVertical: hp(2),
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: wp(2),
+  },
+  
+  loadingMoreText: {
+    fontSize: fs(14),
+    color: colors.gray600,
+    fontStyle: 'italic',
+  },
+  
+  noMoreDataContainer: {
+    paddingVertical: hp(2),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  
+  noMoreDataText: {
+    fontSize: fs(14),
+    color: colors.gray500,
+    fontStyle: 'italic',
+  },
 });

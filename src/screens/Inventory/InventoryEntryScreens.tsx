@@ -10,6 +10,7 @@ import {
     FlatList,
     Animated,
     StatusBar,
+    ActivityIndicator,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { colors } from '../../styles/globalStyles';
@@ -58,6 +59,9 @@ export default function InventoryEntryScreens() {
     const [inventoryData, setInventoryData] = useState<InventoryItem[]>([]);
     const [filteredData, setFilteredData] = useState<InventoryItem[]>([]);
     const [loading, setLoading] = useState<boolean>(false);
+    const [loadingMore, setLoadingMore] = useState<boolean>(false);
+    const [hasMoreData, setHasMoreData] = useState<boolean>(true);
+    const [currentPage, setCurrentPage] = useState<number>(0);
     const [exportImportTypesOption, setExportImportTypesOption] = useState<Record<string, FilterOption[]>>({});
 
     const scrollY = useRef(new Animated.Value(0)).current;
@@ -347,31 +351,66 @@ export default function InventoryEntryScreens() {
     };
 
     // Fetch inventory data from API
-    useEffect(() => {
-        const fetchInventoryData = async () => {
+    const fetchInventoryData = async (page: number = 0, isLoadMore: boolean = false) => {
+        if (isLoadMore) {
+            setLoadingMore(true);
+        } else {
             setLoading(true);
-            try {
-                const filters = activeFilters.reduce((acc, filter) => {
-                    acc[filter.category] = filter.value;
-                    return acc;
-                }, {} as Record<string, string>);
+            setCurrentPage(0);
+        }
 
-                const response = await getAllInventory({ filters });
-                if (response.success && response.data) {
-                    setInventoryData(response.data);
-                    setFilteredData(response.data);
+        try {
+            const filters = activeFilters.reduce((acc, filter) => {
+                acc[filter.category] = filter.value;
+                return acc;
+            }, {} as Record<string, string>);
+
+            const offset = page * 10; // 10 items per page
+            const response = await getAllInventory({ 
+                filters, 
+                limit: 10, 
+                offset: offset 
+            });
+
+            if (response.success && response.data) {
+                const newData = response.data;
+                if (isLoadMore) {
+                    // Append new data to existing data
+                    setInventoryData(prev => [...prev, ...newData]);
+                    setFilteredData(prev => [...prev, ...newData]);
                 } else {
-                    console.error('Failed to fetch inventory data:', response.error);
+                    // Replace data for new search/filter
+                    setInventoryData(newData);
+                    setFilteredData(newData);
                 }
-            } catch (error) {
-                console.error('Error fetching inventory data:', error);
-            } finally {
-                setLoading(false);
-            }
-        };
 
-        fetchInventoryData();
+                // Check if there's more data
+                setHasMoreData(newData.length === 10);
+                setCurrentPage(page);
+            } else {
+                console.error('Failed to fetch inventory data:', response.error);
+                setHasMoreData(false);
+            }
+        } catch (error) {
+            console.error('Error fetching inventory data:', error);
+            setHasMoreData(false);
+        } finally {
+            setLoading(false);
+            setLoadingMore(false);
+        }
+    };
+
+    // Initial load and when filters change
+    useEffect(() => {
+        fetchInventoryData(0, false);
     }, [activeFilters]);
+
+    // Load more data function
+    const loadMoreData = () => {
+        if (!loadingMore && hasMoreData) {
+            fetchInventoryData(currentPage + 1, true);
+        }
+    };
 
     // Render inventory item
     const renderInventoryItem = ({ item }: { item: InventoryItem }) => {
@@ -538,6 +577,26 @@ export default function InventoryEntryScreens() {
                     [{ nativeEvent: { contentOffset: { y: scrollY } } }],
                     { useNativeDriver: false }
                 )}
+                onEndReached={loadMoreData}
+                onEndReachedThreshold={0.1}
+                ListFooterComponent={() => {
+                    if (loadingMore) {
+                        return (
+                            <View style={inventoryEntryStyles.loadingMoreContainer}>
+                                <ActivityIndicator size="small" color={colors.primary} />
+                                <Text style={inventoryEntryStyles.loadingMoreText}>Đang tải thêm...</Text>
+                            </View>
+                        );
+                    }
+                    if (!hasMoreData && filteredData.length > 0) {
+                        return (
+                            <View style={inventoryEntryStyles.noMoreDataContainer}>
+                                <Text style={inventoryEntryStyles.noMoreDataText}>Đã tải hết dữ liệu</Text>
+                            </View>
+                        );
+                    }
+                    return null;
+                }}
             />
 
             {/* Filter Modal */}

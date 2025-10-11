@@ -351,6 +351,50 @@ export default function HomeScreen() {
       return weekRecords;
     }
   }, [activeContentTab, records]);
+
+  // Tạo cặp check-in/check-out mới nhất cho tab "Hôm nay"
+  const latestCheckinPair = useMemo(() => {
+    if (activeContentTab !== "today") return null;
+    
+    const today = new Date().toISOString().split('T')[0];
+    const todayRecords = records.filter(record => record.time.startsWith(today));
+    
+    if (todayRecords.length === 0) return null;
+    
+    // Sắp xếp theo thời gian tăng dần (cũ nhất trước)
+    const sortedRecords = todayRecords.sort((a, b) => 
+      new Date(a.time).getTime() - new Date(b.time).getTime()
+    );
+    
+    // Tạo tất cả các cặp từ records
+    const pairs: Array<{ inRecord?: CheckinRecord; outRecord?: CheckinRecord }> = [];
+    let currentPair: { inRecord?: CheckinRecord; outRecord?: CheckinRecord } = {};
+    
+    sortedRecords.forEach(record => {
+      if (record.log_type === 'IN') {
+        // Nếu đã có IN record trong pair hiện tại, lưu pair cũ và bắt đầu pair mới
+        if (currentPair.inRecord) {
+          pairs.push(currentPair);
+          currentPair = { inRecord: record };
+        } else {
+          currentPair.inRecord = record;
+        }
+      } else if (record.log_type === 'OUT') {
+        // Hoàn thành pair hiện tại
+        currentPair.outRecord = record;
+        pairs.push(currentPair);
+        currentPair = {}; // Reset cho pair tiếp theo
+      }
+    });
+    
+    // Thêm pair cuối cùng nếu chưa hoàn thành
+    if (currentPair.inRecord || currentPair.outRecord) {
+      pairs.push(currentPair);
+    }
+    
+    // Trả về cặp mới nhất (cuối cùng trong mảng)
+    return pairs.length > 0 ? pairs[pairs.length - 1] : null;
+  }, [activeContentTab, records]);
   
   // Cập nhật displayRecords khi filteredRecords thay đổi
   useEffect(() => {
@@ -699,32 +743,14 @@ export default function HomeScreen() {
               </View>
               
               <View style={homeScreenStyles.attendanceContent}>
-                {displayRecords.length === 0 ? (
+                {!latestCheckinPair ? (
                   <Text style={homeScreenStyles.noDataText}>Chưa có dữ liệu chấm công hôm nay</Text>
                 ) : (
-                  <View style={homeScreenStyles.timeInfoContainer}>
-                    {/* Thông tin giờ vào ca */}
-                    <View style={homeScreenStyles.timeColumn}>
-                      <Text style={homeScreenStyles.timeLabel}>Vào ca</Text>
-                      <Text style={homeScreenStyles.timeValue}>{
-                        displayRecords.find(r => r.log_type === 'IN') 
-                          ? formatTime(displayRecords.find(r => r.log_type === 'IN')!.time) 
-                          : "--:--"
-                      }</Text>
-                    </View>
-                    <View style={homeScreenStyles.timeSeparator} />
-                    {/* Thông tin giờ ra ca */}
-                    <View style={homeScreenStyles.timeColumn}>
-                      <Text style={homeScreenStyles.timeLabel}>Ra ca</Text>
-                      <Text style={homeScreenStyles.timeValue}>{
-                        displayRecords.find(r => r.log_type === 'OUT') 
-                          ? formatTime(displayRecords.find(r => r.log_type === 'OUT')!.time) 
-                          : "--:--"
-                      }</Text>
-                    </View>
+                  <View style={homeScreenStyles.pairContainer}>
+                    <Text style={homeScreenStyles.pairNumber}>Dữ liệu chấm công mới nhất</Text>
+                    {renderSinglePair(latestCheckinPair, 0, 1)}
                   </View>
                 )}
-                {/* Recent check-in entries */}
               </View>
             </View>
             
@@ -733,7 +759,7 @@ export default function HomeScreen() {
               // Hiển thị trạng thái đang tải GPS
               <View style={[homeScreenStyles.checkinButton, homeScreenStyles.checkinButtonDisabled]}>
                 <Text style={[homeScreenStyles.checkinButtonText, homeScreenStyles.checkinButtonTextDisabled]}>
-                  📍 Đang lấy vị trí...
+                  Đang lấy vị trí...
                 </Text>
               </View>
             ) : !hasValidLocation ? (
@@ -840,11 +866,11 @@ export default function HomeScreen() {
                   showsVerticalScrollIndicator={false}
                 />
               ) : (
-                <View style={[homeScreenStyles.map, { justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5' }]}>
-                  <Text style={{ color: '#666', fontSize: 16, textAlign: 'center' }}>
+                <View style={[homeScreenStyles.map, homeScreenStyles.mapLoadingContainer]}>
+                  <Text style={homeScreenStyles.mapLoadingText}>
                     📍 Đang lấy vị trí GPS...
                   </Text>
-                  <Text style={{ color: '#999', fontSize: 12, textAlign: 'center', marginTop: 4 }}>
+                  <Text style={homeScreenStyles.mapLoadingSubtext}>
                     Map sẽ hiển thị khi có vị trí
                   </Text>
                 </View>

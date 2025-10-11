@@ -67,6 +67,24 @@ export const homeScreenStyles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
+  mapLoadingContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+  },
+  mapLoadingText: {
+    color: '#666',
+    fontSize: fs(16),
+    textAlign: 'center',
+    fontWeight: '500',
+    marginBottom: spacing.xs,
+  },
+  mapLoadingSubtext: {
+    color: '#999',
+    fontSize: fs(12),
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
   mapOverlay: {
     position: 'absolute',
     bottom: 0,
@@ -212,6 +230,8 @@ export const homeScreenStyles = StyleSheet.create({
     fontSize: fs(16),
     fontWeight: 'bold',
     color: colors.textInverse,
+    textAlign: 'center',
+    lineHeight: fs(20),
   },
   
   // State containers
@@ -534,35 +554,37 @@ export const homeScreenStyles = StyleSheet.create({
   },
   labelsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: spacing.xs,
+    paddingHorizontal: spacing.sm,
   },
   inLabel: {
     fontSize: fs(12),
     fontWeight: '600',
     color: colors.success,
     flex: 1,
-    textAlign: 'left',
+    textAlign: 'center',
   },
   outLabel: {
     fontSize: fs(12),
     fontWeight: '600',
     color: colors.error,
     flex: 1,
-    textAlign: 'right',
+    textAlign: 'center',
   },
   arrowSymbol: {
     fontSize: fs(16),
     color: colors.primary,
     fontWeight: 'bold',
-    paddingHorizontal: spacing.sm,
+    paddingHorizontal: spacing.md,
+    minWidth: ss(30),
+    textAlign: 'center',
   },
   timesRowDisplay: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: spacing.xs,
+    paddingHorizontal: spacing.sm,
   },
   timeDisplay: {
     fontSize: fs(18),
@@ -580,8 +602,8 @@ export const homeScreenStyles = StyleSheet.create({
   },
   statusRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    paddingHorizontal: spacing.sm,
   },
   statusDisplay: {
     fontSize: fs(11),
@@ -594,7 +616,7 @@ export const homeScreenStyles = StyleSheet.create({
     color: colors.gray400,
   },
   statusSpacer: {
-    width: ss(40),
+    width: ss(30),
   },
 
   // Multiple pairs styles
@@ -605,12 +627,13 @@ export const homeScreenStyles = StyleSheet.create({
     borderTopColor: colors.gray100,
   },
   pairNumber: {
-    fontSize: fs(10),
+    fontSize: fs(14),
     fontWeight: '600',
     color: colors.primary,
     textAlign: 'center',
-    marginBottom: spacing.xs,
-    textTransform: 'uppercase',
+    marginBottom: spacing.sm,
+    textTransform: 'none',
+    letterSpacing: 0.5,
   },
   totalDurationContainer: {
     backgroundColor: colors.primaryLight,
@@ -620,5 +643,20 @@ export const homeScreenStyles = StyleSheet.create({
   totalDurationValue: {
     color: colors.primary,
     fontWeight: 'bold',
+  },
+
+  // Latest pair container for today view
+  latestPairContainer: {
+    paddingVertical: spacing.sm,
+  },
+  latestPairTitle: {
+    fontSize: fs(14),
+    fontWeight: '600',
+    color: colors.textPrimary,
+    textAlign: 'center',
+    marginBottom: spacing.sm,
+    paddingBottom: spacing.xs,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.gray100,
   },
 });
