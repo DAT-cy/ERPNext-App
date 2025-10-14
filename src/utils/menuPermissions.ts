@@ -402,63 +402,7 @@ export const MENU_DEFINITIONS: MenuItemDef[] = [
     ]
   },
   // === SALES MENU (Nhân viên kinh doanh) ===
-  {
-    id: 'sales',
-    title: 'Kinh doanh',
-    icon: '💼',
-    hasSubItems: true,
-    allowedRoles: [
-      ...ROLE_GROUPS.SALES_ROLES,
-      ...ROLE_GROUPS.ADMIN_ROLES
-    ],
-    subItems: [
-      {
-        id: 'dashboard',
-        title: 'Bảng điều khiển',
-        icon: '📊',
-        allowedRoles: [
-          ...ROLE_GROUPS.SALES_ROLES,
-          ...ROLE_GROUPS.ADMIN_ROLES
-        ]
-      },
-      {
-        id: 'leads',
-        title: 'Khách hàng tiềm năng',
-        icon: '🎯',
-        allowedRoles: [
-          ...ROLE_GROUPS.SALES_ROLES,
-          ...ROLE_GROUPS.ADMIN_ROLES
-        ]
-      },
-      {
-        id: 'opportunities',
-        title: 'Cơ hội bán hàng',
-        icon: '💡',
-        allowedRoles: [
-          ...ROLE_GROUPS.SALES_ROLES,
-          ...ROLE_GROUPS.ADMIN_ROLES
-        ]
-      },
-      {
-        id: 'quotations',
-        title: 'Báo giá',
-        icon: '📋',
-        allowedRoles: [
-          ...ROLE_GROUPS.SALES_ROLES,
-          ...ROLE_GROUPS.ADMIN_ROLES
-        ]
-      },
-      {
-        id: 'orders',
-        title: 'Đơn hàng',
-        icon: '🛒',
-        allowedRoles: [
-          ...ROLE_GROUPS.SALES_ROLES,
-          ...ROLE_GROUPS.ADMIN_ROLES
-        ]
-      }
-    ]
-  },
+
 
 ];
 

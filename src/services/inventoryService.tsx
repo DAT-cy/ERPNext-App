@@ -41,18 +41,44 @@ export interface InventoryQueryOptions {
     orderBy?: string;
 }
 
+// Map Vietnamese stock entry types to English canonical names used by backend
+function toEnglishStockEntryType(value: string): string {
+    const map: Record<string, string> = {
+        // Common core types
+        'Chuyển kho': 'Material Transfer',
+        'Nhập kho': 'Material Receipt',
+        'Xuất kho': 'Material Issue',
+        'Sản xuất': 'Manufacture',
+        'Trả hàng': 'Material Return',
+        'Kiểm kê': 'Repack',
+        // Extended types seen in your dataset
+        'Xuất vật tư': 'Material Issue',
+        'Nhập vật tư': 'Material Receipt',
+        'Đóng gói': 'Repack',
+        'Gửi nhà thầu phụ': 'Send to Subcontractor',
+        'Chuyển vật tư cho sản xuất': 'Material Transfer for Manufacture',
+        'Tiêu hao vật tư cho sản xuất': 'Material Consumption for Manufacture',
+    };
+    return map[value] || value;
+}
+
 // Hàm helper để build filters array
 function buildFiltersArray(filters: InventoryFilters): string[][] {
     const filterArray: string[][] = [];
     
     if (filters.name) {
-        filterArray.push(["stock_entry_type", "=", filters.name]);
+        // Check if the name filter contains wildcards for partial search
+        if (filters.name.includes('%')) {
+            filterArray.push(["name", "like", filters.name]);
+        } else {
+            filterArray.push(["name", "=", filters.name]);
+        }
     }
 
-    // Filter theo stock_entry_type
+    // Filter theo stock_entry_type (convert VN -> EN canonical for backend)
     if (filters.stock_entry_type) {
-        console.log('📦 [buildFiltersArray] Adding stock_entry_type filter:', filters.stock_entry_type);
-        filterArray.push(["stock_entry_type", "=", filters.stock_entry_type]);
+        const canonical = toEnglishStockEntryType(filters.stock_entry_type);
+        filterArray.push(["stock_entry_type", "=", canonical]);
     }
     
     // Filter theo workflow_state
@@ -82,23 +108,21 @@ function buildFiltersArray(filters: InventoryFilters): string[][] {
     
     // Filter theo creation date range - expect Frappe filter format
     if (filters.creation) {
-        console.log('📅 [buildFiltersArray] Processing creation filter:', filters.creation);
+        // Process creation date filter in Frappe format
         try {
             // Parse Frappe filter format: [["creation", ">=", "2025-10-10 00:00:00"], ["creation", "<=", "2025-10-10 23:59:59"]]
             const frappeFilters = JSON.parse(filters.creation);
-            console.log('📅 [buildFiltersArray] Parsed Frappe filters:', frappeFilters);
             
             if (Array.isArray(frappeFilters)) {
                 // Add all filters from the array
                 frappeFilters.forEach((filter, index) => {
-                    console.log(`📅 [buildFiltersArray] Adding Frappe filter ${index + 1}:`, filter);
                     if (Array.isArray(filter) && filter.length === 3) {
                         filterArray.push(filter);
                     }
                 });
             }
         } catch (error) {
-            console.error('❌ [buildFiltersArray] Error parsing creation filter:', error);
+            // ignore parse error
         }
     }
     
@@ -112,7 +136,6 @@ function buildFiltersArray(filters: InventoryFilters): string[][] {
         filterArray.push(["custom_interpretation", "=", filters.custom_interpretation]);
     }
     
-    console.log('✅ [buildFiltersArray] Final filter array:', filterArray);
     return filterArray;
 }
 
@@ -146,11 +169,9 @@ export async function getAllInventory(options: InventoryQueryOptions = {}): Prom
         
         if (options.filters) {
             const filtersArray = buildFiltersArray(options.filters);
-            console.log('🔍 [getAllInventory] Built filters array:', filtersArray);
             
             if (filtersArray.length > 0) {
                 queryParams.append('filters', JSON.stringify(filtersArray));
-                console.log('📤 [getAllInventory] Added filters to query params:', JSON.stringify(filtersArray));
             }
         }
         const fullUrl = `/api/resource/Stock Entry?${queryParams.toString()}`;

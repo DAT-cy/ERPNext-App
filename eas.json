@@ -3,10 +3,14 @@
     "version": ">= 16.20.0",
     "appVersionSource": "remote"
   },
-   "build": {
+  "build": {
     "preview": {
       "android": {
         "buildType": "apk"
+      },
+      "ios": {
+        "simulator": true,
+        "distribution": "internal"
       }
     },
     "preview2": {
@@ -20,7 +24,38 @@
     "preview4": {
       "distribution": "internal"
     },
-    "production": {}
+    "ios-preview": {
+      "autoIncrement": true,
+      "ios": {
+        "simulator": true,
+        "distribution": "internal"
+      }
+    },
+    "ios-production": {
+      "autoIncrement": true,
+      "ios": {
+        "distribution": "store"
+      }
+    },
+    "ios-device": {
+      "ios": {
+        "simulator": false,
+        "distribution": "internal"
+      }
+    },
+    "ios-testflight": {
+      "autoIncrement": true,
+      "ios": {
+        "simulator": false,
+        "distribution": "store"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "ios": {
+        "distribution": "store"
+      }
+    }
   },
   "submit": {
     "production": {}

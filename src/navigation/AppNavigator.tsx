@@ -8,6 +8,8 @@ import LeaveManagementScreen from "../screens/LeaveManagementScreen"; //
 import { ApplicationLeave } from "../screens";
 import InventoryManagementScreen from "../screens/Inventory/InventoryManagementScreen";
 import InventoryEntryScreens from "../screens/Inventory/InventoryEntryScreens";
+import InventoryDetailScreen from "../screens/Inventory/InventoryDetailScreen";
+import InsertInventoryScreen from "@/screens/Inventory/InsertInventoryScreen";
 
 const Stack = createStackNavigator();
 
@@ -27,6 +29,8 @@ export default function AppNavigator() {
       <Stack.Screen name="ApplicationLeave" component={ApplicationLeave} />
       <Stack.Screen name="InventoryManagement" component={InventoryManagementScreen} />
       <Stack.Screen name="InventoryEntry" component={InventoryEntryScreens} />
+      <Stack.Screen name="InventoryDetailScreen" component={InventoryDetailScreen} />
+      <Stack.Screen name="InsertInventoryScreen" component={InsertInventoryScreen} />
     </Stack.Navigator>
   );
 }

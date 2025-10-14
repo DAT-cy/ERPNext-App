@@ -10,6 +10,7 @@ import BottomTabBar from "../components/TabBar/BottomTabBar";
 import { NavigationSidebarMenu } from "../components/SidebarMenu";
 import { WebView } from 'react-native-webview';
 import * as Location from 'expo-location';
+import { getLocationFromCache, saveLocationToCache } from '../utils/locationCache';
 import { useAuth, useScreenTabBar } from "../hooks";
 import { useCheckin } from "../hooks/useCheckin";
 import { fetchCheckinRecords } from "../services/checkinService";
@@ -173,7 +174,7 @@ export default function HomeScreen() {
     }
   }, []);
 
-  // Tối ưu hóa lấy vị trí với timeout
+  // Tối ưu hóa lấy vị trí: trả về last known ngay, đồng thời lấy chính xác với timeout
   const getCurrentLocation = useCallback(async () => {
     setLocationLoading(true);
     setLocationError(null);
@@ -200,57 +201,82 @@ export default function HomeScreen() {
         setLocationLoading(false);
         return;
       }
-      
-
-      let location: Location.LocationObject | null = null;
-      
-      try {
-        console.log('📍 Đang lấy vị trí...');
-        
-        // Thử lấy vị trí với độ chính xác cao
-        location = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.High
+      // 1) Trả về cache ngay nếu còn hạn (<= 60s)
+      const cached = await getLocationFromCache(60_000);
+      if (cached) {
+        setUserLocation({
+          latitude: cached.latitude,
+          longitude: cached.longitude,
+          latitudeDelta: 0.005,
+          longitudeDelta: 0.005
         });
-        
-        console.log('✅ Đã lấy được vị trí với độ chính xác cao');
-      } catch (locationError) {
-        console.log('⚠️ Lỗi khi lấy vị trí với độ chính xác cao, thử với độ chính xác thấp');
-        
+        setHasValidLocation(true);
+        setLocationError(null);
+        console.log('⚡ Dùng cached location (<60s):', {
+          lat: cached.latitude.toFixed(6),
+          lng: cached.longitude.toFixed(6),
+          accuracy: cached.accuracy
+        });
+      } else {
+        // fallback last known nếu không có cache
         try {
-          // Thử lại với độ chính xác thấp hơn
-          location = await Location.getCurrentPositionAsync({
-            accuracy: Location.Accuracy.Low
+          const last = await Location.getLastKnownPositionAsync();
+          if (last && last.coords) {
+            setUserLocation({
+              latitude: last.coords.latitude,
+              longitude: last.coords.longitude,
+              latitudeDelta: 0.005,
+              longitudeDelta: 0.005
+            });
+            setHasValidLocation(true);
+            setLocationError(null);
+            console.log('✅ Dùng last known location:', {
+              lat: last.coords.latitude.toFixed(6),
+              lng: last.coords.longitude.toFixed(6),
+              accuracy: last.coords.accuracy
+            });
+          }
+        } catch {}
+      }
+
+      // 2) Đồng thời cố lấy vị trí chính xác với timeout ngắn
+      const preciseWithTimeout = async (ms: number) => {
+        return await Promise.race<Promise<Location.LocationObject>>([
+          Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High }),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('LOCATION_TIMEOUT')), ms)) as Promise<Location.LocationObject>
+        ]);
+      };
+
+      try {
+        const precise = await preciseWithTimeout(1000);
+        if (precise && precise.coords) {
+          setUserLocation({
+            latitude: precise.coords.latitude,
+            longitude: precise.coords.longitude,
+            latitudeDelta: 0.005,
+            longitudeDelta: 0.005
           });
-          console.log('✅ Đã lấy được vị trí với độ chính xác thấp');
-        } catch (lowAccuracyError) {
-          console.log('⚠️ Không thể lấy vị trí');
-          const errorObj = homeScreenErrorHandler.analyzeError(lowAccuracyError, 'location');
+          saveLocationToCache({
+            latitude: precise.coords.latitude,
+            longitude: precise.coords.longitude,
+            accuracy: precise.coords.accuracy ?? null,
+          });
+          setHasValidLocation(true);
+          setLocationError(null);
+          console.log('✅ Cập nhật vị trí chính xác:', {
+            lat: precise.coords.latitude.toFixed(6),
+            lng: precise.coords.longitude.toFixed(6),
+            accuracy: precise.coords.accuracy
+          });
+        }
+      } catch (err) {
+        if ((err as Error).message !== 'LOCATION_TIMEOUT') {
+          const errorObj = homeScreenErrorHandler.analyzeError(err, 'location');
           homeScreenErrorHandler.handleLocationError(errorObj);
-          throw errorObj;
+        } else {
+          console.log('⏱️ Lấy vị trí chính xác quá lâu, dùng last known (nếu có)');
         }
       }
-      
-      // Kiểm tra location có valid không
-      if (!location || !location.coords) {
-        const error = homeScreenErrorHandler.createError(HomeScreenErrorCode.LOCATION_COORDS_INVALID);
-        throw error;
-      }
-      
-      // Cập nhật vị trí người dùng
-      setUserLocation({
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
-        latitudeDelta: 0.005,
-        longitudeDelta: 0.005
-      });
-      
-      setHasValidLocation(true);
-      setLocationError(null);
-      console.log('✅ Đã lấy được vị trí:', {
-        lat: location.coords.latitude.toFixed(6),
-        lng: location.coords.longitude.toFixed(6),
-        accuracy: location.coords.accuracy
-      });
       
     } catch (error: any) {
       const locationError = error.code ? error : homeScreenErrorHandler.analyzeError(error, 'location');

@@ -55,3 +55,28 @@ export const getDaysInMonth = (year: number, month: number): (Date | null)[] => 
   
   return days;
 };
+
+/**
+ * Get current date as DD/MM/YYYY (Vietnamese locale style)
+ */
+export const formatCurrentDateDisplay = (): string => {
+  const now = new Date();
+  return now.toLocaleDateString('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+};
+
+/**
+ * Get current time as HH:mm:ss (24h)
+ */
+export const formatCurrentTimeHMS = (): string => {
+  const now = new Date();
+  return now.toLocaleTimeString('vi-VN', {
+    hour12: false,
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
+};

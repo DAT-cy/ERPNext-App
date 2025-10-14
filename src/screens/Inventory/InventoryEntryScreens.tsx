@@ -11,14 +11,20 @@ import {
     Animated,
     StatusBar,
     ActivityIndicator,
+    Alert,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { RootStackParamList } from '../../navigation/types';
 import { colors } from '../../styles/globalStyles';
 import { wp, hp, fs } from '../../utils/responsive';
 import { InventoryItem } from '../../services/inventoryService';
 import { inventoryEntryStyles } from '../../styles/InventoryEntryScreens.styles';
 import { InventoryFilterModal } from '../../components/InventoryFilter';
 import { getAllExportImportType, getWarehouse, getAllInventory } from '../../services/inventoryService';
+import { getInventoryDetail } from '../../services/inventoryDetailService';
+import { BarcodeScanner } from '../../components/Scanner/BarcodeScanner';
 
 // Types for filters
 interface FilterCategory {
@@ -44,8 +50,10 @@ interface ActiveFilter {
 const filterCategories: FilterCategory[] = [
     { key: 'stock_entry_type', title: 'Loại Nhập Xuất', icon: '📦' },
     { key: 'creation', title: 'Ngày Ghi Sổ', icon: '📅' },
-    { key: 'from_warehouse', title: 'Kho Xuất Mặc Định', icon: '🏪' },
-    { key: 'custom_original_target_warehouse', title: 'Kho Nhập Mặc Định', icon: '🏬' },
+    { key: 'workflow_state', title: 'Trạng Thái', icon: '📅' },
+
+    // { key: 'from_warehouse', title: 'Kho Xuất Mặc Định', icon: '🏪' },
+    // { key: 'custom_original_target_warehouse', title: 'Kho Nhập Mặc Định', icon: '🏬' },
     //   { key: 'expense_account', title: 'Tài Khoản Chênh Lệch', icon: '💰' },
     //   { key: 'is_return', title: 'Là Trả Hàng', icon: '↩️' },
     //   { key: 'purpose', title: 'Mục Đích', icon: '🎯' },
@@ -53,6 +61,7 @@ const filterCategories: FilterCategory[] = [
 ];
 
 export default function InventoryEntryScreens() {
+    const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
     const [searchQuery, setSearchQuery] = useState<string>('');
     const [isFilterModalVisible, setIsFilterModalVisible] = useState<boolean>(false);
     const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
@@ -62,12 +71,24 @@ export default function InventoryEntryScreens() {
     const [loadingMore, setLoadingMore] = useState<boolean>(false);
     const [hasMoreData, setHasMoreData] = useState<boolean>(true);
     const [currentPage, setCurrentPage] = useState<number>(0);
+    const [isEndReachedCalled, setIsEndReachedCalled] = useState<boolean>(false);
+    const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
     const [exportImportTypesOption, setExportImportTypesOption] = useState<Record<string, FilterOption[]>>({});
+    const [isScannerVisible, setIsScannerVisible] = useState(false);
 
     const scrollY = useRef(new Animated.Value(0)).current;
 
     // Static filter options (fallback)
     const staticFilterOptions: Record<string, FilterOption[]> = {
+        workflow_state: [
+            { value: 'Yêu cầu', label: 'Yêu cầu', category: 'workflow_state' },
+            { value: 'Đang xử lý', label: 'Đang xử lý', category: 'workflow_state' },
+            { value: 'Đã xử lý', label: 'Đã xử lý', category: 'workflow_state' },
+        ],
+        stock_entry_type: [
+            // default value is English canonical for filtering, label stays Vietnamese for display
+            { value: 'Material Transfer', label: 'Chuyển kho', category: 'stock_entry_type' },
+        ],
     };
 
     const transformApiDataToFilterOptions = (
@@ -77,10 +98,34 @@ export default function InventoryEntryScreens() {
         labelKey?: string
     ): FilterOption[] => {
         return apiData.map(item => ({
-            value: item[valueKey],
+            // Keep label in Vietnamese for UI, but set value to English canonical for filtering
+            value: getEnglishValueForCategory(category, item[valueKey]),
             label: labelKey ? item[labelKey] : item[valueKey],
             category: category
         }));
+    };
+
+    // Convert Vietnamese to English canonical values used by backend for filtering
+    const getEnglishValueForCategory = (category: string, vnValue: string): string => {
+        if (category === 'stock_entry_type') {
+            const map: Record<string, string> = {
+                'Chuyển kho': 'Material Transfer',
+                'Nhập kho': 'Material Receipt',
+                'Xuất kho': 'Material Issue',
+                'Sản xuất': 'Manufacture',
+                'Trả hàng': 'Material Return',
+                'Kiểm kê': 'Repack',
+                // Extended types from provided dataset
+                'Xuất vật tư': 'Material Issue',
+                'Nhập vật tư': 'Material Receipt',
+                'Đóng gói': 'Repack',
+                'Gửi nhà thầu phụ': 'Send to Subcontractor',
+                'Chuyển vật tư cho sản xuất': 'Material Transfer for Manufacture',
+                'Tiêu hao vật tư cho sản xuất': 'Material Consumption for Manufacture',
+            };
+            return map[vnValue] || vnValue;
+        }
+        return vnValue;
     };
 
     const loadFilterOptions = async () => {
@@ -104,6 +149,21 @@ export default function InventoryEntryScreens() {
             };
 
             setExportImportTypesOption(combinedOptions);
+
+            // Reconcile default stock_entry_type with available options (Material Transfer / Chuyển kho)
+            const stockOptions = combinedOptions.stock_entry_type || [];
+            const preferred = stockOptions.find(o => o.value === 'Material Transfer')
+                || stockOptions[0];
+            if (preferred) {
+                setActiveFilters(prev => {
+                    // Replace or add stock_entry_type to match available option value/label
+                    const others = prev.filter(f => f.category !== 'stock_entry_type');
+                    return [
+                        ...others,
+                        { key: 'stock_entry_type', label: preferred.label, category: 'stock_entry_type', value: preferred.value },
+                    ];
+                });
+            }
 
         } catch (error) {
             throw error;
@@ -176,8 +236,36 @@ export default function InventoryEntryScreens() {
     };
 
     useEffect(() => {
+        // Set default workflow_state and stock_entry_type filters on first load if not present
+        setActiveFilters(prev => {
+            let next = prev;
+            if (!next.some(f => f.category === 'workflow_state')) {
+                next = [
+                    ...next,
+                    { key: 'workflow_state', label: 'Yêu cầu', category: 'workflow_state', value: 'Yêu cầu' },
+                ];
+            }
+            if (!next.some(f => f.category === 'stock_entry_type')) {
+                next = [
+                    ...next,
+                    { key: 'stock_entry_type', label: 'Chuyển kho', category: 'stock_entry_type', value: 'Material Transfer' },
+                ];
+            }
+            return next;
+        });
         loadFilterOptions();
     }, []);
+
+    // Always reset defaults when screen is focused
+    useFocusEffect(
+        React.useCallback(() => {
+            setSearchQuery('');
+            setActiveFilters([
+                { key: 'workflow_state', label: 'Yêu cầu', category: 'workflow_state', value: 'Yêu cầu' },
+                { key: 'stock_entry_type', label: 'Chuyển kho', category: 'stock_entry_type', value: 'Material Transfer' },
+            ]);
+        }, [])
+    );
 
     // Format date function
     const formatDate = (dateString: string): string => {
@@ -192,22 +280,10 @@ export default function InventoryEntryScreens() {
     // Get status display info
     const getStatusInfo = (state: string, docstatus: string | number) => {
         const statusMap: Record<string, { text: string; color: string; bgColor: string }> = {
-            // English status
-            'Cancelled': { text: 'Hủy', color: colors.error, bgColor: '#FEF2F2' },
-            'Draft': { text: 'Nháp', color: colors.info, bgColor: '#EFF6FF' },
-            'Approved': { text: 'Đã duyệt', color: colors.success, bgColor: '#F0FDF4' },
-            'Pending': { text: 'Chờ duyệt', color: colors.warning, bgColor: '#FFFBEB' },
-            'Completed': { text: 'Hoàn thành', color: colors.success, bgColor: '#F0FDF4' },
-            'Rejected': { text: 'Từ chối', color: colors.error, bgColor: '#FEF2F2' },
-            'Processed': { text: 'Đã xử lý', color: colors.success, bgColor: '#F0FDF4' },
-            'Processing': { text: 'Đang xử lý', color: colors.warning, bgColor: '#FFFBEB' },
 
-            // Vietnamese status
-            'Hủy': { text: 'Hủy', color: colors.error, bgColor: '#FEF2F2' },
-            'Đã duyệt': { text: 'Đã duyệt', color: colors.success, bgColor: '#F0FDF4' },
-            'Chờ duyệt': { text: 'Chờ duyệt', color: colors.warning, bgColor: '#FFFBEB' },
-            'Hoàn thành': { text: 'Hoàn thành', color: colors.success, bgColor: '#F0FDF4' },
             'Đã xử lý': { text: 'Đã xử lý', color: colors.success, bgColor: '#F0FDF4' },
+            'Yêu cầu': { text: 'Yêu cầu', color: colors.warning, bgColor: '#FFFBEB' },
+            'Đang xử lý': { text: 'Đang xử lý', color: colors.info, bgColor: '#EFF6FF' },
         };
 
         // Check docstatus if state not found
@@ -245,110 +321,101 @@ export default function InventoryEntryScreens() {
         return labelMap[type] || type;
     };
 
+    // Handle barcode scan
+    const handleBarcodeScan = (barcode: string) => {
+        setSearchQuery(barcode);
+        Alert.alert(
+            'Quét Thành Công!',
+            `Đang tìm kiếm sản phẩm với mã: ${barcode}`,
+            [{ text: 'OK' }]
+        );
+    };
+
+    // Search with API call (debounced)
+    const performSearch = async (query: string) => {
+        setLoading(true);
+        setCurrentPage(0);
+        setIsEndReachedCalled(false);
+        
+        try {
+            const filters = activeFilters.reduce((acc, filter) => {
+                if (filter.category === 'creation') {
+                    acc[filter.category] = filter.value;
+                } else {
+                    acc[filter.category] = filter.value;
+                }
+                return acc;
+            }, {} as Record<string, string>);
+
+            // Add search filter to API call with LIKE operator for partial search
+            const response = await getAllInventory({ 
+                filters: {
+                    ...filters,
+                    name: `%${query}%` // Partial search with LIKE operator
+                }, 
+                limit: 10, 
+                offset: 0 
+            });
+
+            if (response.success && response.data) {
+                setInventoryData(response.data);
+                setFilteredData(response.data);
+                setHasMoreData(response.data.length >= 10);
+            } else {
+                console.error('❌ [InventoryEntryScreens] Search failed:', response.error);
+                setInventoryData([]);
+                setFilteredData([]);
+                setHasMoreData(false);
+            }
+        } catch (error) {
+            console.error('💥 [InventoryEntryScreens] Search error:', error);
+            setInventoryData([]);
+            setFilteredData([]);
+            setHasMoreData(false);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Debounced search function
+    const debouncedSearch = (query: string) => {
+        // Clear existing timeout
+        if (searchTimeout) {
+            clearTimeout(searchTimeout);
+        }
+
+        // Set new timeout
+        const timeout = setTimeout(() => {
+            if (query.trim()) {
+                performSearch(query);
+            } else {
+                // If query is empty, fetch fresh data
+                fetchInventoryData(0, false);
+            }
+        }, 1000); // 1 second delay
+        setSearchTimeout(timeout);
+    };
+
     // Apply filters and search
     const applyFiltersAndSearch = () => {
-        let filtered = inventoryData;
-
-        // Apply search filter
-        if (searchQuery.trim()) {
-            const query = searchQuery.toLowerCase();
-            filtered = filtered.filter(item =>
-                item.name.toLowerCase().includes(query)
-            );
-        }
-        // // Apply active filters
-        // activeFilters.forEach(filter => {
-        //     filtered = filtered.filter(item => {
-        //         switch (filter.category) {
-        //             case 'is_return':
-        //                 // Check if item is return based on docstatus or stock_entry_type
-        //                 const isReturn = item.docstatus === 2 ||
-        //                     item.stock_entry_type.includes('Trả') ||
-        //                     item.stock_entry_type.includes('Return');
-        //                 return filter.value === 'true' ? isReturn : !isReturn;
-
-        //             case 'creation_date':
-        //                 const itemDate = new Date(item.creation);
-        //                 const now = new Date();
-        //                 switch (filter.value) {
-        //                     case 'today':
-        //                         return itemDate.toDateString() === now.toDateString();
-        //                     case 'yesterday':
-        //                         const yesterday = new Date(now);
-        //                         yesterday.setDate(yesterday.getDate() - 1);
-        //                         return itemDate.toDateString() === yesterday.toDateString();
-        //                     case 'this_week':
-        //                         const weekStart = new Date(now);
-        //                         weekStart.setDate(now.getDate() - now.getDay());
-        //                         return itemDate >= weekStart;
-        //                     case 'last_week':
-        //                         const lastWeekStart = new Date(now);
-        //                         lastWeekStart.setDate(now.getDate() - now.getDay() - 7);
-        //                         const lastWeekEnd = new Date(lastWeekStart);
-        //                         lastWeekEnd.setDate(lastWeekStart.getDate() + 6);
-        //                         return itemDate >= lastWeekStart && itemDate <= lastWeekEnd;
-        //                     case 'this_month':
-        //                         return itemDate.getMonth() === now.getMonth() &&
-        //                             itemDate.getFullYear() === now.getFullYear();
-        //                     case 'last_month':
-        //                         const lastMonth = new Date(now);
-        //                         lastMonth.setMonth(lastMonth.getMonth() - 1);
-        //                         return itemDate.getMonth() === lastMonth.getMonth() &&
-        //                             itemDate.getFullYear() === lastMonth.getFullYear();
-        //                     case 'this_year':
-        //                         return itemDate.getFullYear() === now.getFullYear();
-        //                     default:
-        //                         return true;
-        //                 }
-
-        //             case 'custom_interpretation':
-        //                 const interpretation = item.custom_interpretation || '';
-        //                 switch (filter.value) {
-        //                     case 'contains_ncc':
-        //                         return interpretation.toLowerCase().includes('ncc');
-        //                     case 'contains_khach_hang':
-        //                         return interpretation.toLowerCase().includes('khách hàng');
-        //                     case 'contains_san_pham_loi':
-        //                         return interpretation.toLowerCase().includes('sản phẩm lỗi');
-        //                     case 'contains_don_hang':
-        //                         return interpretation.toLowerCase().includes('đơn hàng');
-        //                     case 'contains_lo_hang':
-        //                         return interpretation.toLowerCase().includes('lô hàng');
-        //                     default:
-        //                         return true;
-        //                 }
-
-        //             case 'name':
-        //                 const name = item.name || '';
-        //                 switch (filter.value) {
-        //                     case 'starts_with_NH':
-        //                         return name.startsWith('NH');
-        //                     case 'starts_with_TH':
-        //                         return name.startsWith('TH');
-        //                     case 'starts_with_XK':
-        //                         return name.startsWith('XK');
-        //                     case 'starts_with_SX':
-        //                         return name.startsWith('SX');
-        //                     case 'contains_2025':
-        //                         return name.includes('2025');
-        //                     default:
-        //                         return true;
-        //                 }
-
-        //             default:
-        //                 // Standard field matching for other categories
-        //                 const itemValue = (item as any)[filter.category];
-        //                 return itemValue === filter.value;
-        //         }
-        //     });
-        // });
-        setFilteredData(filtered);
+        // Always use debounced search to handle both search and clear cases
+        debouncedSearch(searchQuery);
     };
 
     // Effect to apply filters when search or filters change
     useEffect(() => {
         applyFiltersAndSearch();
-    }, [searchQuery, activeFilters, inventoryData]);
+        setIsEndReachedCalled(false);
+    }, [searchQuery, activeFilters]);
+
+    // Cleanup timeout on unmount
+    useEffect(() => {
+        return () => {
+            if (searchTimeout) {
+                clearTimeout(searchTimeout);
+            }
+        };
+    }, [searchTimeout]);
 
     // Remove active filter
     const removeFilter = (filterToRemove: ActiveFilter) => {
@@ -362,28 +429,20 @@ export default function InventoryEntryScreens() {
         } else {
             setLoading(true);
             setCurrentPage(0);
+            setIsEndReachedCalled(false); // Reset flag for new search/filter
         }
 
         try {
-            console.log('🔍 [InventoryEntryScreens] Processing active filters:', activeFilters);
-            
             // Process filters to handle Frappe format for creation date
             const filters = activeFilters.reduce((acc, filter) => {
-                console.log(`🔍 [InventoryEntryScreens] Processing filter: ${filter.category} = ${filter.value}`);
-                
                 if (filter.category === 'creation') {
-                    // For creation date, pass the Frappe filter format directly
-                    console.log('📅 [InventoryEntryScreens] Creation filter - passing Frappe format');
                     acc[filter.category] = filter.value;
                 } else {
                     // For other filters, use simple value
-                    console.log(`📦 [InventoryEntryScreens] ${filter.category} filter - using simple value`);
                     acc[filter.category] = filter.value;
                 }
                 return acc;
             }, {} as Record<string, string>);
-
-            console.log('📤 [InventoryEntryScreens] Final processed filters:', filters);
 
             const offset = page * 10; // 10 items per page
             const response = await getAllInventory({ 
@@ -405,10 +464,11 @@ export default function InventoryEntryScreens() {
                 }
 
                 // Check if there's more data
-                setHasMoreData(newData.length === 10);
+                // If we get less than 10 items, there's no more data
+                // If we get exactly 10 items, there might be more data
+                setHasMoreData(newData.length >= 10);
                 setCurrentPage(page);
             } else {
-                console.error('Failed to fetch inventory data:', response.error);
                 setHasMoreData(false);
             }
         } catch (error) {
@@ -417,6 +477,7 @@ export default function InventoryEntryScreens() {
         } finally {
             setLoading(false);
             setLoadingMore(false);
+            setIsEndReachedCalled(false); // Reset flag when loading is complete
         }
     };
 
@@ -425,10 +486,41 @@ export default function InventoryEntryScreens() {
         fetchInventoryData(0, false);
     }, [activeFilters]);
 
-    // Load more data function
+    // Handle item click to navigate to detail
+    const handleItemPress = async (item: InventoryItem) => {
+        try {            
+            // Call API to get detail
+            const response = await getInventoryDetail(item.name);
+            
+            if (response.success && response.data) {
+                
+                // Navigate to detail screen with data
+                (navigation as any).navigate('InventoryDetailScreen', {
+                    inventoryDetail: response.data
+                });
+            } else {
+                Alert.alert('Lỗi', 'Không thể tải chi tiết phiếu nhập xuất');
+            }
+        } catch (error) {
+            console.error('💥 [InventoryEntryScreens] Error handling item press:', error);
+            Alert.alert('Lỗi', 'Có lỗi xảy ra khi tải chi tiết');
+        }
+    };
+
     const loadMoreData = () => {
+        
+        if (searchQuery.trim()) {
+            return;
+        }
+    
+        if (isEndReachedCalled) {
+            return;
+        }
+    
         if (!loadingMore && hasMoreData) {
+            setIsEndReachedCalled(true);
             fetchInventoryData(currentPage + 1, true);
+        } else {
         }
     };
 
@@ -438,7 +530,11 @@ export default function InventoryEntryScreens() {
         const typeLabel = getEntryTypeLabel(item.stock_entry_type);
 
         return (
-            <View style={inventoryEntryStyles.inventoryItem}>
+            <TouchableOpacity 
+                style={inventoryEntryStyles.inventoryItem}
+                onPress={() => handleItemPress(item)}
+                activeOpacity={0.7}
+            >
                 {/* Header với ID và Status */}
                 <View style={inventoryEntryStyles.itemHeader}>
                     <Text style={inventoryEntryStyles.itemId}>{item.name}</Text>
@@ -448,68 +544,7 @@ export default function InventoryEntryScreens() {
                         </Text>
                     </View>
                 </View>
-
-                {/* Content grid 2 cột - Key xuống dòng Value */}
-                <View style={inventoryEntryStyles.itemContent}>
-                    {/* Cột 1 */}
-                    <View style={inventoryEntryStyles.leftColumn}>
-                        <View style={inventoryEntryStyles.compactRow}>
-                            <Text style={inventoryEntryStyles.compactLabel}>Loại:</Text>
-                            <Text style={inventoryEntryStyles.compactValue}>{typeLabel}</Text>
-                        </View>
-
-                        {item.from_warehouse && (
-                            <View style={inventoryEntryStyles.compactRow}>
-                                <Text style={inventoryEntryStyles.compactLabel}>Kho xuất:</Text>
-                                <Text style={inventoryEntryStyles.compactValue}>{item.from_warehouse}</Text>
-                            </View>
-                        )}
-
-                        {item.expense_account && (
-                            <View style={inventoryEntryStyles.compactRow}>
-                                <Text style={inventoryEntryStyles.compactLabel}>Tài khoản:</Text>
-                                <Text style={inventoryEntryStyles.compactValue} numberOfLines={1}>
-                                    {item.expense_account.length > 20
-                                        ? `${item.expense_account.substring(0, 20)}...`
-                                        : item.expense_account}
-                                </Text>
-                            </View>
-                        )}
-                        {item.docstatus !== undefined && item.docstatus !== 0 && (
-                            <View style={inventoryEntryStyles.compactRow}>
-                                <Text style={inventoryEntryStyles.compactLabel}>
-                                    Trả Hàng:
-                                </Text>
-                                <Text style={inventoryEntryStyles.compactValue}>
-                                    {item.docstatus === 1 ? (
-                                        'Đã nhận hàng'
-                                    ) : item.docstatus === 2 ? (
-                                        'Đã trả hàng'
-                                    ) : (
-                                        'Nháp'
-                                    )}
-                                </Text>
-                            </View>
-                        )}
-                    </View>
-
-                    {/* Cột 2 */}
-                    <View style={inventoryEntryStyles.rightColumn}>
-                        {item.custom_original_target_warehouse && (
-                            <View style={inventoryEntryStyles.compactRow}>
-                                <Text style={inventoryEntryStyles.compactLabel}>Kho nhập:</Text>
-                                <Text style={inventoryEntryStyles.compactValue}>{item.custom_original_target_warehouse}</Text>
-                            </View>
-                        )}
-
-                        <View style={inventoryEntryStyles.compactRow}>
-                            <Text style={inventoryEntryStyles.compactLabel}>Mục đích:</Text>
-                            <Text style={inventoryEntryStyles.compactValue} numberOfLines={1}>
-                                {item.purpose}
-                            </Text>
-                        </View>
-
-                        {item.creation !== undefined && (
+                {item.creation !== undefined && (
                             <View style={inventoryEntryStyles.compactRow}>
                                 <Text style={inventoryEntryStyles.compactLabel}>
                                     Ngày Ghi Sổ:
@@ -519,19 +554,26 @@ export default function InventoryEntryScreens() {
                                 </Text>
                             </View>
                         )}
-                    </View>
-                </View>
 
-                {/* Diễn giải (full width) */}
-                {item.custom_interpretation && (
-                    <View style={inventoryEntryStyles.interpretationRow}>
-                        <Text style={inventoryEntryStyles.interpretationLabel}>Diễn giải:</Text>
-                        <Text style={inventoryEntryStyles.interpretationValue} numberOfLines={2}>
-                            {`"${item.custom_interpretation}"`}
-                        </Text>
+                <View style={inventoryEntryStyles.itemContent}>                    
+                    <View style={inventoryEntryStyles.leftColumn}>
+                        <View style={inventoryEntryStyles.compactRow}>
+                            <Text style={inventoryEntryStyles.compactLabel}>Mô tả:</Text>
+                            <Text
+                                style={inventoryEntryStyles.compactValue}
+                                numberOfLines={2}
+                                ellipsizeMode="tail"
+                            >
+                                {item.custom_interpretation || '—'}
+                            </Text>
+                        </View>
+
+    
                     </View>
-                )}
-            </View>
+
+                    
+                </View>
+            </TouchableOpacity>
         );
     };
 
@@ -543,22 +585,73 @@ export default function InventoryEntryScreens() {
             <View style={inventoryEntryStyles.header}>
                 <Text style={inventoryEntryStyles.headerTitle}>Quản Lý Nhập Xuất Kho</Text>
 
-                {/* Search Bar */}
+                {/* Enhanced Search Bar */}
                 <View style={inventoryEntryStyles.searchContainer}>
-                    <View style={inventoryEntryStyles.searchBar}>
-                        <Feather name="search" size={wp(5)} color={colors.gray500} />
+                    <View style={inventoryEntryStyles.enhancedSearchBar}>
+                        {/* Search Icon */}
+                        <View style={inventoryEntryStyles.searchIconContainer}>
+                            <Feather name="search" size={wp(4.5)} color={colors.gray500} />
+                        </View>
+                        
+                        {/* Search Input */}
                         <TextInput
-                            style={inventoryEntryStyles.searchInput}
+                            style={inventoryEntryStyles.enhancedSearchInput}
                             placeholder="Tìm kiếm phiếu nhập xuất..."
                             value={searchQuery}
                             onChangeText={setSearchQuery}
                             placeholderTextColor={colors.gray500}
                         />
+                        
+                        {/* Clear Search Button */}
+                        {searchQuery.length > 0 && (
+                            <TouchableOpacity
+                                style={inventoryEntryStyles.clearSearchButton}
+                                onPress={() => setSearchQuery('')}
+                                activeOpacity={0.7}
+                            >
+                                <Feather name="x" size={wp(4)} color={colors.gray500} />
+                            </TouchableOpacity>
+                        )}
+                        
+                        {/* Filter Button */}
                         <TouchableOpacity
-                            style={inventoryEntryStyles.filterButton}
+                            style={[inventoryEntryStyles.enhancedFilterButton, 
+                                activeFilters.length > 0 && inventoryEntryStyles.filterButtonActive]}
                             onPress={() => setIsFilterModalVisible(true)}
+                            activeOpacity={0.7}
                         >
-                            <Feather name="filter" size={wp(5)} color={colors.gray600} />
+                            <Feather 
+                                name="filter" 
+                                size={wp(4.5)} 
+                                color={activeFilters.length > 0 ? colors.white : colors.gray600} 
+                            />
+                            {activeFilters.length > 0 && (
+                                <View style={inventoryEntryStyles.filterBadge}>
+                                    <Text style={inventoryEntryStyles.filterBadgeText}>
+                                        {activeFilters.length}
+                                    </Text>
+                                </View>
+                            )}
+                        </TouchableOpacity>
+                        
+                        {/* Scan Button */}
+                        <TouchableOpacity
+                            style={inventoryEntryStyles.scanButton}
+                            onPress={() => setIsScannerVisible(true)}
+                            activeOpacity={0.7}
+                        >
+                            <Feather name="maximize" size={wp(4.5)} color={colors.white} />
+                        </TouchableOpacity>
+                        
+                        {/* Add Button */}
+                        <TouchableOpacity
+                            style={inventoryEntryStyles.addButton}
+                            onPress={() => {
+                                navigation.navigate('InsertInventoryScreen');
+                            }}
+                            activeOpacity={0.7}
+                        >
+                            <Feather name="plus" size={wp(4.5)} color={colors.white} />
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -589,7 +682,7 @@ export default function InventoryEntryScreens() {
 
             <FlatList
                 data={filteredData}
-                keyExtractor={(item) => item.name}
+                keyExtractor={(item, index) => `${item.name}-${index}`}
                 renderItem={renderInventoryItem}
                 style={inventoryEntryStyles.resultsList}
                 showsVerticalScrollIndicator={false}
@@ -598,7 +691,7 @@ export default function InventoryEntryScreens() {
                     { useNativeDriver: false }
                 )}
                 onEndReached={loadMoreData}
-                onEndReachedThreshold={0.1}
+                onEndReachedThreshold={0.5}
                 ListFooterComponent={() => {
                     if (loadingMore) {
                         return (
@@ -628,9 +721,16 @@ export default function InventoryEntryScreens() {
                 filterCategories={filterCategories}
                 filterOptions={(() => {
                     const options = Object.keys(exportImportTypesOption).length > 0 ? exportImportTypesOption : staticFilterOptions;
-                    console.log('🔍 [InventoryEntryScreens] Passing filterOptions to modal:', Object.keys(options));
                     return options;
                 })()}
+            />
+
+            {/* Barcode Scanner */}
+            <BarcodeScanner
+                visible={isScannerVisible}
+                onClose={() => setIsScannerVisible(false)}
+                onScan={handleBarcodeScan}
+                title="Quét Mã QR"
             />
         </SafeAreaView>
     );
