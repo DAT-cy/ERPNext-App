@@ -216,4 +216,3 @@ export async function getWarehouse(): Promise<dataFill[]> {
         throw error;
     }
 }
-

@@ -1,4 +1,3 @@
-// src/screens/Inventory/InsertInventoryScreen.tsx
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     View,
@@ -9,14 +8,16 @@ import {
     TextInput,
     Switch,
     Animated,
+    Image,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { getAllExportImportType, getWarehouse } from '../../services/inventoryService';
+import { getItemDetails, getIncomingRate, getStockBalance } from '../../services/inventoryInsertService';
+import { BarcodeScanner } from '../../components/Scanner/BarcodeScanner';
 import { insertInventoryStyles as styles } from '../../styles/InsertInventoryScreen.styles';
 import { formatCurrentDateDisplay, formatCurrentTimeHMS } from '../../utils/date';
 
 type InventoryItemRow = {
-    id: number;
     fromWarehouse: string;
     toWarehouse: string;
     code: string;
@@ -24,59 +25,58 @@ type InventoryItemRow = {
     qty: string;
     unit: string;
     price: string;
+    isStockItem: boolean;
 };
 
 export default function InsertInventoryScreen() {
     const navigation = useNavigation();
 
-    const [isSaved, setIsSaved] = useState<boolean>(false);
+    // States
+    const [isSaved, setIsSaved] = useState(false);
     const [sectionExpanded, setSectionExpanded] = useState<Record<string, boolean>>({
         section1: true,
         section2: true,
         section3: true,
     });
 
-    const [code, setCode] = useState<string>('MAT-STE-.YYYY.');
-    const [company, setCompany] = useState<string>('CTY REMAK');
-    const [entryType, setEntryType] = useState<string>('');
+    // Form data
+    const [code, setCode] = useState('MAT-STE-.YYYY.');
+    const [company, setCompany] = useState('CTY REMAK');
+    const [entryType, setEntryType] = useState('');
     const [stockEntryTypes, setStockEntryTypes] = useState<string[]>([]);
-    const [isEntryTypePickerVisible, setIsEntryTypePickerVisible] = useState<boolean>(false);
-    const entryTypeAnim = useRef(new Animated.Value(0)).current;
-    const [postDate, setPostDate] = useState<string>('');
-    const [postTime, setPostTime] = useState<string>('');
-    const [diffAccount, setDiffAccount] = useState<string>('6328 điều chỉnh tồn kho – COM');
-    const [originLocationEnabled, setOriginLocationEnabled] = useState<boolean>(false);
-    const [originLocation, setOriginLocation] = useState<string>('');
-    const [warehouses, setWarehouses] = useState<string[]>([]);
-    const [isWarehousePickerVisible, setIsWarehousePickerVisible] = useState<boolean>(false);
-    const warehouseAnim = useRef(new Animated.Value(0)).current;
-    const [description, setDescription] = useState<string>('');
+    const [postDate, setPostDate] = useState('');
+    const [postTime, setPostTime] = useState('');
+    const [diffAccount, setDiffAccount] = useState('6328 điều chỉnh tồn kho – COM');
+    const [description, setDescription] = useState('');
 
-    const [defaultFromWarehouse, setDefaultFromWarehouse] = useState<string>('Lại Yên – COM');
-    const [defaultToWarehouse, setDefaultToWarehouse] = useState<string>('Kho đi đường – COM');
-    const [isFromPickerVisible, setIsFromPickerVisible] = useState<boolean>(false);
-    const [isToPickerVisible, setIsToPickerVisible] = useState<boolean>(false);
+    // Warehouse settings
+    const [originLocationEnabled, setOriginLocationEnabled] = useState(false);
+    const [originLocation, setOriginLocation] = useState('');
+    const [defaultFromWarehouse, setDefaultFromWarehouse] = useState('');
+    const [defaultToWarehouse, setDefaultToWarehouse] = useState('');
+    const [warehouses, setWarehouses] = useState<string[]>([]);
+
+    // Dropdown states
+    const [isEntryTypePickerVisible, setIsEntryTypePickerVisible] = useState(false);
+    const [isWarehousePickerVisible, setIsWarehousePickerVisible] = useState(false);
+    const [isFromPickerVisible, setIsFromPickerVisible] = useState(false);
+    const [isToPickerVisible, setIsToPickerVisible] = useState(false);
+    // Items
+    const [items, setItems] = useState<InventoryItemRow[]>([]);
+    // UI states
+    const [toastMessage, setToastMessage] = useState('');
+    const [isScannerVisible, setIsScannerVisible] = useState(false);
+    const [currentScanningItemIndex, setCurrentScanningItemIndex] = useState<number | null>(null);
+    const [editingItemIndex, setEditingItemIndex] = useState<number | null>(null);
+
+    // Animations
+    const toastAnim = useRef(new Animated.Value(-100)).current;
+    const entryTypeAnim = useRef(new Animated.Value(0)).current;
+    const warehouseAnim = useRef(new Animated.Value(0)).current;
     const fromAnim = useRef(new Animated.Value(0)).current;
     const toAnim = useRef(new Animated.Value(0)).current;
 
-    const [items, setItems] = useState<InventoryItemRow[]>([
-        {
-            id: 1,
-            fromWarehouse: 'Lại Yên – COM',
-            toWarehouse: 'Kho đi đường – COM',
-            code: '',
-            name: '',
-            qty: '',
-            unit: 'Cái',
-            price: '',
-        },
-    ]);
-    const nextIdRef = useRef<number>(2);
-
-    // Toast animation
-    const toastAnim = useRef(new Animated.Value(-100)).current;
-    const [toastMessage, setToastMessage] = useState<string>('');
-
+    // Toast function
     const showToast = useCallback((message: string) => {
         setToastMessage(message);
         Animated.sequence([
@@ -86,16 +86,59 @@ export default function InsertInventoryScreen() {
         ]).start();
     }, [toastAnim]);
 
-    const toggleSection = useCallback((key: string) => {
-        setSectionExpanded(prev => ({ ...prev, [key]: !prev[key] }));
-    }, []);
+    // Helpers
+    const toApiDate = (ddmmyyyy: string) => {
+        if (/^\d{4}-\d{2}-\d{2}$/.test(ddmmyyyy)) return ddmmyyyy;
+        const m = ddmmyyyy.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+        if (m) return `${m[3]}-${m[2]}-${m[1]}`;
+        return ddmmyyyy;
+    };
 
+    const createEmptyRow = useCallback((): InventoryItemRow => ({
+        fromWarehouse: defaultFromWarehouse,
+        toWarehouse: defaultToWarehouse,
+        code: '',
+        name: '',
+        qty: '',
+        unit: '',
+        price: '',
+        isStockItem: true,
+    }), [defaultFromWarehouse, defaultToWarehouse]);
+
+    const fetchRateAndQty = useCallback(async (itemCode: string, warehouse: string) => {
+        let incomingRate = '0';
+        let stockQty: string | undefined;
+        try {
+            const rateResponse = await getIncomingRate(
+                itemCode,
+                toApiDate(postDate),
+                postTime,
+                warehouse || ''
+            );
+            if (rateResponse && rateResponse.message) {
+                incomingRate = rateResponse.message.toString();
+            }
+        } catch {}
+
+        try {
+            const balanceResponse = await getStockBalance(
+                itemCode,
+                toApiDate(postDate),
+                postTime,
+                warehouse || ''
+            );
+            const stockQtyVal = balanceResponse?.message?.qty;
+            if (stockQtyVal !== undefined && stockQtyVal !== null) {
+                stockQty = String(stockQtyVal);
+            }
+        } catch {}
+
+        return { incomingRate, stockQty } as const;
+    }, [postDate, postTime]);
+
+    // Navigation
     const goBack = useCallback(() => {
-        if ((navigation as any)?.goBack) {
-            (navigation as any).goBack();
-        } else {
-            showToast('Quay lại');
-        }
+        (navigation as any)?.goBack?.() || showToast('Quay lại');
     }, [navigation, showToast]);
 
     const saveTransfer = useCallback(() => {
@@ -103,90 +146,200 @@ export default function InsertInventoryScreen() {
         showToast('Đã lưu phiếu chuyển kho thành công!');
     }, [showToast]);
 
+    // Items management
     const addNewRow = useCallback(() => {
-        const newRow: InventoryItemRow = {
-            id: nextIdRef.current++,
-            fromWarehouse: defaultFromWarehouse,
-            toWarehouse: defaultToWarehouse,
-            code: '',
-            name: '',
-            qty: '',
-            unit: 'Cái',
-            price: '',
-        };
-        setItems(prev => [...prev, newRow]);
+        setItems(prev => [...prev, createEmptyRow()]);
         showToast('Đã thêm dòng mới');
-    }, [defaultFromWarehouse, defaultToWarehouse, showToast]);
+    }, [createEmptyRow, showToast]);
 
-    const removeItem = useCallback((id: number) => {
-        setItems(prev => prev.filter(it => it.id !== id));
+    const removeItem = useCallback((index: number) => {
+        setItems(prev => prev.filter((_, i) => i !== index));
         showToast('Đã xóa sản phẩm');
     }, [showToast]);
 
-    const scanBarcode = useCallback((id: number) => {
-        const sampleBarcodes = [
-            'SP001234567890',
-            'PRD987654321',
-            'ITM456789012',
-            'BAR123456789',
-            'CODE987654321',
-        ];
-        const randomBarcode = sampleBarcodes[Math.floor(Math.random() * sampleBarcodes.length)];
-        setItems(prev => prev.map(it => it.id === id ? { ...it, code: randomBarcode } : it));
-        showToast(`Đã quét barcode: ${randomBarcode}`);
-    }, [showToast]);
+    const editItem = useCallback((index: number) => {
+        setEditingItemIndex(index);
+        showToast(`Đang chỉnh sửa sản phẩm #${index + 1}`);
+    }, []);
 
-    const updatePrices = useCallback(() => {
-        showToast('Đang cập nhật giá và tình trạng khả dụng...');
-    }, [showToast]);
+    const saveEdit = useCallback(() => {
+        setEditingItemIndex(null);
+        showToast('Đã lưu thay đổi');
+    }, []);
 
-    const uploadFile = useCallback(() => {
-        showToast('Đã mở hộp thoại tải lên (mô phỏng)');
-    }, [showToast]);
+    const cancelEdit = useCallback(() => {
+        setEditingItemIndex(null);
+        showToast('Đã hủy chỉnh sửa');
+    }, []);
 
-    const downloadFile = useCallback(() => {
-        showToast('Đang tải xuống file Excel (mô phỏng)...');
-    }, [showToast]);
+    const updateItem = useCallback((index: number, field: keyof InventoryItemRow, value: string | boolean) => {
+        setItems(prev => {
+            const next = prev.map((it, i) => i === index ? { ...it, [field]: value } : it);
+            if (field === 'fromWarehouse') {
+                const changed = next[index];
+                const itemCode = changed.code;
+                const warehouse = typeof value === 'string' ? value : changed.fromWarehouse;
+                if (itemCode) {
+                    (async () => {
+                        const { incomingRate, stockQty } = await fetchRateAndQty(itemCode, warehouse || '');
+                        setItems(cur => cur.map((it2, i2) => i2 === index ? { ...it2, price: incomingRate } : it2));
+                        if (stockQty !== undefined) {
+                            setItems(cur => cur.map((it2, i2) => i2 === index ? { ...it2, qty: stockQty as string } : it2));
+                        }
+                    })();
+                }
+            }
+            return next;
+        });
+    }, [fetchRateAndQty]);
 
-    const units = useMemo(() => ['Cái', 'Kg', 'Thùng'], []);
+    // Barcode scanning
+    const scanBarcode = useCallback((index: number) => {
+        setCurrentScanningItemIndex(index);
+        setIsScannerVisible(true);
+    }, []);
 
-    // Load Stock Entry Types and set default
+    // Quick scan: add a new row then open scanner immediately
+    const quickScanNewProduct = useCallback(() => {
+        setItems(prev => {
+            const next = [...prev, createEmptyRow()];
+            const newIndex = next.length - 1;
+            // set scanner target and open
+            setCurrentScanningItemIndex(newIndex);
+            setIsScannerVisible(true);
+            return next;
+        });
+    }, [createEmptyRow]);
+
+    const handleBarcodeScan = useCallback(async (barcode: string) => {
+        if (currentScanningItemIndex === null) return;
+
+        const itemIndex = currentScanningItemIndex;
+        setIsScannerVisible(false);
+        setCurrentScanningItemIndex(null);
+
+        try {
+            showToast('Đang tải thông tin sản phẩm...');
+            const response = await getItemDetails(barcode);
+            const itemDetails = response?.data;
+
+            if (itemDetails) {
+                // Fetch incoming rate (price) and stock quantity for the item
+                let incomingRate = '0';
+                let stockQty = '';
+                try {
+                    showToast('Đang tải giá sản phẩm...');
+                    const { incomingRate: rate } = await fetchRateAndQty(
+                        barcode,
+                        (items[itemIndex]?.fromWarehouse || defaultFromWarehouse || '')
+                    );
+                    incomingRate = rate;
+                } catch (rateError) {
+                    incomingRate = itemDetails.last_purchase_rate ? itemDetails.last_purchase_rate.toString() : '0';
+                }
+
+                // Fetch stock balance for quantity
+                try {
+                    const { stockQty: qty } = await fetchRateAndQty(
+                        barcode,
+                        (items[itemIndex]?.fromWarehouse || defaultFromWarehouse || '')
+                    );
+                    if (qty !== undefined) stockQty = qty;
+                } catch { }
+
+                setItems(prev => prev.map((it, i) =>
+                    i === itemIndex ? {
+                        ...it,
+                        code: itemDetails.item_code || barcode,
+                        name: itemDetails.item_name || '',
+                        unit: itemDetails.stock_uom || 'Cái',
+                        price: incomingRate,
+                        isStockItem: itemDetails.is_stock_item === 1,
+                        qty: stockQty || (itemDetails.opening_stock ? itemDetails.opening_stock.toString() : '1')
+                    } : it
+                ));
+                showToast(`Đã quét và tải thông tin: ${itemDetails.item_name} - Giá: ${incomingRate}${stockQty ? ` - Tồn: ${stockQty}` : ''}`);
+            } else {
+                updateItem(itemIndex, 'code', barcode);
+                showToast(`Đã quét barcode: ${barcode} (không tìm thấy thông tin sản phẩm)`);
+            }
+        } catch (error) {
+            updateItem(itemIndex, 'code', barcode);
+            showToast(`Đã quét barcode: ${barcode}`);
+        }
+    }, [currentScanningItemIndex, showToast, updateItem, postDate, postTime, company]);
+
+    // Warehouse management
+    const loadWarehouses = useCallback(async () => {
+        if (warehouses.length === 0) {
+            try {
+                const data = await getWarehouse();
+                const labels: string[] = Array.isArray(data)
+                    ? data.map((w: any) => w?.label || w?.name || '').filter(Boolean)
+                    : [];
+                setWarehouses(labels);
+            } catch { }
+        }
+    }, [warehouses.length]);
+
+    // Effects
     useEffect(() => {
         const loadTypes = async () => {
             try {
                 const types = await getAllExportImportType();
-                // Extract label/name field as Vietnamese for display if available
                 const labels: string[] = Array.isArray(types)
                     ? types.map((t: any) => t?.label || t?.name || '').filter(Boolean)
                     : [];
                 setStockEntryTypes(labels);
-            } catch (e) {
-                // ignore, will fallback to default label
-            } finally {
-                // Ensure default value is set for UI
-                setEntryType(prev => prev || 'Chuyển kho');
-            }
+            } catch { }
+            setEntryType(prev => prev || 'Chuyển kho');
         };
         loadTypes();
     }, []);
 
-    // When Kho Đích Gốc is enabled and selected, lock Kho Nhập Mặc Định
-    useEffect(() => {
-        if (originLocationEnabled && originLocation) {
-            if (defaultToWarehouse !== 'Kho đi đường - COM') {
-                setDefaultToWarehouse('Kho đi đường - COM');
-            }
-            setIsToPickerVisible(false);
-        }
-    }, [originLocationEnabled, originLocation]);
-
-    // Initialize posting date/time to current formatted values
     useEffect(() => {
         setPostDate(prev => prev || formatCurrentDateDisplay());
         setPostTime(prev => prev || formatCurrentTimeHMS());
     }, []);
 
-    // Animate entry type dropdown open/close
+    useEffect(() => {
+        if (originLocationEnabled && originLocation && defaultToWarehouse !== 'Kho đi đường - COM') {
+            setDefaultToWarehouse('Kho đi đường - COM');
+        }
+    }, [originLocationEnabled, originLocation, defaultToWarehouse]);
+
+    // Update all items when default warehouses change and refetch prices & qty once
+    useEffect(() => {
+        if (items.length === 0) return;
+        if (!(defaultFromWarehouse || defaultToWarehouse)) return;
+
+        // 1) Update warehouses
+        setItems(prev => prev.map(item => ({
+            ...item,
+            fromWarehouse: defaultFromWarehouse || item.fromWarehouse,
+            toWarehouse: defaultToWarehouse || item.toWarehouse
+        })));
+
+        // 2) Refetch prices and stock qty based on new fromWarehouse
+        const fetchPrices = async () => {
+            const snapshot = items; // use current snapshot to know which rows have codes
+            for (let i = 0; i < snapshot.length; i++) {
+                const row = snapshot[i];
+                const wh = defaultFromWarehouse || row.fromWarehouse;
+                if (!row.code || !wh) continue;
+                try {
+                    const { incomingRate, stockQty } = await fetchRateAndQty(row.code, wh || '');
+                    setItems(cur => cur.map((it2, idx) => idx === i ? { ...it2, price: incomingRate } : it2));
+                    if (stockQty !== undefined) {
+                        setItems(cur => cur.map((it2, idx) => idx === i ? { ...it2, qty: stockQty as string } : it2));
+                    }
+                } catch { }
+            }
+        };
+        fetchPrices();
+    }, [defaultFromWarehouse, defaultToWarehouse, fetchRateAndQty]);
+
+    // Animation effects
     useEffect(() => {
         Animated.timing(entryTypeAnim, {
             toValue: isEntryTypePickerVisible ? 1 : 0,
@@ -195,7 +348,6 @@ export default function InsertInventoryScreen() {
         }).start();
     }, [isEntryTypePickerVisible, entryTypeAnim]);
 
-    // Animate warehouse dropdown open/close
     useEffect(() => {
         Animated.timing(warehouseAnim, {
             toValue: isWarehousePickerVisible ? 1 : 0,
@@ -204,7 +356,6 @@ export default function InsertInventoryScreen() {
         }).start();
     }, [isWarehousePickerVisible, warehouseAnim]);
 
-    // Animate from/to dropdowns
     useEffect(() => {
         Animated.timing(fromAnim, {
             toValue: isFromPickerVisible ? 1 : 0,
@@ -221,80 +372,298 @@ export default function InsertInventoryScreen() {
         }).start();
     }, [isToPickerVisible, toAnim]);
 
-    // InlineDropdown component (animated)
-    const InlineDropdown: React.FC<{
-        visible: boolean;
-        onToggle: () => void;
-        selected: string;
-        placeholder: string;
-        options: string[];
-        onSelect: (value: string) => void;
-        style?: any;
-    }> = ({ visible, onToggle, selected, placeholder, options, onSelect, style }) => {
-        const anim = useRef(new Animated.Value(0)).current;
-        useEffect(() => {
-            Animated.timing(anim, {
-                toValue: visible ? 1 : 0,
-                duration: 180,
-                useNativeDriver: false,
-            }).start();
-        }, [visible, anim]);
-
-        return (
-            <View>
-                <TouchableOpacity
-                    activeOpacity={0.7}
-                    onPress={onToggle}
-                    style={[styles.input, { justifyContent: 'space-between', flexDirection: 'row', alignItems: 'center' }, style]}
-                >
-                    <Text style={{ fontSize: 16, color: selected ? '#111827' : '#9CA3AF' }}>
-                        {selected || placeholder}
-                    </Text>
-                    <Text style={{ fontSize: 16, color: '#9CA3AF' }}>{visible ? '▴' : '▾'}</Text>
-                </TouchableOpacity>
-                <Animated.View
-                    pointerEvents={visible ? 'auto' : 'none'}
-                    style={{
-                        marginTop: 6,
-                        borderWidth: 1,
-                        borderColor: '#E5E7EB',
-                        borderRadius: 8,
-                        backgroundColor: '#FFFFFF',
-                        overflow: 'hidden',
-                        height: anim.interpolate({ inputRange: [0, 1], outputRange: [0, 240] }),
-                        opacity: anim.interpolate({ inputRange: [0, 1], outputRange: [0, 1] }),
-                    }}
-                >
-                    <ScrollView style={{ maxHeight: 240 }} keyboardShouldPersistTaps="handled">
-                        {options.map((opt, idx) => (
-                            <TouchableOpacity
-                                key={`${opt}-${idx}`}
-                                onPress={() => {
-                                    onSelect(opt);
-                                    onToggle();
-                                }}
-                                style={{
-                                    paddingVertical: 12,
-                                    paddingHorizontal: 12,
-                                    backgroundColor: selected === opt ? '#D1D5DB' : '#FFFFFF',
-                                    borderBottomWidth: 1,
-                                    borderBottomColor: '#F3F4F6',
-                                    flexDirection: 'row',
-                                    alignItems: 'center',
-                                    justifyContent: 'space-between',
-                                }}
-                            >
-                                <Text style={{ fontSize: 16, color: '#111827' }}>{opt}</Text>
-                            </TouchableOpacity>
-                        ))}
-                    </ScrollView>
-                </Animated.View>
+    // Render helpers
+    const renderSectionHeader = (title: string, sectionKey: string, iconColor: string) => (
+        <TouchableOpacity
+            style={styles.sectionHeader}
+            onPress={() => setSectionExpanded(prev => ({ ...prev, [sectionKey]: !prev[sectionKey] }))}
+            activeOpacity={0.7}
+        >
+            <View style={styles.sectionHeaderLeft}>
+                <View style={[styles.iconCircle, { backgroundColor: iconColor }]} />
+                <Text style={styles.sectionTitle}>{title}</Text>
             </View>
-        );
-    };
+            <Text style={styles.chevron}>{sectionExpanded[sectionKey] ? '˄' : '˅'}</Text>
+        </TouchableOpacity>
+    );
+
+    const renderFormField = (
+        label: string,
+        value: string,
+        onChangeText: (text: string) => void,
+        placeholder?: string,
+        disabled?: boolean
+    ) => (
+        <View style={styles.formGroup}>
+            <Text style={styles.label}>{label}</Text>
+            <TextInput
+                value={value}
+                onChangeText={onChangeText}
+                style={[
+                    styles.input,
+                    disabled && styles.disabledInput
+                ]}
+                placeholder={placeholder}
+                editable={!disabled}
+            />
+        </View>
+    );
+
+    const renderDropdown = (
+        label: string,
+        value: string,
+        options: string[],
+        onSelect: (value: string) => void,
+        placeholder: string,
+        isVisible: boolean,
+        onToggle: () => void,
+        anim: Animated.Value,
+        disabled?: boolean
+    ) => (
+        <View style={styles.formGroup}>
+            <Text style={styles.label}>{label}</Text>
+            <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={disabled ? undefined : onToggle}
+                style={[
+                    styles.input,
+                    {
+                        justifyContent: 'space-between',
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        opacity: disabled ? 0.6 : 1
+                    }
+                ]}
+            >
+                <Text style={{ fontSize: 16, color: value ? '#111827' : '#9CA3AF' }}>
+                    {value || placeholder}
+                </Text>
+                <Text style={{ fontSize: 16, color: '#9CA3AF' }}>
+                    {disabled ? '⛒' : (isVisible ? '▴' : '▾')}
+                </Text>
+            </TouchableOpacity>
+            <Animated.View
+                pointerEvents={disabled ? 'none' : (isVisible ? 'auto' : 'none')}
+                style={{
+                    marginTop: 6,
+                    borderWidth: 1,
+                    borderColor: '#E5E7EB',
+                    borderRadius: 8,
+                    backgroundColor: '#FFFFFF',
+                    overflow: 'hidden',
+                    height: disabled ? 0 : anim.interpolate({ inputRange: [0, 1], outputRange: [0, 240] }),
+                    opacity: disabled ? 0 : anim.interpolate({ inputRange: [0, 1], outputRange: [0, 1] }),
+                }}
+            >
+                <ScrollView style={{ maxHeight: 240 }} keyboardShouldPersistTaps="handled">
+                    {options.map((option, idx) => (
+                        <TouchableOpacity
+                            key={`${option}-${idx}`}
+                            onPress={() => {
+                                onSelect(option);
+                                onToggle();
+                            }}
+                            style={{
+                                paddingVertical: 12,
+                                paddingHorizontal: 12,
+                                backgroundColor: value === option ? '#D1D5DB' : '#FFFFFF',
+                                borderBottomWidth: 1,
+                                borderBottomColor: '#F3F4F6',
+                            }}
+                        >
+                            <Text style={{ fontSize: 16, color: '#111827' }}>{option}</Text>
+                        </TouchableOpacity>
+                    ))}
+                </ScrollView>
+            </Animated.View>
+        </View>
+    );
+
+    const renderItemCard = (item: InventoryItemRow, index: number) => (
+        <View
+            key={`item-${index}-${item.code || 'empty'}`}
+            style={[
+                styles.itemCard,
+                editingItemIndex === index && styles.editingCard
+            ]}
+        >
+            <View style={styles.itemHeaderRow}>
+                <Text style={styles.itemTitle}>Sản phẩm #{index + 1}</Text>
+                <View style={styles.itemActions}>
+                    {editingItemIndex === index ? (
+                        <>
+                            <TouchableOpacity
+                                style={styles.saveBtn}
+                                onPress={saveEdit}
+                                activeOpacity={0.7}
+                            >
+                                <Text style={styles.saveBtnText}>✓</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={styles.cancelBtn}
+                                onPress={cancelEdit}
+                                activeOpacity={0.7}
+                            >
+                                <Text style={styles.cancelBtnText}>✕</Text>
+                            </TouchableOpacity>
+                        </>
+                    ) : (
+                        <>
+                            <TouchableOpacity
+                                style={styles.editBtn}
+                                onPress={() => editItem(index)}
+                                activeOpacity={0.7}
+                            >
+                                <Image source={require('../../assets/edit.png')} style={{ width: 30, height: 30, tintColor: '#000' }} />
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={styles.deleteBtn}
+                                onPress={() => removeItem(index)}
+                                activeOpacity={0.7}
+                            >
+                                <Text style={styles.deleteBtnText}>X</Text>
+                            </TouchableOpacity>
+                        </>
+                    )}
+                </View>
+            </View>
+
+            <View style={styles.row2}>
+                <View style={styles.col}>
+                    <Text style={styles.label}>Kho Xuất</Text>
+                    <TextInput
+                        value={item.fromWarehouse}
+                        onChangeText={(t) => updateItem(index, 'fromWarehouse', t)}
+                        style={[
+                            styles.input,
+                            { fontWeight: '700', color: '#000000' },
+                            editingItemIndex !== index && {
+                                backgroundColor: '#F3F4F6',
+                                color: '#000000',
+                                opacity: 1,
+                            }
+                        ]}
+                        placeholder="Kho xuất"
+                        editable={editingItemIndex === index}
+                    />
+                </View>
+                <View style={styles.col}>
+                    <Text style={styles.label}>Kho Nhập</Text>
+                    <TextInput
+                        value={item.toWarehouse}
+                        onChangeText={(t) => updateItem(index, 'toWarehouse', t)}
+                        style={[
+                            styles.input,
+                            { fontWeight: '700', color: '#000000' },
+                            editingItemIndex !== index && {
+                                backgroundColor: '#F3F4F6',
+                                color: '#000000',
+                                opacity: 1,
+                            }
+                        ]}
+                        placeholder="Kho nhập"
+                        editable={editingItemIndex === index}
+                    />
+                </View>
+            </View>
+
+            <View style={styles.formGroup}>
+                <Text style={styles.label}>Mã Sản Phẩm</Text>
+                <View style={styles.inlineRow}>
+                    <TextInput
+                        value={item.code}
+                        onChangeText={(t) => updateItem(index, 'code', t)}
+                        style={[
+                            styles.input,
+                            { flex: 1, fontWeight: '700', color: '#000000' },
+                            editingItemIndex !== index && styles.disabledInput
+                        ]}
+                        placeholder="Nhập mã hoặc quét barcode..."
+                        editable={editingItemIndex === index}
+                    />
+
+                </View>
+            </View>
+
+            <View style={styles.formGroup}>
+                <Text style={styles.label}>Tên Sản Phẩm</Text>
+                <TextInput
+                    value={item.name}
+                    onChangeText={(t) => updateItem(index, 'name', t)}
+                    style={[
+                        styles.input,
+                        { fontWeight: '700', color: '#000000' },
+                        editingItemIndex !== index && styles.disabledInput
+                    ]}
+                    placeholder="Nhập tên..."
+                    editable={editingItemIndex === index}
+                />
+            </View>
+
+            <View style={styles.row3}>
+                <View style={styles.col3}>
+                    <Text style={styles.label}>Số Lượng</Text>
+                    <TextInput
+                        keyboardType="numeric"
+                        value={item.qty}
+                        onChangeText={(t) => updateItem(index, 'qty', t)}
+                        style={[
+                            styles.input,
+                            { fontWeight: '700', color: '#000000' },
+                            editingItemIndex !== index && {
+                                backgroundColor: '#F3F4F6',
+                                color: '#000000',
+                                opacity: 1,
+                            }
+                        ]}
+                        placeholder="0"
+                        editable={editingItemIndex === index}
+                    />
+                </View>
+                <View style={styles.col3}>
+                    <Text style={styles.label}>Đơn Vị</Text>
+                    <TextInput
+                        value={item.unit}
+                        onChangeText={(t) => updateItem(index, 'unit', t)}
+                        style={[
+                            styles.input,
+                            { fontWeight: '700', color: '#000000' },
+                            editingItemIndex !== index && {
+                                backgroundColor: '#F3F4F6',
+                                color: '#000000',
+                                opacity: 1,
+                            }
+                        ]}
+                        placeholder="Nhập đơn vị"
+                        editable={editingItemIndex === index}
+                    />
+                </View>
+                <View style={styles.col3}>
+                    <Text style={styles.label}>Đơn giá</Text>
+                    <TextInput
+                        keyboardType="numeric"
+                        value={item.price}
+                        onChangeText={(t) => updateItem(index, 'price', t)}
+                        style={[
+                            styles.input,
+                            { fontWeight: '700', color: '#000000' },
+                            editingItemIndex !== index && {
+                                backgroundColor: '#F3F4F6',
+                                color: '#000000',
+                                opacity: 1,
+                            }
+                        ]}
+                        placeholder="0"
+                        editable={editingItemIndex === index}
+                    />
+                </View>
+            </View>
+        </View>
+    );
 
     return (
         <SafeAreaView style={styles.safeArea}>
+            {/* Header */}
             <View style={styles.header}>
                 <TouchableOpacity onPress={goBack} style={styles.iconBtn} activeOpacity={0.7}>
                     <Text style={styles.iconText}>{'‹'}</Text>
@@ -313,448 +682,161 @@ export default function InsertInventoryScreen() {
             <ScrollView contentContainerStyle={styles.container}>
                 {/* Section 1: Transfer Details */}
                 <View style={[styles.card, sectionExpanded.section1 ? styles.expanded : styles.collapsed]}>
-                    <TouchableOpacity style={styles.sectionHeader} onPress={() => toggleSection('section1')} activeOpacity={0.7}>
-                        <View style={styles.sectionHeaderLeft}>
-                            <View style={[styles.iconCircle, { backgroundColor: '#DBEAFE' }]} />
-                            <Text style={styles.sectionTitle}>Chi Tiết Chuyển Kho</Text>
-                        </View>
-                        <Text style={styles.chevron}>{sectionExpanded.section1 ? '˄' : '˅'}</Text>
-                    </TouchableOpacity>
+                    {renderSectionHeader('Chi Tiết Chuyển Kho', 'section1', '#DBEAFE')}
                     <View style={styles.sectionBody}>
-                        <View style={styles.formGroup}>
-                            <Text style={styles.label}>Mã Số *</Text>
-                            <TextInput value={code} onChangeText={setCode} style={styles.input} placeholder="Nhập mã số" />
-                        </View>
-                        <View style={styles.formGroup}>
-                            <Text style={styles.label}>Công ty *</Text>
-                            <TextInput value={company} onChangeText={setCompany} style={styles.input} placeholder="Công ty" />
-                        </View>
-                        <View style={styles.formGroup}>
-                            <Text style={styles.label}>Loại Nhập Xuất *</Text>
-                            <TouchableOpacity
-                                activeOpacity={0.7}
-                                onPress={() => setIsEntryTypePickerVisible(prev => !prev)}
-                                style={[styles.input, { justifyContent: 'space-between', flexDirection: 'row', alignItems: 'center'}]}
-                            >
-                                <Text style={{ fontSize: 16, color: entryType ? '#111827' : '#9CA3AF' }}>
-                                    {entryType || 'Chọn loại nhập xuất'}
-                                </Text>
-                                <Text style={{ fontSize: 16, color: '#9CA3AF' }}>{isEntryTypePickerVisible ? '▴' : '▾'}</Text>
-                            </TouchableOpacity>
-                            <Animated.View
-                                pointerEvents={isEntryTypePickerVisible ? 'auto' : 'none'}
-                                style={{
-                                    marginTop: 6,
-                                    borderWidth: 1,
-                                    borderColor: '#E5E7EB',
-                                    borderRadius: 8,
-                                    backgroundColor: '#FFFFFF',
-                                    overflow: 'hidden',
-                                    height: entryTypeAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 240] }),
-                                    opacity: entryTypeAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 1] }),
-                                }}
-                            >
-                                <ScrollView
-                                    style={{ maxHeight: 240 }}
-                                    keyboardShouldPersistTaps="handled"
-                                >
-                                    {([ 'Chuyển kho', ...stockEntryTypes.filter(t => t && t !== 'Chuyển kho') ] as string[]).map((type, idx) => (
-                                        <TouchableOpacity
-                                            key={`${type}-${idx}`}
-                                            onPress={() => {
-                                                setEntryType(type);
-                                                setIsEntryTypePickerVisible(false);
-                                            }}
-                                            style={{
-                                                paddingVertical: 12,
-                                                paddingHorizontal: 12,
-                                                backgroundColor: entryType === type ? '#D1D5DB' : '#FFFFFF',
-                                                borderBottomWidth: 1,
-                                                borderBottomColor: '#F3F4F6',
-                                                flexDirection: 'row',
-                                                alignItems: 'center',
-                                                justifyContent: 'space-between',
-                                            }}
-                                        >
-                                            <Text style={{ fontSize: 16, color: '#111827' }}>{type}</Text>
+                        {renderFormField('Mã Số *', code, setCode, 'Nhập mã số', true)}
+                        {renderFormField('Công ty *', company, setCompany, 'Công ty', true)}
 
-                                        </TouchableOpacity>
-                                    ))}
-                                </ScrollView>
-                            </Animated.View>
-                        </View>
+                        {renderDropdown(
+                            'Loại Nhập Xuất *',
+                            entryType,
+                            ['Chuyển kho', ...stockEntryTypes.filter(t => t && t !== 'Chuyển kho')],
+                            setEntryType,
+                            'Chọn loại nhập xuất',
+                            isEntryTypePickerVisible,
+                            () => setIsEntryTypePickerVisible(!isEntryTypePickerVisible),
+                            entryTypeAnim
+                        )}
+
                         <View style={styles.row2}>
                             <View style={styles.col}>
                                 <Text style={styles.label}>Ngày Ghi Sổ</Text>
-                                <TextInput value={postDate} onChangeText={setPostDate} style={styles.input} placeholder="dd/MM/yyyy" />
+                                <TextInput value={postDate} onChangeText={setPostDate} style={[styles.input, styles.disabledInput]} placeholder="dd/MM/yyyy" editable={false} />
                             </View>
                             <View style={styles.col}>
                                 <Text style={styles.label}>Thời Gian</Text>
-                                <TextInput value={postTime} onChangeText={setPostTime} style={styles.input} placeholder="HH:mm:ss" />
+                                <TextInput value={postTime} onChangeText={setPostTime} style={[styles.input, styles.disabledInput]} placeholder="HH:mm:ss" editable={false} />
                             </View>
                         </View>
-                        <View style={styles.formGroup}>
-                            <Text style={styles.label}>Tài Khoản Chênh Lệch</Text>
-                            <TextInput value={diffAccount} onChangeText={setDiffAccount} style={styles.input} placeholder="Tài khoản" />
-                        </View>
+
+                        {renderFormField('Tài Khoản Chênh Lệch', diffAccount, setDiffAccount, 'Tài khoản', true)}
+
                         <View style={styles.formGroup}>
                             <View style={styles.switchRow}>
                                 <Switch value={originLocationEnabled} onValueChange={setOriginLocationEnabled} />
                                 <Text style={styles.switchLabel}>Kho Đích Gốc</Text>
                             </View>
                             {originLocationEnabled && (
-                                <>
-                                    <TouchableOpacity
-                                        activeOpacity={0.7}
-                                        onPress={async () => {
-                                            if (warehouses.length === 0) {
-                                                try {
-                                                    const data = await getWarehouse();
-                                                    const labels: string[] = Array.isArray(data)
-                                                        ? data.map((w: any) => w?.label || w?.name || '').filter(Boolean)
-                                                        : [];
-                                                    setWarehouses(labels);
-                                                } catch {}
-                                            }
-                                            setIsWarehousePickerVisible(prev => !prev);
-                                        }}
-                                        style={[styles.input, { marginTop: 8, justifyContent: 'space-between', flexDirection: 'row', alignItems: 'center'}]}
-                                    >
-                                        <Text style={{ fontSize: 16, color: originLocation ? '#111827' : '#9CA3AF' }}>
-                                            {originLocation || 'Chọn kho đích gốc'}
-                                        </Text>
-                                        <Text style={{ fontSize: 16, color: '#9CA3AF' }}>{isWarehousePickerVisible ? '▴' : '▾'}</Text>
-                                    </TouchableOpacity>
-                                    <Animated.View
-                                        pointerEvents={isWarehousePickerVisible ? 'auto' : 'none'}
-                                        style={{
-                                            marginTop: 6,
-                                            borderWidth: 1,
-                                            borderColor: '#E5E7EB',
-                                            borderRadius: 8,
-                                            backgroundColor: '#FFFFFF',
-                                            overflow: 'hidden',
-                                            height: warehouseAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 240] }),
-                                            opacity: warehouseAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 1] }),
-                                        }}
-                                    >
-                                        <ScrollView style={{ maxHeight: 240 }} keyboardShouldPersistTaps="handled">
-                                            {(warehouses as string[]).map((w, idx) => (
-                                                <TouchableOpacity
-                                                    key={`${w}-${idx}`}
-                                            onPress={() => {
-                                                setOriginLocation(w);
-                                                // When origin location (Kho Đích Gốc) is selected, enforce rule:
-                                                // if a from warehouse will be chosen next, then default to warehouse must be 'Kho đi đường - COM'
-                                                // We'll enforce on from selection handler below
-                                                setIsWarehousePickerVisible(false);
-                                            }}
-                                                    style={{
-                                                        paddingVertical: 12,
-                                                        paddingHorizontal: 12,
-                                                        backgroundColor: originLocation === w ? '#D1D5DB' : '#FFFFFF',
-                                                        borderBottomWidth: 1,
-                                                        borderBottomColor: '#F3F4F6',
-                                                        flexDirection: 'row',
-                                                        alignItems: 'center',
-                                                        justifyContent: 'space-between',
-                                                    }}
-                                                >
-                                                    <Text style={{ fontSize: 16, color: '#111827' }}>{w}</Text>
-                                                </TouchableOpacity>
-                                            ))}
-                                        </ScrollView>
-                                    </Animated.View>
-                                </>
+                                renderDropdown(
+                                    '',
+                                    originLocation,
+                                    warehouses,
+                                    setOriginLocation,
+                                    'Chọn kho đích gốc',
+                                    isWarehousePickerVisible,
+                                    async () => {
+                                        await loadWarehouses();
+                                        setIsWarehousePickerVisible(!isWarehousePickerVisible);
+                                    },
+                                    warehouseAnim
+                                )
                             )}
                         </View>
-                        <View style={styles.formGroup}>
-                            <Text style={styles.label}>Diễn giải</Text>
-                            <TextInput
-                                value={description}
-                                onChangeText={setDescription}
-                                style={[styles.input, styles.textarea]}
-                                placeholder="Nhập mô tả..."
-                                multiline
-                            />
-                        </View>
+
+                        {renderFormField('Diễn giải', description, setDescription, 'Nhập mô tả...')}
                     </View>
                 </View>
 
                 {/* Section 2: Default Warehouses */}
                 <View style={[styles.card, sectionExpanded.section2 ? styles.expanded : styles.collapsed]}>
-                    <TouchableOpacity style={styles.sectionHeader} onPress={() => toggleSection('section2')} activeOpacity={0.7}>
-                        <View style={styles.sectionHeaderLeft}>
-                            <View style={[styles.iconCircle, { backgroundColor: '#DCFCE7' }]} />
-                            <Text style={styles.sectionTitle}>Kho Đích Gốc</Text>
-                        </View>
-                        <Text style={styles.chevron}>{sectionExpanded.section2 ? '˄' : '˅'}</Text>
-                    </TouchableOpacity>
+                    {renderSectionHeader('Kho Đích Gốc', 'section2', '#DCFCE7')}
                     <View style={styles.sectionBody}>
-                        <View style={styles.formGroup}>
-                            <Text style={styles.label}>Kho Xuất Mặc Định</Text>
-                            <TouchableOpacity
-                                activeOpacity={0.7}
-                                onPress={async () => {
-                                    if (warehouses.length === 0) {
-                                        try {
-                                            const data = await getWarehouse();
-                                            const labels: string[] = Array.isArray(data)
-                                                ? data.map((w: any) => w?.label || w?.name || '').filter(Boolean)
-                                                : [];
-                                            setWarehouses(labels);
-                                        } catch {}
-                                    }
-                                    setIsFromPickerVisible(prev => !prev);
-                                }}
-                                style={[styles.input, { justifyContent: 'space-between', flexDirection: 'row', alignItems: 'center'}]}
-                            >
-                                <Text style={{ fontSize: 16, color: defaultFromWarehouse ? '#111827' : '#9CA3AF' }}>
-                                    {defaultFromWarehouse || 'Chọn kho xuất'}
-                                </Text>
-                                <Text style={{ fontSize: 16, color: '#9CA3AF' }}>{isFromPickerVisible ? '▴' : '▾'}</Text>
-                            </TouchableOpacity>
-                            <Animated.View
-                                pointerEvents={isFromPickerVisible ? 'auto' : 'none'}
-                                style={{
-                                    marginTop: 6,
-                                    borderWidth: 1,
-                                    borderColor: '#E5E7EB',
-                                    borderRadius: 8,
-                                    backgroundColor: '#FFFFFF',
-                                    overflow: 'hidden',
-                                    height: fromAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 240] }),
-                                    opacity: fromAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 1] }),
-                                }}
-                            >
-                                <ScrollView style={{ maxHeight: 240 }} keyboardShouldPersistTaps="handled">
-                                    {(warehouses as string[]).map((w, idx) => (
-                                        <TouchableOpacity
-                                            key={`${w}-${idx}`}
-                                            onPress={() => {
-                                                setDefaultFromWarehouse(w);
-                                                // Business rule: if Kho Đích Gốc is selected, force 'Kho đi đường - COM' for defaultToWarehouse
-                                                if (originLocation) {
-                                                    setDefaultToWarehouse('Kho đi đường - COM');
-                                                }
-                                                setIsFromPickerVisible(false);
-                                            }}
-                                            style={{
-                                                paddingVertical: 12,
-                                                paddingHorizontal: 12,
-                                                backgroundColor: defaultFromWarehouse === w ? '#D1D5DB' : '#FFFFFF',
-                                                borderBottomWidth: 1,
-                                                borderBottomColor: '#F3F4F6',
-                                                flexDirection: 'row',
-                                                alignItems: 'center',
-                                                justifyContent: 'space-between',
-                                            }}
-                                        >
-                                            <Text style={{ fontSize: 16, color: '#111827' }}>{w}</Text>
-                                        </TouchableOpacity>
-                                    ))}
-                                </ScrollView>
-                            </Animated.View>
-                        </View>
-                        <View style={styles.formGroup}>
-                            <Text style={styles.label}>Kho Nhập Mặc Định</Text>
-                            <TouchableOpacity
-                                activeOpacity={0.7}
-                                onPress={async () => {
-                                    if (originLocationEnabled && originLocation) {
-                                        return; // locked
-                                    }
-                                    if (warehouses.length === 0) {
-                                        try {
-                                            const data = await getWarehouse();
-                                            const labels: string[] = Array.isArray(data)
-                                                ? data.map((w: any) => w?.label || w?.name || '').filter(Boolean)
-                                                : [];
-                                            setWarehouses(labels);
-                                        } catch {}
-                                    }
-                                    setIsToPickerVisible(prev => !prev);
-                                }}
-                                style={[styles.input, { justifyContent: 'space-between', flexDirection: 'row', alignItems: 'center', opacity: (originLocationEnabled && originLocation) ? 0.6 : 1 }]}
-                            >
-                                <Text style={{ fontSize: 16, color: defaultToWarehouse ? '#111827' : '#9CA3AF' }}>
-                                    {defaultToWarehouse || 'Chọn kho nhập'}
-                                </Text>
-                                <Text style={{ fontSize: 16, color: '#9CA3AF' }}>{(originLocationEnabled && originLocation) ? '⛒' : (isToPickerVisible ? '▴' : '▾')}</Text>
-                            </TouchableOpacity>
-                            <Animated.View
-                                pointerEvents={(originLocationEnabled && originLocation) ? 'none' : (isToPickerVisible ? 'auto' : 'none')}
-                                style={{
-                                    marginTop: 6,
-                                    borderWidth: 1,
-                                    borderColor: '#E5E7EB',
-                                    borderRadius: 8,
-                                    backgroundColor: '#FFFFFF',
-                                    overflow: 'hidden',
-                                    height: (originLocationEnabled && originLocation) ? 0 : toAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 240] }),
-                                    opacity: (originLocationEnabled && originLocation) ? 0 : toAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 1] }),
-                                }}
-                            >
-                                <ScrollView style={{ maxHeight: 240 }} keyboardShouldPersistTaps="handled">
-                                    {(warehouses as string[]).map((w, idx) => (
-                                        <TouchableOpacity
-                                            key={`${w}-${idx}`}
-                                            onPress={() => {
-                                                if (originLocationEnabled && originLocation) return;
-                                                setDefaultToWarehouse(w);
-                                                setIsToPickerVisible(false);
-                                            }}
-                                            style={{
-                                                paddingVertical: 12,
-                                                paddingHorizontal: 12,
-                                                backgroundColor: defaultToWarehouse === w ? '#D1D5DB' : '#FFFFFF',
-                                                borderBottomWidth: 1,
-                                                borderBottomColor: '#F3F4F6',
-                                                flexDirection: 'row',
-                                                alignItems: 'center',
-                                                justifyContent: 'space-between',
-                                            }}
-                                        >
-                                            <Text style={{ fontSize: 16, color: '#111827' }}>{w}</Text>
-                                        </TouchableOpacity>
-                                    ))}
-                                </ScrollView>
-                            </Animated.View>
-                        </View>
+                        {renderDropdown(
+                            'Kho Xuất Mặc Định',
+                            defaultFromWarehouse,
+                            warehouses,
+                            (value) => {
+                                setDefaultFromWarehouse(value);
+                                if (originLocation) {
+                                    setDefaultToWarehouse('Kho đi đường - COM');
+                                }
+                            },
+                            'Chọn kho xuất',
+                            isFromPickerVisible,
+                            async () => {
+                                await loadWarehouses();
+                                setIsFromPickerVisible(!isFromPickerVisible);
+                            },
+                            fromAnim
+                        )}
+
+                        {renderDropdown(
+                            'Kho Nhập Mặc Định',
+                            defaultToWarehouse,
+                            warehouses,
+                            setDefaultToWarehouse,
+                            'Chọn kho nhập',
+                            isToPickerVisible,
+                            async () => {
+                                if (originLocationEnabled && originLocation) return;
+                                await loadWarehouses();
+                                setIsToPickerVisible(!isToPickerVisible);
+                            },
+                            toAnim,
+                            !!(originLocationEnabled && originLocation)
+                        )}
                     </View>
                 </View>
 
                 {/* Section 3: Items */}
                 <View style={[styles.card, sectionExpanded.section3 ? styles.expanded : styles.collapsed]}>
-                    <TouchableOpacity style={styles.sectionHeader} onPress={() => toggleSection('section3')} activeOpacity={0.7}>
-                        <View style={styles.sectionHeaderLeft}>
-                            <View style={[styles.iconCircle, { backgroundColor: '#EDE9FE' }]} />
-                            <Text style={styles.sectionTitle}>Danh Sách Sản Phẩm</Text>
-                        </View>
-                        <Text style={styles.chevron}>{sectionExpanded.section3 ? '˄' : '˅'}</Text>
-                    </TouchableOpacity>
+                    {renderSectionHeader('Danh Sách Sản Phẩm', 'section3', '#EDE9FE')}
                     <View style={styles.sectionBody}>
                         <View style={styles.row2}>
                             <TouchableOpacity style={[styles.btn, styles.btnPrimary]} onPress={addNewRow} activeOpacity={0.8}>
                                 <Text style={styles.btnText}>Thêm dòng</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity style={[styles.btn, styles.btnSuccess]} onPress={() => showToast('Mở danh sách sản phẩm để chọn')} activeOpacity={0.8}>
-                                <Text style={styles.btnText}>Thêm sản phẩm</Text>
-                            </TouchableOpacity>
                         </View>
 
-                        {items.map(item => (
-                            <View key={item.id} style={styles.itemCard}>
-                                <View style={styles.itemHeaderRow}>
-                                    <Text style={styles.itemTitle}>Sản phẩm #{item.id}</Text>
-                                    <TouchableOpacity onPress={() => removeItem(item.id)}>
-                                        <Text style={styles.removeText}>Xóa</Text>
-                                    </TouchableOpacity>
-                                </View>
+                        {items.map((item, index) => renderItemCard(item, index))}
 
-                                <View style={styles.row2}>
-                                    <View style={styles.col}>
-                                        <Text style={styles.label}>Kho Xuất</Text>
-                                        <TextInput
-                                            value={item.fromWarehouse}
-                                            onChangeText={(t) => setItems(prev => prev.map(it => it.id === item.id ? { ...it, fromWarehouse: t } : it))}
-                                            style={styles.input}
-                                            placeholder="Kho xuất"
-                                        />
-                                    </View>
-                                    <View style={styles.col}>
-                                        <Text style={styles.label}>Kho Nhập</Text>
-                                        <TextInput
-                                            value={item.toWarehouse}
-                                            onChangeText={(t) => setItems(prev => prev.map(it => it.id === item.id ? { ...it, toWarehouse: t } : it))}
-                                            style={styles.input}
-                                            placeholder="Kho nhập"
-                                        />
-                                    </View>
-                                </View>
-
-                                <View style={styles.formGroup}>
-                                    <Text style={styles.label}>Mã Sản Phẩm</Text>
-                                    <View style={styles.inlineRow}>
-                                        <TextInput
-                                            value={item.code}
-                                            onChangeText={(t) => setItems(prev => prev.map(it => it.id === item.id ? { ...it, code: t } : it))}
-                                            style={[styles.input, { flex: 1 }]}
-                                            placeholder="Nhập mã hoặc quét barcode..."
-                                        />
-                                        <TouchableOpacity style={[styles.smallBtn, styles.btnPrimary]} onPress={() => scanBarcode(item.id)}>
-                                            <Text style={styles.smallBtnText}>Quét</Text>
+                        {/* <View style={styles.row2}>
+                            <TouchableOpacity
+                                style={[styles.btn, styles.btnWarning, { flex: 1 }]}
+                                onPress={() => showToast('Đang cập nhật giá và tình trạng khả dụng...')}
+                                activeOpacity={0.8}
+                            >
+                                <Text style={styles.btnText}>Cập Nhật Giá</Text>
                                         </TouchableOpacity>
-                                    </View>
-                                </View>
-
-                                <View style={styles.formGroup}>
-                                    <Text style={styles.label}>Tên Sản Phẩm</Text>
-                                    <TextInput
-                                        value={item.name}
-                                        onChangeText={(t) => setItems(prev => prev.map(it => it.id === item.id ? { ...it, name: t } : it))}
-                                        style={styles.input}
-                                        placeholder="Nhập tên..."
-                                    />
-                                </View>
-
-                                <View style={styles.row3}>
-                                    <View style={styles.col3}>
-                                        <Text style={styles.label}>Số Lượng</Text>
-                                        <TextInput
-                                            keyboardType="numeric"
-                                            value={item.qty}
-                                            onChangeText={(t) => setItems(prev => prev.map(it => it.id === item.id ? { ...it, qty: t } : it))}
-                                            style={styles.input}
-                                            placeholder="0"
-                                        />
-                                    </View>
-                                    <View style={styles.col3}>
-                                        <Text style={styles.label}>Đơn Vị</Text>
-                                        <TextInput
-                                            value={item.unit}
-                                            onChangeText={(t) => setItems(prev => prev.map(it => it.id === item.id ? { ...it, unit: t } : it))}
-                                            style={styles.input}
-                                            placeholder={units[0]}
-                                        />
-                                    </View>
-                                    <View style={styles.col3}>
-                                        <Text style={styles.label}>Giá</Text>
-                                        <TextInput
-                                            keyboardType="numeric"
-                                            value={item.price}
-                                            onChangeText={(t) => setItems(prev => prev.map(it => it.id === item.id ? { ...it, price: t } : it))}
-                                            style={styles.input}
-                                            placeholder="0"
-                                        />
-                                    </View>
-                                </View>
-                            </View>
-                        ))}
-
-                        <TouchableOpacity style={[styles.btn, styles.btnWarning, { marginTop: 12 }]} onPress={updatePrices} activeOpacity={0.8}>
-                            <Text style={styles.btnText}>Cập Nhật Giá và Tình Trạng Khả Dụng</Text>
+                            <TouchableOpacity
+                                style={[styles.btn, styles.btnSuccess, { flex: 1, marginLeft: 8 }]}
+                                onPress={() => {
+                                    setItems(prev => prev.map(item => ({
+                                        ...item,
+                                        fromWarehouse: defaultFromWarehouse || item.fromWarehouse,
+                                        toWarehouse: defaultToWarehouse || item.toWarehouse
+                                    })));
+                                    showToast(`Đã cập nhật kho cho ${items.length} sản phẩm`);
+                                }}
+                                activeOpacity={0.8}
+                            >
+                                <Text style={styles.btnText}>Cập Nhật Kho</Text>
                         </TouchableOpacity>
-
-                        <View style={styles.row2}>
-                            <TouchableOpacity style={[styles.btn, styles.btnDark]} onPress={uploadFile} activeOpacity={0.8}>
-                                <Text style={styles.btnText}>Tải lên</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity style={[styles.btn, styles.btnDark]} onPress={downloadFile} activeOpacity={0.8}>
-                                <Text style={styles.btnText}>Tải xuống</Text>
-                            </TouchableOpacity>
-                        </View>
+                        </View> */}
                     </View>
                 </View>
             </ScrollView>
 
-            
+            {/* Floating Scan Button */}
+            <TouchableOpacity style={styles.floatingScanButton} onPress={quickScanNewProduct} activeOpacity={0.85}>
+                <Text style={styles.floatingScanText}>Quét</Text>
+            </TouchableOpacity>
 
+            {/* Toast */}
             <Animated.View style={[styles.toast, { transform: [{ translateY: toastAnim }] }]}>
                 <Text style={styles.toastText}>{toastMessage || 'Thao tác thành công!'}</Text>
             </Animated.View>
+
+            {/* Barcode Scanner */}
+            <BarcodeScanner
+                visible={isScannerVisible}
+                onClose={() => {
+                    setIsScannerVisible(false);
+                    setCurrentScanningItemIndex(null);
+                }}
+                onScan={handleBarcodeScan}
+                title="Quét Barcode Sản Phẩm"
+            />
         </SafeAreaView>
     );
 }
-
-

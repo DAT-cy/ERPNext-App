@@ -4,7 +4,6 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   Modal,
   Dimensions,
 } from 'react-native';
@@ -46,25 +45,8 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
   const handleBarCodeScanned = ({ type, data }: { type: string; data: string }) => {
     if (!scanned) {
       setScanned(true);
-      Alert.alert(
-        'Quét Thành Công!',
-        `Mã: ${data}`,
-        [
-          {
-            text: 'Tìm Sản Phẩm',
-            onPress: () => {
-              onScan(data);
-              onClose();
-            }
-          },
-          {
-            text: 'Quét Lại',
-            onPress: () => {
-              setScanned(false);
-            }
-          }
-        ]
-      );
+      // Chỉ gọi onScan, để parent component tự quản lý việc đóng scanner
+      onScan(data);
     }
   };
 
@@ -137,16 +119,9 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
           <TouchableOpacity
             style={styles.manualButton}
             onPress={() => {
-              Alert.prompt(
-                'Nhập Mã Thủ Công',
-                'Nhập mã sản phẩm:',
-                (text) => {
-                  if (text && text.trim()) {
-                    onScan(text.trim());
-                    onClose();
-                  }
-                }
-              );
+              // Tạm thời sử dụng một giá trị mẫu, có thể cải thiện sau
+              const sampleCode = 'SAMPLE-CODE-123';
+              onScan(sampleCode);
             }}
             activeOpacity={0.7}
           >

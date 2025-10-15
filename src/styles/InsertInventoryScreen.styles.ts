@@ -213,6 +213,16 @@ export const insertInventoryStyles = StyleSheet.create({
         shadowOffset: { width: 0, height: 1 },
         elevation: 2,
     },
+    editingCard: {
+        borderColor: '#3B82F6',
+        borderWidth: 2,
+        backgroundColor: '#F0F9FF',
+        shadowColor: '#3B82F6',
+        shadowOpacity: 0.15,
+        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 2 },
+        elevation: 4,
+    },
     itemHeaderRow: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -227,6 +237,56 @@ export const insertInventoryStyles = StyleSheet.create({
     removeText: {
         color: colors.error,
         fontWeight: '700',
+    },
+    itemActions: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    editBtn: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: '#3B82F6',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    editBtnText: {
+        fontSize: fs(14),
+        color: colors.white,
+    },
+    deleteBtn: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: '#EF4444',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    deleteBtnText: {
+        fontSize: fs(14),
+        color: colors.white,
+    },
+    cancelBtn: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: '#6B7280',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    cancelBtnText: {
+        fontSize: fs(14),
+        color: colors.white,
+        fontWeight: '700',
+    },
+    disabledInput: {
+        backgroundColor: colors.gray100,
+        color: '#000000',
+    },
+    disabledBtn: {
+        backgroundColor: colors.gray300,
+        opacity: 0.5,
     },
     toast: {
         position: 'absolute',
@@ -247,6 +307,27 @@ export const insertInventoryStyles = StyleSheet.create({
         color: colors.white,
         fontWeight: '700',
         fontSize: fs(14),
+    },
+    floatingScanButton: {
+        position: 'absolute',
+        right: 16,
+        bottom: 24,
+        backgroundColor: '#111827',
+        borderRadius: 28,
+        width: 56,
+        height: 56,
+        alignItems: 'center',
+        justifyContent: 'center',
+        shadowColor: '#000',
+        shadowOpacity: 0.2,
+        shadowRadius: 6,
+        shadowOffset: { width: 0, height: 3 },
+        elevation: 6,
+    },
+    floatingScanText: {
+        color: colors.white,
+        fontSize: fs(12),
+        fontWeight: '700',
     },
 });
 
