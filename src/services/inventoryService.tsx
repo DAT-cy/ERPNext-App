@@ -203,7 +203,7 @@ export async function getAllExportImportType(): Promise<dataFill[]> {
         return data.data as dataFill[];
     } catch (error) {
         console.error("Error fetching Export/Import Types:", error);
-        throw error;
+        throw new CommonException(ErrorCode.STOCK_ENTRY_TYPE_NOT_FOUND);
     }
 }
 
@@ -213,6 +213,6 @@ export async function getWarehouse(): Promise<dataFill[]> {
         return data.data as dataFill[];
     } catch (error) {
         console.error("Error fetching Warehouses:", error);
-        throw error;
+        throw new CommonException(ErrorCode.WAREHOUSE_NOT_FOUND);
     }
 }

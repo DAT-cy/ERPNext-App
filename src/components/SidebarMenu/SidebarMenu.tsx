@@ -15,7 +15,7 @@ import {
   PanResponder,
 } from 'react-native';
 
-import { logoutERP as logout } from '../../services/authService';
+import { logoutERP as logout, getEmployeeNameByEmail, UserProfileMessage } from '../../services/authService';
 import { useAuth } from '../../hooks/useAuth';
 import { getAccessibleMenus } from '../../utils/menuPermissions';
 import { getInformationEmployee } from '../../services/checkinService';
@@ -91,6 +91,7 @@ export default function SidebarMenu({
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
   const subItemAnimations = useRef<{ [key: string]: Animated.Value }>({}).current;
   const [userInfo, setUserInfo] = useState<InformationUser | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfileMessage | null>(null);
 
 
   // PanResponder for swipe to close (từ phải sang trái)
@@ -237,6 +238,27 @@ export default function SidebarMenu({
     }))
   }));
 
+  // Helpers: initials and color
+  const getInitials = (fullName: string): string => {
+    if (!fullName) return 'U';
+    const parts = fullName.trim().split(/\s+/);
+    const initials = (parts[0]?.[0] || '') + (parts[parts.length - 1]?.[0] || '');
+    return initials.toUpperCase();
+  };
+
+  const randomPastelColor = (seed: string): string => {
+    // Simple deterministic hash from seed
+    let hash = 0;
+    for (let i = 0; i < seed.length; i++) {
+      hash = seed.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    // Map hash to HSL pastel
+    const h = Math.abs(hash) % 360;
+    const s = 60; // saturation
+    const l = 70; // lightness
+    return `hsl(${h}, ${s}%, ${l}%)`;
+  };
+
   // Debug: Log accessible menus chỉ khi roles thay đổi
   useEffect(() => {
     // Chỉ log một lần khi component mount hoặc khi roles thay đổi
@@ -288,12 +310,17 @@ export default function SidebarMenu({
     }
   };
 
-  // Fetch employee information
+  // Fetch employee information and user profile
   useEffect(() => {
     const fetchInfo = async () => {
       const info = await getInformationEmployee();
-      console.log('👤 Fetched User Info:', info);
       setUserInfo(info);
+      try {
+        const profile = await getEmployeeNameByEmail();
+        setUserProfile(profile);
+      } catch (e) {
+        setUserProfile(null);
+      }
     };
     fetchInfo();
   }, []);
@@ -332,14 +359,17 @@ export default function SidebarMenu({
         {/* Profile Section */}
         <View style={styles.profileSection}>
           <View style={styles.profileImageContainer}>
-            <Image
-              source={{ uri: 'https://via.placeholder.com/60x60/007AFF/FFFFFF?text=SR' }}
-              style={styles.profileImage}
-            />
+            {userProfile?.image ? (
+              <Image source={{ uri: userProfile.image }} style={styles.profileImage} />
+            ) : (
+              <View style={[styles.avatarPlaceholder, { backgroundColor: randomPastelColor(userProfile?.email || userInfo?.name || 'user') }]}>
+                <Text style={styles.avatarInitials}>{getInitials(userProfile?.name || userInfo?.employee_name || 'U')}</Text>
+              </View>
+            )}
           </View>
           <View style={styles.profileInfo}>
-            <Text style={styles.profileName}>{userInfo?.employee_name}</Text>
-            <Text style={styles.profileTitle}>{userInfo?.name} - {userInfo?.company}</Text>
+            <Text style={styles.profileName}>{userProfile?.name || userInfo?.employee_name}</Text>
+            <Text style={styles.profileTitle}>{userProfile?.email || userInfo?.name} - {userInfo?.company}</Text>
           </View>
         </View>
 
@@ -563,6 +593,18 @@ const styles = StyleSheet.create({
     height: 60,
     borderRadius: 30,
     backgroundColor: '#F0F0F0',
+  },
+  avatarPlaceholder: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarInitials: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '700',
   },
   profileInfo: {
     flex: 1,

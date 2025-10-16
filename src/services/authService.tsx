@@ -144,6 +144,25 @@ export async function getEmployeeCodeByEmail(): Promise<string | null> {
   }
 }
 
+export interface UserProfileMessage {
+  email: string;
+  image: string | null;
+  name: string;
+}
+
+export async function getEmployeeNameByEmail(): Promise<UserProfileMessage | null> {
+  const employee = await api.get(`/api/method/remak.utils.user.get_user_info`);
+  const msg = employee.data?.message;
+  if (msg && typeof msg === 'object') {
+    return {
+      email: msg.email,
+      image: msg.image ?? null,
+      name: msg.name,
+    } as UserProfileMessage;
+  }
+  return null;
+}
+
 
 
 

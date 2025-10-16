@@ -583,7 +583,13 @@ export default function InventoryEntryScreens() {
 
             {/* Header */}
             <View style={inventoryEntryStyles.header}>
-                <Text style={inventoryEntryStyles.headerTitle}>Quản Lý Nhập Xuất Kho</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <TouchableOpacity onPress={() => navigation.goBack()} activeOpacity={0.7} style={{ padding: wp(2) }}>
+                        <Feather name="arrow-left" size={wp(5)} color={colors.gray800} />
+                    </TouchableOpacity>
+                    <Text style={inventoryEntryStyles.headerTitle}>Quản Lý Nhập Xuất Kho</Text>
+                    <View style={{ width: wp(7) }} />
+                </View>
 
                 {/* Enhanced Search Bar */}
                 <View style={inventoryEntryStyles.searchContainer}>

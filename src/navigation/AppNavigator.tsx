@@ -1,6 +1,7 @@
 // src/navigation/AppNavigator.tsx
 import React from "react";
 import { createStackNavigator } from "@react-navigation/stack";
+import { TouchableOpacity, Text } from "react-native";
 import LoginScreen from "../screens/LoginScreen"; // Màn hình Login
 import HomeScreen from "../screens/HomeScreen"; // Màn hình Home
 import { useAuth } from "../hooks/useAuth";
@@ -19,8 +20,8 @@ export default function AppNavigator() {
   const { isLoggedIn } = useAuth();
 
   return (
-    <Stack.Navigator 
-      screenOptions={{ headerShown: false }} 
+    <Stack.Navigator
+      screenOptions={{ headerShown: false }}
       initialRouteName={isLoggedIn ? "Home" : "Login"}
     >
       <Stack.Screen name="Login" component={LoginScreen} />

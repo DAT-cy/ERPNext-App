@@ -1,4 +1,6 @@
+import { CommonException } from "@/utils/error/CommonException";
 import { api } from "../config/api";
+import { ErrorCode } from "@/utils/error/ErrorCode";
 
 type IncomingRateResponse = { message?: number | string } | any;
 type StockBalanceResponse = { message?: { qty?: number | string } } | any;
@@ -8,7 +10,7 @@ export async function getItemDetails(itemCode: string): Promise<any> {
         const response = await api.get(`/api/resource/Item/${itemCode}`);
         return response.data;
     } catch (error: any) {
-        throw error;
+        throw new CommonException(ErrorCode.DETAIL_ITEM_NOT_FOUND);
     }
 }
 
@@ -28,9 +30,10 @@ export async function getIncomingRate(
         const response = await api.get('/api/method/erpnext.stock.utils.get_incoming_rate', {
             params: { args: JSON.stringify(args) }
         });
+        console.log('request getIncomingRate', args);
         return response.data;
     } catch (error: any) {
-        throw error;
+        throw new CommonException(ErrorCode.INCOMING_RATE_NOT_FOUND);
     }
 }
 
@@ -46,13 +49,14 @@ export async function getStockBalance(
         form.append('warehouse', warehouse as any);
         form.append('posting_date', postingDate as any);
         form.append('posting_time', postingTime as any);
+        console.log('request getStockBalance', form);
         const response = await api.post(
             '/api/method/erpnext.stock.doctype.stock_reconciliation.stock_reconciliation.get_stock_balance_for',
             form
         );
         return response.data;
     } catch (error: any) {
-        throw error;
+        throw new CommonException(ErrorCode.STOCK_BALANCE_NOT_FOUND);
     }
 }
 

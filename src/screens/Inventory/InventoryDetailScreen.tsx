@@ -9,7 +9,7 @@ import {
   Platform,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { useRoute, RouteProp } from '@react-navigation/native';
+import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import { colors } from '../../styles/globalStyles';
 import { wp, hp, fs } from '../../utils/responsive';
 import { InventoryDetailData } from '../../services/inventoryDetailService';
@@ -21,6 +21,7 @@ import { inventoryDetailStyles as styles } from '../../styles/InventoryDetailScr
 type InventoryDetailScreenRouteProp = RouteProp<RootStackParamList, 'InventoryDetailScreen'>;
 
 export default function InventoryDetailScreen() {
+  const navigation = useNavigation<any>();
   const route = useRoute<InventoryDetailScreenRouteProp>();
   const { inventoryDetail } = route.params || {};
   
@@ -135,6 +136,13 @@ export default function InventoryDetailScreen() {
         <View style={styles.content}>
           {/* Header Section */}
           <View style={styles.sectionCard}>
+            {/* Back Button */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: hp(1) }}>
+              <TouchableOpacity onPress={() => navigation.goBack()} activeOpacity={0.7} style={{ padding: wp(2) }}>
+                <Feather name="arrow-left" size={wp(5)} color={colors.gray800} />
+              </TouchableOpacity>
+              <View style={{ flex: 1 }} />
+            </View>
             <View style={styles.mobileHeaderContainer}>
               <Text style={styles.mobileTitle}>Chi tiết phiếu nhập xuất</Text>
               <Text style={styles.mobileSubtitle}>{data.name}</Text>
@@ -142,33 +150,21 @@ export default function InventoryDetailScreen() {
             
             
             <View style={styles.mobileFormGrid}>
-            <View style={styles.mobileFormRow}>
-                <Text style={styles.mobileFieldLabel}>Loại Nhập Xuất</Text>
-                <Text style={styles.mobileFieldValue}>{data.stock_entry_type || 'N/A'}</Text>
-              </View>
 
-              <View style={styles.mobileFormRow}>
-                <Text style={styles.mobileFieldLabel}>Công Ty</Text>
-                <Text style={styles.mobileFieldValue}>{data.company}</Text>
-              </View>
               
               <View style={styles.mobileFormRow}>
                 <Text style={styles.mobileFieldLabel}>Ngày Ghi Sổ</Text>
                 <Text style={styles.mobileFieldValue}>{formatDate(data.creation)}</Text>
-              </View>
-              
-              <View style={styles.mobileFormRow}>
-                <Text style={styles.mobileFieldLabel}>Thời Gian Ghi Sổ</Text>
-                <Text style={styles.mobileFieldValue}>{formatTime(data.creation)}</Text>
-              </View>
-              <View style={styles.mobileFormRow}>
-                <Text style={styles.mobileFieldLabel}>Tài Khoản Chênh Lệch</Text>
-                <Text style={styles.mobileFieldValue}>{data.expense_account}</Text>
-              </View>
-            
+              </View>    
               <View style={styles.mobileFormRow}>
                 <Text style={styles.mobileFieldLabel}>Diễn Giải</Text>
                 <Text style={styles.mobileFieldValue}>{data.custom_interpretation || 'N/A'}</Text>
+              </View>
+              <View style={styles.mobileFormRow}>
+                <Text style={styles.mobileFieldLabel}>Trạng thái:</Text>
+                <View style={styles.statusBadge}>
+                  <Text style={styles.statusText}>{data.workflow_state || 'N/A'}</Text>
+                </View>
               </View>
             </View>
             
@@ -178,12 +174,7 @@ export default function InventoryDetailScreen() {
                 <Text style={styles.documentInfoLabel}>Mã phiếu (GIT) :</Text>
                 <Text style={styles.documentInfoValue}>{data.outgoing_stock_entry}</Text>
               </View>
-              <View style={styles.documentInfoRow}>
-                <Text style={styles.documentInfoLabel}>Trạng thái:</Text>
-                <View style={styles.statusBadge}>
-                  <Text style={styles.statusText}>{data.workflow_state || 'N/A'}</Text>
-                </View>
-              </View>
+            
               <View style={styles.documentInfoRow}>
                 <Text style={styles.documentInfoLabel}>Người tạo:</Text>
                 <Text style={styles.documentInfoValue}>{data.owner || 'N/A'}</Text>

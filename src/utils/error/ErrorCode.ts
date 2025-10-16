@@ -54,7 +54,17 @@ export enum ErrorCode {
   TIMEOUT_ERROR = 'TIMEOUT_ERROR',
   SESSION_EXPIRED = 'SESSION_EXPIRED',
   SERVER_ERROR = 'SERVER_ERROR',
-  UNKNOWN_ERROR = 'UNKNOWN_ERROR'
+  UNKNOWN_ERROR = 'UNKNOWN_ERROR',
+
+  WAREHOUSE_NOT_FOUND = 'WAREHOUSE_NOT_FOUND',
+
+  STOCK_ENTRY_TYPE_NOT_FOUND = 'STOCK_ENTRY_TYPE_NOT_FOUND',
+
+  DETAIL_ITEM_NOT_FOUND = 'DETAIL_ITEM_NOT_FOUND',
+
+  INCOMING_RATE_NOT_FOUND = 'INCOMING_RATE_NOT_FOUND',
+
+  STOCK_BALANCE_NOT_FOUND = 'STOCK_BALANCE_NOT_FOUND',
 }
 
 // Interface cho Error Definition
@@ -329,5 +339,36 @@ export const ERROR_DEFINITIONS: Record<ErrorCode, ErrorDefinition> = {
     errorCode: 'UNKNOWN-ERR-001',
     message: 'UNKNOWN ERROR',
     userMessage: 'Lỗi không xác định'
-  }
+  },
+
+  [ErrorCode.WAREHOUSE_NOT_FOUND]: {
+    status: StatusCode.NOT_FOUND,
+    errorCode: 'WAREHOUSE-ERR-001',
+    message: 'WAREHOUSE NOT FOUND',
+    userMessage: 'Không tìm thấy kho'
+  },
+  [ErrorCode.STOCK_ENTRY_TYPE_NOT_FOUND]: {
+    status: StatusCode.NOT_FOUND,
+    errorCode: 'STOCK-ENTRY-TYPE-ERR-001',
+    message: 'STOCK ENTRY TYPE NOT FOUND',
+    userMessage: 'Không tìm thấy loại stock entry'
+  },
+  [ErrorCode.DETAIL_ITEM_NOT_FOUND]: {
+    status: StatusCode.NOT_FOUND,
+    errorCode: 'DETAIL-ITEM-ERR-001',
+    message: 'DETAIL ITEM NOT FOUND',
+    userMessage: 'Không tìm thấy chi tiết sản phẩm'
+  },
+  [ErrorCode.INCOMING_RATE_NOT_FOUND]: {
+    status: StatusCode.NOT_FOUND,
+    errorCode: 'INCOMING-RATE-ERR-001',
+    message: 'INCOMING RATE NOT FOUND',
+    userMessage: 'Không tìm thấy tỷ giá nhập'
+  },
+  [ErrorCode.STOCK_BALANCE_NOT_FOUND]: {
+    status: StatusCode.NOT_FOUND,
+    errorCode: 'STOCK-BALANCE-ERR-001',
+    message: 'STOCK BALANCE NOT FOUND',
+    userMessage: 'Không tìm thấy số lượng tồn kho'
+  },
 };

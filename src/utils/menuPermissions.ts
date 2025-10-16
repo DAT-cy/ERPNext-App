@@ -86,7 +86,7 @@ export const MENU_DEFINITIONS: MenuItemDef[] = [
       {
         id: 'inventory-operations',
         title: 'Nghiệp Vụ Tồn Kho',
-        icon: require('../assets/inventory/inventory.png'),
+        icon: require('../assets/inventory/nghiep-vu-ton-kho.png'),
         hasSubItems: true,
         allowedRoles: [
           ...ROLE_GROUPS.STOCK_ROLES,

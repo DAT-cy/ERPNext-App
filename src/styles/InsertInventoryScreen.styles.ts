@@ -22,6 +22,9 @@ export const insertInventoryStyles = StyleSheet.create({
         shadowRadius: 6,
         shadowOffset: { width: 0, height: 2 },
         elevation: 2,
+        zIndex: 1000,
+        position: 'relative',
+        minHeight: 56,
     },
     iconBtn: {
         padding: 8,
@@ -34,11 +37,6 @@ export const insertInventoryStyles = StyleSheet.create({
     headerCenter: {
         flex: 1,
         alignItems: 'center',
-    },
-    headerTitle: {
-        fontSize: fs(18),
-        fontWeight: '700',
-        color: colors.gray900,
     },
     headerStatus: {
         marginTop: hp(0.25),
@@ -64,7 +62,7 @@ export const insertInventoryStyles = StyleSheet.create({
         fontSize: fs(14),
     },
     container: {
-        padding: wp(3),
+        padding: 0,
         paddingBottom: hp(3),
     },
     card: {
@@ -311,7 +309,7 @@ export const insertInventoryStyles = StyleSheet.create({
     floatingScanButton: {
         position: 'absolute',
         right: 16,
-        bottom: 24,
+        bottom: 99,
         backgroundColor: '#111827',
         borderRadius: 28,
         width: 56,
@@ -322,12 +320,456 @@ export const insertInventoryStyles = StyleSheet.create({
         shadowOpacity: 0.2,
         shadowRadius: 6,
         shadowOffset: { width: 0, height: 3 },
-        elevation: 6,
+        elevation: 8,
+        zIndex: 1200,
     },
     floatingScanText: {
         color: colors.white,
         fontSize: fs(12),
         fontWeight: '700',
+    },
+
+    // Mobile-optimized header
+    headerLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    backBtn: {
+        padding: 6,
+        marginRight: 4,
+    },
+    backBtnText: {
+        fontSize: fs(20),
+        color: colors.gray900,
+        fontWeight: '600',
+    },
+    headerTitle: {
+        fontSize: fs(16),
+        fontWeight: '600',
+        color: colors.gray900,
+    },
+    headerRight: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'flex-end',
+        flex: 1,
+    },
+    filterBtn: {
+        backgroundColor: '#111111',
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 8,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 4,
+        minWidth: 80,
+        minHeight: 32,
+    },
+    filterBtnText: {
+        color: 'white',
+        fontSize: fs(12),
+        fontWeight: '600',
+    },
+
+    // Progress Bar - Mobile optimized
+    progressBar: {
+        backgroundColor: 'white',
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: '#f0f0f0',
+        zIndex: 999,
+        position: 'relative',
+    },
+    progressContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        position: 'relative',
+    },
+    progressStep: {
+        flex: 1,
+        alignItems: 'center',
+        position: 'relative',
+        paddingHorizontal: 4,
+    },
+    stepCircle: {
+        width: 20,
+        height: 20,
+        borderRadius: 10,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 4,
+        position: 'relative',
+        zIndex: 2,
+    },
+    stepCircleCompleted: {
+        backgroundColor: '#4CAF50',
+    },
+    stepCircleActive: {
+        backgroundColor: '#111111',
+    },
+    stepCirclePending: {
+        backgroundColor: '#f0f0f0',
+        borderWidth: 1,
+        borderColor: '#ddd',
+    },
+    stepText: {
+        fontSize: fs(9),
+        fontWeight: '700',
+        color: '#FFFFFF',
+    },
+    stepLabel: {
+        fontSize: fs(12),
+        fontWeight: '600',
+        textAlign: 'center',
+        color: '#333',
+        paddingHorizontal: 8,
+        lineHeight: 16,
+        alignSelf: 'stretch',
+        flexGrow: 1,
+        flexShrink: 1,
+    },
+    stepLabelCompleted: {
+        color: '#4CAF50',
+    },
+    stepLabelActive: {
+        color: '#111111',
+        fontWeight: '600',
+    },
+    stepLabelPending: {
+        color: '#999',
+    },
+    progressLine: {
+        position: 'absolute',
+        top: 12,
+        left: '50%',
+        right: '-50%',
+        height: 1,
+        backgroundColor: '#f0f0f0',
+        zIndex: 1,
+    },
+    progressLineCompleted: {
+        backgroundColor: '#4CAF50',
+    },
+    progressLineActive: {
+        backgroundColor: '#4CAF50',
+    },
+
+    // Active Filters Chips
+    filtersBar: {
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        backgroundColor: colors.gray50,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: colors.gray200,
+    },
+    filtersChipsRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8 as any,
+    },
+    filterChip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 16,
+        backgroundColor: '#FFFFFF',
+        borderWidth: 1,
+        borderColor: '#111111',
+    },
+    filterChipText: {
+        color: '#111111',
+        fontSize: fs(12),
+        fontWeight: '600',
+    },
+
+    // Company Details - Mobile optimized
+    companyDetails: {
+        backgroundColor: 'white',
+        borderRadius: 8,
+        marginBottom: 16,
+        marginHorizontal: 16,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 4,
+        elevation: 1,
+        overflow: 'hidden',
+    },
+    companyInfo: {
+        padding: 12,
+    },
+    companyLine: {
+        fontSize: fs(12),
+        color: '#333',
+        fontWeight: '500',
+        marginBottom: 4,
+        lineHeight: 16,
+    },
+
+    // Main Content - Mobile optimized
+    mainContent: {
+        padding: 16,
+    },
+
+    // Shop Section - Mobile optimized
+    shopSection: {
+        backgroundColor: 'white',
+        borderRadius: 8,
+        marginBottom: 12,
+        marginHorizontal: 16,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 4,
+        elevation: 1,
+        overflow: 'hidden',
+    },
+    productItem: {
+        padding: 12,
+    },
+    productMain: {
+        flexDirection: 'row',
+        gap: 8,
+        marginBottom: 8,
+        alignItems: 'flex-start',
+    },
+    productInfo: {
+        flex: 1,
+    },
+    productTitle: {
+        fontSize: fs(12),
+        lineHeight: 16,
+        marginBottom: 2,
+        fontWeight: '400',
+        color: '#333',
+        paddingVertical: 2,
+        paddingHorizontal: 0,
+        borderBottomWidth: 1,
+        borderBottomColor: 'transparent',
+    },
+    productCode: {
+        fontSize: fs(10),
+        color: '#6B7280',
+        paddingVertical: 2,
+        paddingHorizontal: 0,
+        borderBottomWidth: 1,
+        borderBottomColor: 'transparent',
+    },
+    removeBtn: {
+        padding: 6,
+        backgroundColor: '#F3F4F6',
+        borderRadius: 4,
+    },
+    removeBtnText: {
+        color: '#EF4444',
+        fontSize: fs(10),
+        fontWeight: '600',
+    },
+    productPriceQuantity: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 8,
+    },
+    priceSection: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
+    currentPrice: {
+        color: '#111111',
+        fontSize: fs(12),
+        fontWeight: '400',
+    },
+    originalPrice: {
+        color: '#666',
+        textDecorationLine: 'line-through',
+        fontSize: fs(12),
+    },
+    quantityInputControl: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
+    quantityBtn: {
+        width: 32,
+        height: 32,
+        borderWidth: 1,
+        borderColor: '#ddd',
+        borderRadius: 16,
+        backgroundColor: 'white',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    quantityBtnText: {
+        fontSize: fs(16),
+        color: '#4B5563',
+    },
+    quantityInput: {
+        width: 50,
+        height: 32,
+        borderWidth: 1,
+        borderColor: '#ddd',
+        borderRadius: 4,
+        textAlign: 'center',
+        fontSize: fs(12),
+        fontWeight: '600',
+        backgroundColor: 'white',
+    },
+
+    // Checkbox - Mobile optimized
+    checkbox: {
+        width: 18,
+        height: 18,
+        borderRadius: 3,
+        borderWidth: 2,
+        borderColor: '#ddd',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    checkboxChecked: {
+        backgroundColor: '#111111',
+        borderColor: '#111111',
+    },
+    checkmark: {
+        color: '#FFFFFF',
+        fontSize: fs(10),
+        fontWeight: 'bold',
+    },
+
+    // Empty State - Mobile optimized
+    emptyState: {
+        padding: 24,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#FFFFFF',
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
+        marginHorizontal: 16,
+    },
+    emptyIcon: {
+        width: 48,
+        height: 48,
+        backgroundColor: '#F3F4F6',
+        borderRadius: 24,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 12,
+    },
+    emptyIconText: {
+        fontSize: fs(20),
+        color: '#9CA3AF',
+    },
+    emptyTitle: {
+        fontSize: fs(14),
+        color: '#6B7280',
+        textAlign: 'center',
+        marginBottom: 6,
+        fontWeight: '600',
+    },
+    emptySubtitle: {
+        fontSize: fs(12),
+        color: '#9CA3AF',
+        textAlign: 'center',
+    },
+
+    // Add Product Button - Mobile optimized
+    addProductBtn: {
+        backgroundColor: '#111111',
+        paddingVertical: 12,
+        paddingHorizontal: 20,
+        borderRadius: 8,
+        alignItems: 'center',
+        marginTop: 12,
+        marginHorizontal: 16,
+    },
+    addProductBtnText: {
+        color: 'white',
+        fontSize: fs(14),
+        fontWeight: '600',
+    },
+
+    // Footer - Mobile optimized
+    footer: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        backgroundColor: 'white',
+        borderTopWidth: 1,
+        borderTopColor: '#f0f0f0',
+        padding: 16,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+    },
+    footerTop: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        marginBottom: 8,
+    },
+    selectAllContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    selectAllText: {
+        fontSize: fs(12),
+        color: '#4B5563',
+        fontWeight: '600',
+        marginLeft: 6,
+    },
+    shippingInfo: {
+        marginLeft: 8,
+    },
+    shippingText: {
+        fontSize: fs(10),
+        color: '#4CAF50',
+        fontWeight: '600',
+    },
+    footerTotal: {
+        flex: 1,
+        alignItems: 'flex-end',
+    },
+    totalPriceContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 2,
+    },
+    totalPrice: {
+        fontSize: fs(18),
+        fontWeight: '600',
+        color: '#111111',
+    },
+    arrowUp: {
+        fontSize: fs(10),
+        color: '#666',
+        marginLeft: 4,
+    },
+    savings: {
+        fontSize: fs(12),
+        color: '#666',
+    },
+    checkoutBtn: {
+        backgroundColor: '#111111',
+        borderRadius: 8,
+        paddingVertical: 12,
+        paddingHorizontal: 20,
+        alignItems: 'center',
+        marginTop: 8,
+    },
+    checkoutBtnText: {
+        fontSize: fs(14),
+        fontWeight: '600',
+        color: '#FFFFFF',
     },
 });
 

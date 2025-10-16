@@ -113,22 +113,6 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
             </View>
           )}
         </View>
-
-        {/* Manual Input */}
-        <View style={styles.manualContainer}>
-          <TouchableOpacity
-            style={styles.manualButton}
-            onPress={() => {
-              // Tạm thời sử dụng một giá trị mẫu, có thể cải thiện sau
-              const sampleCode = 'SAMPLE-CODE-123';
-              onScan(sampleCode);
-            }}
-            activeOpacity={0.7}
-          >
-            <Feather name="edit-3" size={wp(5)} color={colors.primary} />
-            <Text style={styles.manualButtonText}>Nhập Thủ Công</Text>
-          </TouchableOpacity>
-        </View>
       </View>
     </Modal>
   );

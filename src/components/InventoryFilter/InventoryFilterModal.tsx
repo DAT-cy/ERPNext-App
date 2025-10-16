@@ -8,6 +8,7 @@ import {
   FlatList,
   ScrollView,
   Animated,
+  Switch,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import Calendar from '../Calendar/Calendar';
@@ -54,6 +55,7 @@ export default function InventoryFilterModal({
   const [selectedCategory, setSelectedCategory] = useState<string>('stock_entry_type');
   const [selectedOptions, setSelectedOptions] = useState<Record<string, Set<string>>>({});
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
+  const [enabledCategories, setEnabledCategories] = useState<Record<string, boolean>>({});
   const scrollViewRef = useRef<ScrollView>(null);
   const sectionRefs = useRef<Record<string, View | null>>({});
   const sectionLayouts = useRef<Record<string, { y: number; height: number }>>({});
@@ -82,36 +84,63 @@ export default function InventoryFilterModal({
 
   // Handle filter option selection
   const handleOptionSelect = (option: FilterOption) => {
+    // Lock: when warehouse_origin is selected, warehouse_import is fixed and cannot change
+    if (option.category === 'warehouse_import') {
+      const hasOriginSelected = activeFilters.some(f => f.category === 'warehouse_origin');
+      if (hasOriginSelected) {
+        return; // ignore selection attempts on warehouse_import
+      }
+    }
     const category = option.category;
     const value = option.value;
-    
-    if (!selectedOptions[category]) {
-      selectedOptions[category] = new Set();
-    }
 
-    const newSelectedOptions = { ...selectedOptions };
-    let newActiveFilters = [...activeFilters];
+    const newSelectedOptions: Record<string, Set<string>> = { ...selectedOptions };
+    const currentSet = newSelectedOptions[category] || new Set<string>();
+    const isAlreadySelected = currentSet.has(value);
 
-    if (newSelectedOptions[category].has(value)) {
-      // Remove selection
-      newSelectedOptions[category].delete(value);
-      newActiveFilters = newActiveFilters.filter(f => 
-        !(f.category === category && f.value === value)
-      );
+    let newActiveFilters = activeFilters.filter(f => f.category !== category);
+
+    if (isAlreadySelected) {
+      // Deselect current value (category will have no selection)
+      newSelectedOptions[category] = new Set<string>();
     } else {
-      // Add selection
-      newSelectedOptions[category].add(value);
+      // Single select: replace with the new value
+      newSelectedOptions[category] = new Set<string>([value]);
       newActiveFilters.push({
         key: `${category}-${value}`,
         label: option.label,
-        category: category,
-        value: value
+        category,
+        value,
       });
     }
 
     setSelectedOptions(newSelectedOptions);
     onFiltersChange(newActiveFilters);
   };
+
+  // Toggle enable/disable for a category (only applied to warehouse_origin as per requirement)
+  const toggleCategoryEnabled = (categoryKey: string, nextEnabled?: boolean) => {
+    setEnabledCategories(prev => {
+      const currentlyEnabled = !!prev[categoryKey];
+      const target = typeof nextEnabled === 'boolean' ? nextEnabled : !currentlyEnabled;
+      return { ...prev, [categoryKey]: target };
+    });
+  };
+
+  // Safely clear selections when disabling a category (avoid parent update during render)
+  React.useEffect(() => {
+    const isOriginEnabled = !!enabledCategories['warehouse_origin'];
+    if (!isOriginEnabled) {
+      // clear local selection state
+      setSelectedOptions(prevSel => ({ ...prevSel, warehouse_origin: new Set<string>() }));
+      // clear parent filters for this category if any
+      const cleared = activeFilters.filter(f => f.category !== 'warehouse_origin');
+      if (cleared.length !== activeFilters.length) {
+        // defer to next tick to avoid setState-in-render warnings
+        requestAnimationFrame(() => onFiltersChange(cleared));
+      }
+    }
+  }, [enabledCategories, activeFilters, onFiltersChange]);
 
   // Reset all filters
   const handleReset = () => {
@@ -315,10 +344,16 @@ export default function InventoryFilterModal({
 
   // Render filter option with show more functionality
   const renderCategorySection = (category: FilterCategory) => {
-    const rawOptions = filterOptions[category.key];
+    let rawOptions = filterOptions[category.key];
     
     // Ensure options is always an array
-    const options = Array.isArray(rawOptions) ? rawOptions : [];
+    let options = Array.isArray(rawOptions) ? rawOptions : [];
+
+    // If Kho gốc đã được chọn, thì Kho nhập chỉ hiển thị đúng 1 giá trị cố định
+    const hasOriginSelected = activeFilters.some(f => f.category === 'warehouse_origin');
+    if (category.key === 'warehouse_import' && hasOriginSelected) {
+      options = [{ value: 'Kho đi đường - COM', label: 'Kho đi đường - COM', category: 'warehouse_import' }];
+    }
     
     if (options.length === 0) {
       console.warn(`[InventoryFilterModal] No options found for category: ${category.key}`);
@@ -334,6 +369,9 @@ export default function InventoryFilterModal({
     const visibleOptions = isExpanded ? options : options.slice(0, 4);
     const hasMoreOptions = options.length > 4;
 
+    const isWarehouseOrigin = category.key === 'warehouse_origin';
+    const isEnabled = !isWarehouseOrigin || enabledCategories['warehouse_origin'] === true;
+
     return (
       <View 
         key={category.key} 
@@ -341,11 +379,27 @@ export default function InventoryFilterModal({
         ref={(ref) => { sectionRefs.current[category.key] = ref; }}
         onLayout={(event) => handleSectionLayout(category.key, event)}
       >
-        <Text style={inventoryFilterStyles.sectionTitle}>
-          {category.title}
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Text style={inventoryFilterStyles.sectionTitle}>
+            {category.title}
+          </Text>
+          {isWarehouseOrigin && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: wp(2) as any }}>
+              <Text style={{ fontSize: fs(12), color: isEnabled ? colors.success : colors.gray600, fontWeight: '600' }}>
+                {isEnabled ? 'Bật' : 'Tắt'}
+              </Text>
+              <Switch
+                value={isEnabled}
+                onValueChange={(val) => toggleCategoryEnabled('warehouse_origin', val)}
+                trackColor={{ false: colors.gray300, true: colors.success }}
+                thumbColor={isEnabled ? colors.white : colors.white}
+              />
+            </View>
+          )}
+        </View>
         
-        <View style={inventoryFilterStyles.optionsGrid}>
+        {isEnabled ? (
+          <View style={inventoryFilterStyles.optionsGrid}>
           {/* Special handling for creation date filter */}
           {category.key === 'creation' ? (
             <View style={inventoryFilterStyles.dateFilterContainer}>
@@ -481,7 +535,13 @@ export default function InventoryFilterModal({
               </Text>
             </TouchableOpacity>
           )}
-        </View>
+          </View>
+        ) : (
+          // Disabled state hint
+          <Text style={{ fontSize: fs(12), color: colors.gray600 }}>
+            Bật để chọn kho gốc
+          </Text>
+        )}
       </View>
     );
   };

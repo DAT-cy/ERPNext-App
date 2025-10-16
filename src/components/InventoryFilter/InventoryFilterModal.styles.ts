@@ -15,8 +15,8 @@ export const inventoryFilterStyles = StyleSheet.create({
     backgroundColor: colors.white,
     borderTopLeftRadius: wp(5),
     borderTopRightRadius: wp(5),
-    maxHeight: hp(85),
-    minHeight: hp(60),
+    maxHeight: hp(90),
+    minHeight: hp(70),
   },
   
   modalHeader: {
