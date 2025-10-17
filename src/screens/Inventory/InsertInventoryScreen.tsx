@@ -10,14 +10,18 @@ import {
     Animated,
     Image,
     Modal,
+    Alert,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { getAllExportImportType, getWarehouse } from '../../services/inventoryService';
-import { getItemDetails, getIncomingRate, getStockBalance } from '../../services/inventoryInsertService';
+import { getAllExportImportType, getWarehouse, InventoryItem, toEnglishStockEntryType } from '../../services/inventoryService';
+import { getItemDetails, getIncomingRate, getStockBalance, saveInventory } from '../../services/inventoryInsertService';
 import { BarcodeScanner } from '../../components/Scanner/BarcodeScanner';
+import { Input } from '../../components/Input';
 import InventoryFilterModal from '../../components/InventoryFilter/InventoryFilterModal';
 import { insertInventoryStyles as styles } from '../../styles/InsertInventoryScreen.styles';
 import { formatCurrentDateDisplay, formatCurrentTimeHMS } from '../../utils/date';
+import { SaveInventoryRequest, StockEntryItem } from '../../types/inventory.types';
+import { getInventoryDetail } from '@/services/inventoryDetailService';
 
 type InventoryItemRow = {
     fromWarehouse: string;
@@ -72,6 +76,7 @@ export default function InsertInventoryScreen() {
     const [postDate, setPostDate] = useState('');
     const [postTime, setPostTime] = useState('');
     const [diffAccount, setDiffAccount] = useState('6328 Điều chỉnh tồn kho - COM');
+    const [description, setDescription] = useState('');
     // Warehouse settings
     const [originLocationEnabled, setOriginLocationEnabled] = useState(false);
     const [originLocation, setOriginLocation] = useState('');
@@ -165,10 +170,10 @@ export default function InsertInventoryScreen() {
                 postTime,
                 resolvedWarehouse
             );
-                const stockQtyVal = balanceResponse?.message?.qty;
-                if (stockQtyVal !== undefined && stockQtyVal !== null) {
-                    stockQty = String(stockQtyVal);
-                }
+            const stockQtyVal = balanceResponse?.message?.qty;
+            if (stockQtyVal !== undefined && stockQtyVal !== null) {
+                stockQty = String(stockQtyVal);
+            }
         } catch {}
 
         return { incomingRate, stockQty } as const;
@@ -179,10 +184,106 @@ export default function InsertInventoryScreen() {
         (navigation as any)?.goBack?.() || showToast('Quay lại');
     }, [navigation, showToast]);
 
-    const saveTransfer = useCallback(() => {
-        setIsSaved(true);
-    }, [showToast]);
+    const saveTransfer = useCallback(async () => {
+        try {
+            // Check if export warehouse is selected
+            const hasExportSelected = activeFilters.some(f => f.category === 'warehouse_export');
+            
+            // Validate required fields
+            if (!hasExportSelected) {
+                showToast('Vui lòng chọn kho xuất');
+                return;
+            }
 
+            if (items.length === 0) {
+                showToast('Vui lòng thêm ít nhất một sản phẩm');
+                return;
+            }
+
+            // Get selected filters
+            const stockEntryTypeFilter = activeFilters.find(f => f.category === 'stock_entry_type');
+            const exportWarehouseFilter = activeFilters.find(f => f.category === 'warehouse_export');
+            const importWarehouseFilter = activeFilters.find(f => f.category === 'warehouse_import');
+
+            if (!stockEntryTypeFilter || !exportWarehouseFilter || !importWarehouseFilter) {
+                showToast('Vui lòng chọn đầy đủ thông tin kho và loại nhập xuất');
+                return;
+            }
+
+            // Prepare stock entry items
+            const stockEntryItems: StockEntryItem[] = items.map(item => ({
+                doctype: 'Stock Entry Detail',
+                item_code: item.code,
+                item_name: item.name,
+                qty: parseFloat(item.qty) || 0,
+                s_warehouse: exportWarehouseFilter.value,
+                t_warehouse: importWarehouseFilter.value,
+                basic_rate: parseFloat(item.price) || 0,
+                stock_uom: item.unit,
+                uom: item.unit,
+                expense_account: '6328 Điều chỉnh tồn kho - COM'
+            }));
+
+            // Origin warehouse logic for transit
+            const originWarehouseFilter = activeFilters.find(f => f.category === 'warehouse_origin');
+            const addToTransit = originWarehouseFilter ? '1' : '0';
+            const originalTargetWarehouse = originWarehouseFilter?.value || importWarehouseFilter.value;
+
+            // Prepare save request
+            const saveRequest: SaveInventoryRequest = {
+                docstatus: '0',
+                doctype: 'Stock Entry',
+                purpose: toEnglishStockEntryType(stockEntryTypeFilter.value),
+                company: 'CTY REMAK',
+                posting_date: postDate,
+                posting_time: postTime,
+                stock_entry_type: stockEntryTypeFilter.value,
+                add_to_transit: addToTransit,
+                custom_original_target_warehouse: originalTargetWarehouse,
+                from_warehouse: exportWarehouseFilter.value,
+                to_warehouse: importWarehouseFilter.value,
+                custom_interpretation: description,
+                items: stockEntryItems
+            };
+
+            console.log('Saving inventory:', saveRequest);
+
+            // Call API
+            const response = await saveInventory(saveRequest);
+            
+            if (response?.data?.name) {
+                setIsSaved(true);
+                handleItemPress(response.data.name);
+            } else {
+                showToast('Lưu thất bại');
+            }
+        } catch (error: any) {
+            console.error('Save error:', error);
+
+            showToast(`Lỗi: ${error.message || 'Không thể lưu dữ liệu'}`);
+        }
+    }, [items, activeFilters, postDate, postTime, showToast, navigation]);
+
+
+    const handleItemPress = async (item: string) => {
+        try {            
+            // Call API to get detail
+            const response = await getInventoryDetail(item);
+            
+            if (response.success && response.data) {
+                
+                // Navigate to detail screen with data
+                (navigation as any).navigate('InventoryDetailScreen', {
+                    inventoryDetail: response.data
+                });
+            } else {
+                Alert.alert('Lỗi', 'Không thể tải chi tiết phiếu nhập xuất');
+            }
+        } catch (error) {
+            console.error('💥 [InventoryEntryScreens] Error handling item press:', error);
+            Alert.alert('Lỗi', 'Có lỗi xảy ra khi tải chi tiết');
+        }
+    };
     // Progress management
     const hasExportSelected = useMemo(() => activeFilters.some(f => f.category === 'warehouse_export'), [activeFilters]);
     useEffect(() => {
@@ -295,7 +396,7 @@ export default function InsertInventoryScreen() {
     // Quick scan: open scanner; only append item after successful fetch
     const quickScanNewProduct = useCallback(() => {
         setCurrentScanningItemIndex(-1 as any);
-        setIsScannerVisible(true);
+            setIsScannerVisible(true);
     }, []);
 
     const handleBarcodeScan = useCallback(async (barcode: string) => {
@@ -326,13 +427,13 @@ export default function InsertInventoryScreen() {
                 // Stock quantity: only fetch/show when export warehouse is selected; otherwise force 0
                 const exportSelected = activeFilters.some(f => f.category === 'warehouse_export');
                 if (exportSelected) {
-                    try {
-                        const { stockQty: qty } = await fetchRateAndQty(
-                            barcode,
-                            (items[itemIndex]?.fromWarehouse || defaultFromWarehouse || '')
-                        );
-                        if (qty !== undefined) stockQty = qty;
-                    } catch { }
+                try {
+                    const { stockQty: qty } = await fetchRateAndQty(
+                        barcode,
+                        (items[itemIndex]?.fromWarehouse || defaultFromWarehouse || '')
+                    );
+                    if (qty !== undefined) stockQty = qty;
+                } catch { }
                 } else {
                     stockQty = '0';
                 }
@@ -340,12 +441,12 @@ export default function InsertInventoryScreen() {
                 const newItem = {
                     fromWarehouse: defaultFromWarehouse,
                     toWarehouse: defaultToWarehouse,
-                    code: itemDetails.item_code || barcode,
-                    name: itemDetails.item_name || '',
+                        code: itemDetails.item_code || barcode,
+                        name: itemDetails.item_name || '',
                     qty: '',
-                    unit: itemDetails.stock_uom || 'Cái',
-                    price: incomingRate,
-                    isStockItem: itemDetails.is_stock_item === 1,
+                        unit: itemDetails.stock_uom || 'Cái',
+                        price: incomingRate,
+                        isStockItem: itemDetails.is_stock_item === 1,
                     isSelected: false,
                     qtyAvailable: stockQty || '0',
                 } as InventoryItemRow;
@@ -384,7 +485,7 @@ export default function InsertInventoryScreen() {
         return items.reduce((total, item, index) => {
             if (selectedItems.has(index)) {
                 const price = parseFloat(item.price) || 0;
-                const qty = parseInt(item.qty) || 0;
+                const qty = parseFloat(item.qty) || 0;
                 return total + (price * qty);
             }
             return total;
@@ -393,7 +494,7 @@ export default function InsertInventoryScreen() {
 
     const calculateTotalItems = useCallback(() => {
         return Array.from(selectedItems).reduce((total, index) => {
-            const qty = parseInt(items[index]?.qty) || 0;
+            const qty = parseFloat(items[index]?.qty) || 0;
             return total + qty;
         }, 0);
     }, [items, selectedItems]);
@@ -546,7 +647,7 @@ export default function InsertInventoryScreen() {
                         const isSelected = index === 0 ? exportSelected : importSelected;
                         return (
                             <View key={step.id} style={styles.progressStep}>
-                                <TouchableOpacity
+        <TouchableOpacity
                                     style={[
                                         styles.stepCircle,
                                         step.status === 'completed' && styles.stepCircleCompleted,
@@ -558,12 +659,12 @@ export default function InsertInventoryScreen() {
                                             setCurrentStep(index);
                                         }
                                     }}
-                                    activeOpacity={0.7}
-                                >
+            activeOpacity={0.7}
+        >
                                     <Text style={styles.stepText}>
                                         {step.status === 'completed' ? '✓' : (index + 1).toString()}
                                     </Text>
-                                </TouchableOpacity>
+        </TouchableOpacity>
                                 <Text style={[
                                     styles.stepLabel,
                                     step.status === 'completed' && styles.stepLabelCompleted,
@@ -583,8 +684,8 @@ export default function InsertInventoryScreen() {
                         );
                     })}
                 </View>
-            </View>
-        );
+        </View>
+    );
     };
 
     const renderCompanyDetails = () => (
@@ -610,7 +711,7 @@ export default function InsertInventoryScreen() {
                       
 
                         <View style={styles.productInfo}>
-                            <TextInput
+                    <TextInput
                                 value={item.code && item.name ? `${item.code} - ${item.name}` : (item.code || item.name || '')}
                                 onChangeText={(text) => {
                                     // Split input back to code and name if user edits
@@ -620,84 +721,101 @@ export default function InsertInventoryScreen() {
                                 }}
                                 style={styles.productTitle}
                                 placeholder="Mã - Tên sản phẩm"
-                                placeholderTextColor="#9CA3AF"
-                            />
-                            <TextInput
+                        placeholderTextColor="#9CA3AF"
+                    />
+                    <TextInput
                                 value={item.unit}
                                 onChangeText={(text) => updateItem(index, 'unit', text)}
                                 style={styles.productCode}
                                 placeholder="Đơn vị tính (stock_uom)"
-                                placeholderTextColor="#9CA3AF"
-                            />
-                        </View>
+                        placeholderTextColor="#9CA3AF"
+                    />
+                </View>
 
-                        <TouchableOpacity
+                <TouchableOpacity
                             style={styles.removeBtn}
-                            onPress={() => removeItem(index)}
-                            activeOpacity={0.7}
-                        >
+                    onPress={() => removeItem(index)}
+                    activeOpacity={0.7}
+                >
                             <Text style={styles.removeBtnText}>X</Text>
-                        </TouchableOpacity>
-                    </View>
+                </TouchableOpacity>
+            </View>
 
                     <View style={styles.productPriceQuantity}>
                         <View style={styles.priceSection}>
                             <Text style={styles.currentPrice}>
                                 Số lượng tồn kho: {hasExportSelected && item.qtyAvailable ? `${item.qtyAvailable}` : '0'}
-                            </Text>
-                        </View>
+                        </Text>
+                </View>
 
                         <View style={styles.quantityInputControl}>
-                            <TouchableOpacity
+                        <TouchableOpacity
                                 style={styles.quantityBtn}
-                                onPress={() => {
-                                    const currentQty = parseInt(item.qty) || 0;
-                                    if (currentQty > 0) {
-                                        updateItem(index, 'qty', (currentQty - 1).toString());
-                                    }
-                                }}
-                                activeOpacity={0.7}
-                            >
+                            onPress={() => {
+                                const currentQty = parseFloat(item.qty) || 0;
+                                let next = currentQty - 1;
+                                if (next < 0) next = 0;
+                                updateItem(index, 'qty', next.toString());
+                            }}
+                            activeOpacity={0.7}
+                        >
                                 <Text style={styles.quantityBtnText}>−</Text>
-                            </TouchableOpacity>
-
-                            <TextInput
-                                keyboardType="numeric"
-                                value={item.qty}
+                        </TouchableOpacity>
+                        
+                        <TextInput
+                            keyboardType="decimal-pad"
+                            value={item.qty}
                                 onChangeText={(text) => {
-                                    // allow empty input; clamp upper bound only if qtyAvailable exists
+                                    // allow empty input directly
                                     if (text === '') { updateItem(index, 'qty', ''); return; }
-                                    let next = parseInt(text.replace(/[^0-9]/g, ''));
-                                    if (isNaN(next) || next < 0) next = 0;
-                                    const stockAvail = item.qtyAvailable ? parseInt(item.qtyAvailable) : undefined;
-                                    if (typeof stockAvail === 'number' && !isNaN(stockAvail) && stockAvail >= 0) {
-                                        if (next > stockAvail) next = stockAvail;
+                                    // normalize commas to dots, and allow only digits and single dot
+                                    const replaced = text.replace(',', '.');
+                                    const stripped = replaced.replace(/[^0-9.]/g, '');
+                                    const parts = stripped.split('.');
+                                    const singleDot = parts.length > 2 ? `${parts[0]}.${parts.slice(1).join('')}` : stripped;
+                                    // allow intermediate states like "." or "12."
+                                    if (singleDot === '.' || /^(\d+)\.$/.test(singleDot)) {
+                                        updateItem(index, 'qty', singleDot);
+                                        return;
                                     }
-                                    updateItem(index, 'qty', next.toString());
+                                    // if it's a valid decimal number, optionally clamp to available stock
+                                    if (/^\d*(?:\.\d+)?$/.test(singleDot)) {
+                                        const valueNum = singleDot === '' ? NaN : parseFloat(singleDot);
+                                        const stockAvail = item.qtyAvailable ? parseFloat(item.qtyAvailable) : undefined;
+                                        if (!isNaN(valueNum) && typeof stockAvail === 'number' && !isNaN(stockAvail) && stockAvail >= 0) {
+                                            if (valueNum > stockAvail) {
+                                                updateItem(index, 'qty', stockAvail.toString());
+                                                return;
+                                            }
+                                        }
+                                        updateItem(index, 'qty', singleDot);
+                                        return;
+                                    }
+                                    // fallback: keep previous value if input is invalid
                                 }}
                                 style={styles.quantityInput}
-                                placeholder="0"
-                                placeholderTextColor="#9CA3AF"
-                            />
-
-                            <TouchableOpacity
+                            placeholder="0"
+                            placeholderTextColor="#9CA3AF"
+                        />
+                        
+                        <TouchableOpacity
                                 style={styles.quantityBtn}
-                                onPress={() => {
-                                    const currentQty = item.qty === '' ? 0 : (parseInt(item.qty) || 0);
-                                    const stockAvail = item.qtyAvailable ? parseInt(item.qtyAvailable) : undefined;
+                            onPress={() => {
+                                    const currentQty = item.qty === '' ? 0 : (parseFloat(item.qty) || 0);
+                                    const stockAvail = item.qtyAvailable ? parseFloat(item.qtyAvailable) : undefined;
                                     let next = currentQty + 1;
                                     if (typeof stockAvail === 'number' && !isNaN(stockAvail) && stockAvail >= 0) {
                                         next = Math.min(next, stockAvail);
                                     }
                                     updateItem(index, 'qty', next.toString());
-                                }}
-                                activeOpacity={0.7}
-                            >
+                            }}
+                            activeOpacity={0.7}
+                        >
                                 <Text style={styles.quantityBtnText}>+</Text>
-                            </TouchableOpacity>
-                        </View>
+                        </TouchableOpacity>
                     </View>
                 </View>
+            </View>
             </View>
         );
     };
@@ -739,7 +857,7 @@ export default function InsertInventoryScreen() {
                 <View style={styles.headerLeft}>
                     <TouchableOpacity onPress={goBack} style={styles.backBtn} activeOpacity={0.7}>
                         <Text style={styles.backBtnText}>←</Text>
-                    </TouchableOpacity>
+                </TouchableOpacity>
                     <Text style={styles.headerTitle}>Thêm Xuất Nhập Kho</Text>
                 </View>
                 <View style={styles.headerRight}>
@@ -749,9 +867,9 @@ export default function InsertInventoryScreen() {
                         activeOpacity={0.8}
                     >
                         <Text style={[styles.filterBtnText, { color: 'white' }]}>🔍</Text>
-                    </TouchableOpacity>
-                </View>
-            </View>
+                </TouchableOpacity>
+                            </View>
+                        </View>
 
             {/* Progress Bar */}
             {renderProgressBar()}
@@ -765,8 +883,8 @@ export default function InsertInventoryScreen() {
                                 <Text style={styles.filterChipText}>{f.label}</Text>
                             </View>
                         ))}
+                        </View>
                     </View>
-                </View>
             )}
 
             {/* Main Content */}
@@ -777,8 +895,25 @@ export default function InsertInventoryScreen() {
                 {/* Company Details */}
                 {renderCompanyDetails()}
 
+                {/* Description */}
+                <View style={styles.shopSection}>
+                    <View style={styles.productItem}>
+                        <Input
+                            placeholder="Nhập mô tả..."
+                            autoGrow
+                            minHeight={100}
+                            maxHeight={260}
+                            value={description}
+                            onChangeText={setDescription}
+                            placeholderTextColor="#9CA3AF"
+                            containerStyle={{ marginBottom: 0 }}
+                            style={[styles.input, styles.textarea] as any}
+                        />
+                    </View>
+                </View>
+
                 {/* Product List */}
-                {renderProductList()}
+                        {renderProductList()}
 
             </ScrollView>
 

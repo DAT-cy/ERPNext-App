@@ -41,8 +41,8 @@ export interface InventoryQueryOptions {
     orderBy?: string;
 }
 
-// Map Vietnamese stock entry types to English canonical names used by backend
-function toEnglishStockEntryType(value: string): string {
+// Map Vietnamese stock entry types to English canonical names used by backend 
+export function toEnglishStockEntryType(value: string): string {
     const map: Record<string, string> = {
         // Common core types
         'Chuyển kho': 'Material Transfer',
@@ -78,7 +78,7 @@ function buildFiltersArray(filters: InventoryFilters): string[][] {
     // Filter theo stock_entry_type (convert VN -> EN canonical for backend)
     if (filters.stock_entry_type) {
         const canonical = toEnglishStockEntryType(filters.stock_entry_type);
-        filterArray.push(["stock_entry_type", "=", canonical]);
+        filterArray.push(["purpose", "=", canonical]);
     }
     
     // Filter theo workflow_state
@@ -174,15 +174,18 @@ export async function getAllInventory(options: InventoryQueryOptions = {}): Prom
                 queryParams.append('filters', JSON.stringify(filtersArray));
             }
         }
+        console.log( "queryParams", queryParams.toString());
         const fullUrl = `/api/resource/Stock Entry?${queryParams.toString()}`;
         const { data } = await api.get(fullUrl);
+        console.log( "data", JSON.stringify(data));
+
         if (data && data.data) {
             return {
+                
                 success: true,
                 data: data.data as InventoryItem[]
             };
         }
-        
         return {
             success: false,
             error: new CommonException(ErrorCode.ENTITY_NOT_FOUND, 'Không có dữ liệu Stock Entry')

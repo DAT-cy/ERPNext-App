@@ -65,6 +65,8 @@ export enum ErrorCode {
   INCOMING_RATE_NOT_FOUND = 'INCOMING_RATE_NOT_FOUND',
 
   STOCK_BALANCE_NOT_FOUND = 'STOCK_BALANCE_NOT_FOUND',
+
+  SAVE_INVENTORY_FAILED = 'SAVE_INVENTORY_FAILED',
 }
 
 // Interface cho Error Definition
@@ -370,5 +372,11 @@ export const ERROR_DEFINITIONS: Record<ErrorCode, ErrorDefinition> = {
     errorCode: 'STOCK-BALANCE-ERR-001',
     message: 'STOCK BALANCE NOT FOUND',
     userMessage: 'Không tìm thấy số lượng tồn kho'
+  },
+  [ErrorCode.SAVE_INVENTORY_FAILED]: {
+    status: StatusCode.BAD_REQUEST,
+    errorCode: 'SAVE-INVENTORY-ERR-001',
+    message: 'SAVE INVENTORY FAILED',
+    userMessage: 'Lỗi khi lưu phiếu nhập xuất'
   },
 };

@@ -84,6 +84,10 @@ export default function InventoryEntryScreens() {
             { value: 'Yêu cầu', label: 'Yêu cầu', category: 'workflow_state' },
             { value: 'Đang xử lý', label: 'Đang xử lý', category: 'workflow_state' },
             { value: 'Đã xử lý', label: 'Đã xử lý', category: 'workflow_state' },
+            { value: 'Draft', label: 'Nháp', category: 'workflow_state' },
+            { value: 'Hủy', label: 'Hủy', category: 'workflow_state' },
+
+
         ],
         stock_entry_type: [
             // default value is English canonical for filtering, label stays Vietnamese for display
@@ -256,16 +260,7 @@ export default function InventoryEntryScreens() {
         loadFilterOptions();
     }, []);
 
-    // Always reset defaults when screen is focused
-    useFocusEffect(
-        React.useCallback(() => {
-            setSearchQuery('');
-            setActiveFilters([
-                { key: 'workflow_state', label: 'Yêu cầu', category: 'workflow_state', value: 'Yêu cầu' },
-                { key: 'stock_entry_type', label: 'Chuyển kho', category: 'stock_entry_type', value: 'Material Transfer' },
-            ]);
-        }, [])
-    );
+    // Keep current filters when screen is focused (no reset)
 
     // Format date function
     const formatDate = (dateString: string): string => {
@@ -280,19 +275,22 @@ export default function InventoryEntryScreens() {
     // Get status display info
     const getStatusInfo = (state: string, docstatus: string | number) => {
         const statusMap: Record<string, { text: string; color: string; bgColor: string }> = {
-
-            'Đã xử lý': { text: 'Đã xử lý', color: colors.success, bgColor: '#F0FDF4' },
+            'Nháp': { text: 'Nháp', color: '#3B82F6', bgColor: '#EFF6FF' }, // Blue
+            'Draft': { text: 'Nháp', color: '#3B82F6', bgColor: '#EFF6FF' }, // Blue
+            'Đang xử lý': { text: 'Đang xử lý', color: '#F59E0B', bgColor: '#FFFBEB' }, // Yellow
+            'Đã xử lý': { text: 'Đã xử lý', color: '#10B981', bgColor: '#F0FDF4' }, // Green
+            'Hủy': { text: 'Hủy', color: '#EF4444', bgColor: '#FEF2F2' }, // Red
+            'Cancelled': { text: 'Hủy', color: '#EF4444', bgColor: '#FEF2F2' }, // Red
             'Yêu cầu': { text: 'Yêu cầu', color: colors.warning, bgColor: '#FFFBEB' },
-            'Đang xử lý': { text: 'Đang xử lý', color: colors.info, bgColor: '#EFF6FF' },
         };
 
         // Check docstatus if state not found
         if (!statusMap[state] && docstatus !== undefined) {
             const docstatusNumber = typeof docstatus === 'string' ? parseInt(docstatus) : docstatus;
             switch (docstatusNumber) {
-                case 0: return { text: 'Nháp', color: colors.info, bgColor: '#EFF6FF' };
-                case 1: return { text: 'Nhận hàng', color: colors.success, bgColor: '#F0FDF4' };
-                case 2: return { text: 'Trả hàng', color: colors.warning, bgColor: '#FFFBEB' };
+                case 0: return { text: 'Nháp', color: '#3B82F6', bgColor: '#EFF6FF' }; // Blue
+                case 1: return { text: 'Đã xử lý', color: '#10B981', bgColor: '#F0FDF4' }; // Green
+                case 2: return { text: 'Hủy', color: '#EF4444', bgColor: '#FEF2F2' }; // Red
             }
         }
 
@@ -321,14 +319,24 @@ export default function InventoryEntryScreens() {
         return labelMap[type] || type;
     };
 
-    // Handle barcode scan
-    const handleBarcodeScan = (barcode: string) => {
-        setSearchQuery(barcode);
-        Alert.alert(
-            'Quét Thành Công!',
-            `Đang tìm kiếm sản phẩm với mã: ${barcode}`,
-            [{ text: 'OK' }]
-        );
+    // Handle barcode scan -> try open detail directly; fallback to search
+    const handleBarcodeScan = async (barcode: string) => {
+        try {
+            setIsScannerVisible(false);
+            // Try fetch detail by scanned code (assumed to be document name/ID)
+            const response = await getInventoryDetail(barcode);
+            if (response?.success && response?.data) {
+                (navigation as any).navigate('InventoryDetailScreen', {
+                    inventoryDetail: response.data
+                });
+                return;
+            }
+            // Not found: show message
+            Alert.alert('Không tìm thấy', `Không có phiếu nào với mã: ${barcode}`, [{ text: 'OK' }]);
+        } catch (error) {
+            // Error: show message
+            Alert.alert('Lỗi', 'Có lỗi xảy ra khi tra cứu chi tiết phiếu. Vui lòng thử lại.', [{ text: 'OK' }]);
+        }
     };
 
     // Search with API call (debounced)

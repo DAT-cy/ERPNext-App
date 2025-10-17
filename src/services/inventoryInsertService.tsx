@@ -1,6 +1,7 @@
 import { CommonException } from "@/utils/error/CommonException";
 import { api } from "../config/api";
 import { ErrorCode } from "@/utils/error/ErrorCode";
+import { SaveInventoryRequest, SaveInventoryResponse } from "@/types/inventory.types";
 
 type IncomingRateResponse = { message?: number | string } | any;
 type StockBalanceResponse = { message?: { qty?: number | string } } | any;
@@ -60,3 +61,13 @@ export async function getStockBalance(
     }
 }
 
+export async function saveInventory(payload: SaveInventoryRequest): Promise<SaveInventoryResponse> {
+    try {
+        const form = new FormData();
+        form.append('data', JSON.stringify(payload));
+        const response = await api.post('/api/resource/Stock Entry', form);
+        return response.data;
+    } catch (error: any) {
+        throw new CommonException(ErrorCode.SAVE_INVENTORY_FAILED);
+    }
+}

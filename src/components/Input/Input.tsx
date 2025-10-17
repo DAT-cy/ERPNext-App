@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   TextInput,
@@ -14,6 +14,12 @@ export interface InputProps extends TextInputProps {
   error?: string;
   containerStyle?: ViewStyle;
   secureToggle?: boolean;
+  /** Enable auto-growing height for long text */
+  autoGrow?: boolean;
+  /** Minimum height when autoGrow/multiline */
+  minHeight?: number;
+  /** Maximum height when autoGrow/multiline */
+  maxHeight?: number;
 }
 
 export default function Input({
@@ -22,24 +28,50 @@ export default function Input({
   containerStyle,
   secureToggle = false,
   secureTextEntry,
+  autoGrow = false,
+  minHeight,
+  maxHeight,
   ...props
 }: InputProps) {
-  const [isSecure, setIsSecure] = useState(secureTextEntry);
+  const isMultiline = props.multiline || autoGrow;
+  const [isSecure, setIsSecure] = useState(secureTextEntry && !isMultiline);
+  const [inputHeight, setInputHeight] = useState<number | undefined>(undefined);
 
   const toggleSecure = () => {
     setIsSecure(!isSecure);
   };
+
+  const computedInputStyle = useMemo(() => {
+    const heightStyles: any = {};
+    if (isMultiline) {
+      if (typeof inputHeight === 'number') heightStyles.height = inputHeight;
+      if (typeof minHeight === 'number') heightStyles.minHeight = minHeight;
+      if (typeof maxHeight === 'number') heightStyles.maxHeight = maxHeight;
+    }
+    return [styles.input, error && styles.inputError, heightStyles];
+  }, [error, inputHeight, isMultiline, minHeight, maxHeight]);
 
   return (
     <View style={[styles.container, containerStyle]}>
       {label && <Text style={styles.label}>{label}</Text>}
       <View style={styles.inputContainer}>
         <TextInput
-          style={[styles.input, error && styles.inputError]}
-          secureTextEntry={isSecure}
+          style={computedInputStyle}
+          secureTextEntry={isMultiline ? false : isSecure}
+          multiline={isMultiline}
+          onContentSizeChange={
+            autoGrow
+              ? (e) => {
+                  const contentHeight = e.nativeEvent.contentSize.height;
+                  // Add small padding to avoid clipping last line
+                  setInputHeight(Math.ceil(contentHeight + 4));
+                }
+              : props.onContentSizeChange
+          }
+          textAlignVertical={isMultiline ? 'top' : 'auto'}
           {...props}
         />
-        {secureToggle && (
+        {secureToggle && !isMultiline && (
           <TouchableOpacity onPress={toggleSecure} style={styles.secureToggle}>
             <Text style={styles.secureToggleText}>
               {isSecure ? '👁️' : '🙈'}
