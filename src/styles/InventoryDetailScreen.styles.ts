@@ -597,11 +597,11 @@ export const insertInventoryStyles = StyleSheet.create({
         gap: 6,
     },
     quantityBtn: {
-        width: 32,
-        height: 32,
+        width: wp(8),
+        height: wp(8),
         borderWidth: 1,
         borderColor: '#ddd',
-        borderRadius: 16,
+        borderRadius: wp(4),
         backgroundColor: 'white',
         justifyContent: 'center',
         alignItems: 'center',
@@ -612,7 +612,7 @@ export const insertInventoryStyles = StyleSheet.create({
     },
     quantityInput: {
         width: 50,
-        height: 32,
+        height: 36,
         borderWidth: 1,
         borderColor: '#ddd',
         borderRadius: 4,
@@ -620,6 +620,8 @@ export const insertInventoryStyles = StyleSheet.create({
         fontSize: fs(12),
         fontWeight: '600',
         backgroundColor: 'white',
+        paddingVertical: 0,
+        paddingHorizontal: 4,
     },
 
     // Checkbox - Mobile optimized

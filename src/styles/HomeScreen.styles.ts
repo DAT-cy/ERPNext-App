@@ -4,6 +4,7 @@ import {
   wp, hp, fs, ss, 
   typography, spacing, borderRadius, touchTargets 
 } from '../utils';
+import { wpPlatform, hpPlatform, fsPlatform, ssPlatform } from '../utils/responsive';
 import { colors } from './globalStyles';
 
 export const homeScreenStyles = StyleSheet.create({
@@ -131,13 +132,16 @@ export const homeScreenStyles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.md,
-    paddingBottom: spacing.md,
+    marginTop: hpPlatform(2, 4), // iOS: 2%, Android: 4% (Android cách top nhiều hơn)
+    marginBottom: hpPlatform(1, 1.8), // iOS: 1%, Android: 1.8%
+    paddingTop: hpPlatform(1, 2), // iOS: 1%, Android: 2% (Android có padding top)
+    paddingBottom: hpPlatform(1, 1.8), // iOS: 1%, Android: 1.8%
+    paddingHorizontal: wpPlatform(4, 3.5), // iOS: 4%, Android: 3.5%
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
   attendanceTitle: {
-    fontSize: fs(18),
+    fontSize: fsPlatform(18, 17), // iOS: 18, Android: 17
     fontWeight: 'bold',
     color: colors.textPrimary,
   },
@@ -270,19 +274,26 @@ export const homeScreenStyles = StyleSheet.create({
     fontStyle: 'italic',
   },
   
-  // Header
+  // Header - Platform specific
   headerContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: spacing.md,
-    marginBottom: spacing.md,
+    paddingVertical: hpPlatform(2, 1.8), // iOS: 2%, Android: 1.8%
+    paddingHorizontal: wpPlatform(4, 3.5), // iOS: 4%, Android: 3.5%
+    marginBottom: hpPlatform(2, 1.8), // iOS: 2%, Android: 1.8%
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
     width: '100%',
+    backgroundColor: colors.white,
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
   },
   headerTitle: {
-    fontSize: fs(18),
+    fontSize: fsPlatform(18, 17), // iOS: 18, Android: 17
     fontWeight: 'bold',
     color: colors.textPrimary,
   },
@@ -409,13 +420,14 @@ export const homeScreenStyles = StyleSheet.create({
   },
   weeklyHeader: {
     alignItems: 'center',
-    marginBottom: spacing.md,
-    paddingBottom: spacing.sm,
+    marginBottom: hpPlatform(2, 1.8), // iOS: 2%, Android: 1.8%
+    paddingBottom: hpPlatform(1.5, 1.3), // iOS: 1.5%, Android: 1.3%
+    paddingHorizontal: wpPlatform(4, 3.5), // iOS: 4%, Android: 3.5%
     borderBottomWidth: 1,
     borderBottomColor: colors.gray100,
   },
   weeklyHeaderText: {
-    fontSize: fs(14),
+    fontSize: fsPlatform(14, 13), // iOS: 14, Android: 13
     fontWeight: 'bold',
     color: colors.textPrimary,
     textAlign: 'center',
@@ -469,7 +481,8 @@ export const homeScreenStyles = StyleSheet.create({
   timeHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing.xs,
+    marginBottom: hpPlatform(1, 0.8), // iOS: 1%, Android: 0.8%
+    paddingHorizontal: wpPlatform(4, 3.5), // iOS: 4%, Android: 3.5%
   },
   timeIcon: {
     width: ss(24),

@@ -1,6 +1,6 @@
 // src/screens/Inventory/InventoryEntryScreens.styles.ts
 import { StyleSheet } from 'react-native';
-import { wp, hp, fs } from '../utils/responsive';
+import { wp, hp, fs, wpPlatform, hpPlatform, fsPlatform } from '../utils/responsive';
 import { colors } from './globalStyles';
 
 export const inventoryEntryStyles = StyleSheet.create({
@@ -9,11 +9,12 @@ export const inventoryEntryStyles = StyleSheet.create({
     backgroundColor: colors.gray50,
   },
   
-  // Header Styles
+  // Header Styles - Platform specific
   header: {
     backgroundColor: colors.white,
-    paddingHorizontal: wp(4),
-    paddingVertical: hp(2),
+    paddingHorizontal: wpPlatform(4, 3.5), // iOS: 4%, Android: 3.5%
+    paddingTop: hpPlatform(2, 6), // iOS: 7%, Android: 6% (Android có status bar khác)
+    paddingBottom: hpPlatform(1, 1.8), // iOS: 2%, Android: 1.8%
     shadowColor: colors.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -21,10 +22,10 @@ export const inventoryEntryStyles = StyleSheet.create({
     elevation: 3,
   },
   headerTitle: {
-    fontSize: fs(18),
+    fontSize: fsPlatform(18, 17), // iOS: 18, Android: 17 (Android text thường nhỏ hơn)
     fontWeight: '600',
     color: colors.gray800,
-    marginBottom: hp(2),
+    marginBottom: hpPlatform(2, 1.8),
   },
   
   // Search Styles

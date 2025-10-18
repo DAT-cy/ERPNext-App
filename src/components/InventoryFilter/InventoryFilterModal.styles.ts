@@ -55,13 +55,14 @@ export const inventoryFilterStyles = StyleSheet.create({
     gap: wp(3),
   },
   
-  // Categories Left Panel Styles (1/5 width as in HTML)
+  // Categories Left Panel Styles (responsive width)
   categoriesContainer: {
-    width: '20%',
+    width: '25%',
     backgroundColor: colors.gray50,
     borderRightWidth: 1,
     borderRightColor: colors.gray200,
     paddingVertical: hp(0.5),
+    minWidth: wp(20),
   },
   
   categoryButton: {
@@ -77,26 +78,27 @@ export const inventoryFilterStyles = StyleSheet.create({
   },
   
   categoryButtonActive: {
-    backgroundColor: colors.warning + '20',
-    borderColor: colors.warning,
+    backgroundColor: '#FEF3C7', // Light orange background
+    borderColor: '#F59E0B', // Orange border
+    borderWidth: 2,
   },
   
   categoryButtonText: {
-    fontSize: fs(9),
+    fontSize: fs(10),
     color: colors.gray700,
     textAlign: 'center',
     fontWeight: '500',
-    lineHeight: fs(12),
+    lineHeight: fs(13),
   },
   
   categoryButtonTextActive: {
-    color: colors.warning,
+    color: '#D97706', // Darker orange for better contrast
     fontWeight: '600',
   },
   
-  // All Categories Right Panel Styles (4/5 width as in HTML)
+  // All Categories Right Panel Styles (responsive width)
   allCategoriesContainer: {
-    width: '80%',
+    width: '75%',
     flex: 1,
   },
   
@@ -124,11 +126,12 @@ export const inventoryFilterStyles = StyleSheet.create({
     borderBottomColor: colors.gray200,
   },
   
-  // Options Grid Styles (2x2 grid as in HTML)
+  // Options Grid Styles (responsive grid)
   optionsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
+    gap: wp(1),
   },
   
   filterOption: {
@@ -142,27 +145,30 @@ export const inventoryFilterStyles = StyleSheet.create({
     marginBottom: hp(1),
     minHeight: hp(5),
     justifyContent: 'center',
+    alignItems: 'center',
   },
   
   filterOptionSelected: {
-    backgroundColor: colors.warning + '20',
-    borderColor: colors.warning,
-    shadowColor: colors.warning,
+    backgroundColor: '#FEF3C7', // Light orange background
+    borderColor: '#F59E0B', // Orange border
+    borderWidth: 2,
+    shadowColor: '#F59E0B',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.2,
     shadowRadius: 4,
-    elevation: 4,
+    elevation: 3,
   },
   
   filterOptionText: {
-    fontSize: fs(11),
+    fontSize: fs(12),
     color: colors.gray700,
-    textAlign: 'left',
-    lineHeight: fs(14),
+    textAlign: 'center',
+    lineHeight: fs(16),
+    fontWeight: '500',
   },
   
   filterOptionTextSelected: {
-    color: colors.warning,
+    color: '#D97706', // Darker orange for better contrast
     fontWeight: '600',
   },
   

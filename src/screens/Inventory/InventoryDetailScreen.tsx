@@ -452,15 +452,96 @@ export default function InventoryDetailScreen() {
         {/* Company Details (Insert style) */}
         <View style={styles.companyDetails}>
           <View style={styles.companyInfo}>
-            <Text style={styles.companyLine}>{currentData.name}</Text>
-            <Text style={styles.companyLine}>{formatDate(currentData.creation)} - {formatTime(currentData.creation)}</Text>
-
+            <Text style={styles.companyLine}>{currentData.name} - {formatDate(currentData.creation)} - {formatTime(currentData.creation)}</Text>
             {currentData.owner ? (
               <Text style={styles.companyLine}>Người tạo: {currentData.owner}</Text>
             ) : null}
             {currentData.outgoing_stock_entry ? (
-            <Text style={styles.companyLine}>Mã (GIT): {currentData.outgoing_stock_entry}</Text>
-          ) : null}
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                <Text style={styles.companyLine}>Mã (GIT): </Text>
+                <TouchableOpacity 
+                  onPress={async () => {
+                    try {
+                      console.log('=== NAVIGATION DEBUG ===');
+                      console.log('Mã được ấn:', currentData.outgoing_stock_entry);
+                      console.log('Current screen name:', route.name);
+                      
+                      // Fetch data for the outgoing stock entry
+                      console.log('Fetching data for:', currentData.outgoing_stock_entry);
+                      const result = await getInventoryDetail(currentData.outgoing_stock_entry);
+                      console.log('API Result:', result);
+                      
+                      if (result.success && result.data) {
+                        console.log('Data fetched successfully:', result.data);
+                        console.log('Navigating to InventoryDetailScreen with real data...');
+                        
+                        // Navigate to detail screen with the fetched data
+                        navigation.push('InventoryDetailScreen', {
+                          inventoryDetail: result.data
+                        });
+                        
+                        console.log('Navigation with real data called successfully');
+                      } else {
+                        // Show error or fallback
+                        console.warn('Không thể tải dữ liệu cho mã:', currentData.outgoing_stock_entry);
+                        console.warn('Result:', result);
+                        console.warn('Error details:', result.error);
+                        
+                        // Fallback: Navigate với data cơ bản
+                        console.log('Using fallback navigation...');
+                        navigation.push('InventoryDetailScreen', {
+                          inventoryDetail: {
+                            name: currentData.outgoing_stock_entry,
+                            stock_entry_type: 'Unknown',
+                            creation: new Date().toISOString(),
+                            workflow_state: 'Unknown',
+                            from_warehouse: 'Unknown',
+                            custom_original_target_warehouse: 'Unknown',
+                            expense_account: 'Unknown',
+                            docstatus: 0,
+                            purpose: 'Unknown',
+                            custom_interpretation: 'Không thể tải dữ liệu',
+                            owner: 'Unknown',
+                            items: []
+                          }
+                        });
+                      }
+                    } catch (error) {
+                      console.error('Lỗi khi tải dữ liệu:', error);
+                      console.error('Error stack:', (error as Error).stack);
+                      
+                      // Fallback navigation on error
+                      console.log('Using error fallback navigation...');
+                      navigation.push('InventoryDetailScreen', {
+                        inventoryDetail: {
+                          name: currentData.outgoing_stock_entry,
+                          stock_entry_type: 'Error',
+                          creation: new Date().toISOString(),
+                          workflow_state: 'Error',
+                          from_warehouse: 'Error',
+                          custom_original_target_warehouse: 'Error',
+                          expense_account: 'Error',
+                          docstatus: 0,
+                          purpose: 'Error',
+                          custom_interpretation: 'Lỗi khi tải dữ liệu',
+                          owner: 'Error',
+                          items: []
+                        }
+                      });
+                    }
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.companyLine, { 
+                    color: colors.primary, 
+                    textDecorationLine: 'underline',
+                    fontWeight: '600'
+                  }]}>
+                    {currentData.outgoing_stock_entry}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            ) : null}
           </View>
         </View>
 

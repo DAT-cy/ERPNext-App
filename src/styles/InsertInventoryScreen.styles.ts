@@ -1,7 +1,7 @@
 // src/styles/InsertInventoryScreen.styles.ts
 import { StyleSheet } from 'react-native';
 import { colors } from './globalStyles';
-import { wp, hp, fs } from '../utils/responsive';
+import { wp, hp, fs, wpPlatform, hpPlatform, fsPlatform } from '../utils/responsive';
 
 export const insertInventoryStyles = StyleSheet.create({
     safeArea: {
@@ -12,8 +12,9 @@ export const insertInventoryStyles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingHorizontal: 16,
-        paddingVertical: 12,
+        paddingHorizontal: wpPlatform(4, 3.5), // iOS: 4%, Android: 3.5%
+        paddingTop: hpPlatform(2, 7), // iOS: 7%, Android: 6% (Android có status bar khác)
+        paddingBottom: hpPlatform(1.5, 1.3), // iOS: 1.5%, Android: 1.3%
         backgroundColor: colors.white,
         borderBottomWidth: StyleSheet.hairlineWidth,
         borderBottomColor: colors.gray200,
@@ -24,14 +25,14 @@ export const insertInventoryStyles = StyleSheet.create({
         elevation: 2,
         zIndex: 1000,
         position: 'relative',
-        minHeight: 56,
+        minHeight: hpPlatform(7, 6.5), // iOS: 7%, Android: 6.5%
     },
     iconBtn: {
-        padding: 8,
-        borderRadius: 8,
+        padding: wp(2),
+        borderRadius: wp(2),
     },
     iconText: {
-        fontSize: fs(18),
+        fontSize: fsPlatform(18, 17), // iOS: 18, Android: 17
         color: colors.gray600,
     },
     headerCenter: {
@@ -47,9 +48,9 @@ export const insertInventoryStyles = StyleSheet.create({
     statusSaved: { color: colors.success },
     saveBtn: {
         backgroundColor: '#2563EB',
-        paddingHorizontal: 18,
-        paddingVertical: 10,
-        borderRadius: 12,
+        paddingHorizontal: wp(4.5),
+        paddingVertical: hp(1.25),
+        borderRadius: wp(3),
         shadowColor: '#2563EB',
         shadowOpacity: 0.25,
         shadowRadius: 6,
@@ -73,14 +74,14 @@ export const insertInventoryStyles = StyleSheet.create({
         shadowRadius: 8,
         shadowOffset: { width: 0, height: 2 },
         elevation: 3,
-        marginVertical: 8,
+        marginVertical: hp(1),
         overflow: 'hidden',
     },
     expanded: {
         // natural height via content
     },
     collapsed: {
-        height: 60,
+        height: hp(7.5),
     },
     sectionHeader: {
         minHeight: hp(6),
@@ -97,10 +98,10 @@ export const insertInventoryStyles = StyleSheet.create({
         alignItems: 'center',
     },
     iconCircle: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        marginRight: 12,
+        width: wp(8),
+        height: wp(8),
+        borderRadius: wp(4),
+        marginRight: wp(3),
         borderWidth: 1,
         borderColor: '#E5E7EB',
     },
@@ -110,7 +111,7 @@ export const insertInventoryStyles = StyleSheet.create({
         color: colors.gray900,
     },
     chevron: {
-        fontSize: 18,
+        fontSize: fs(18),
         color: '#9CA3AF',
     },
     sectionBody: {
@@ -228,7 +229,7 @@ export const insertInventoryStyles = StyleSheet.create({
         marginBottom: 8,
     },
     itemTitle: {
-        fontSize: 14,
+        fontSize: fs(14),
         fontWeight: '600',
         color: '#374151',
     },
@@ -357,8 +358,8 @@ export const insertInventoryStyles = StyleSheet.create({
     },
     filterBtn: {
         backgroundColor: '#111111',
-        paddingHorizontal: 12,
-        paddingVertical: 8,
+        paddingHorizontal: wp(3),
+        paddingVertical: hp(1),
         borderRadius: 8,
         flexDirection: 'row',
         alignItems: 'center',
@@ -376,8 +377,8 @@ export const insertInventoryStyles = StyleSheet.create({
     // Progress Bar - Mobile optimized
     progressBar: {
         backgroundColor: 'white',
-        paddingVertical: 12,
-        paddingHorizontal: 16,
+        paddingVertical: hp(1.5),
+        paddingHorizontal: wp(4),
         borderBottomWidth: 1,
         borderBottomColor: '#f0f0f0',
         zIndex: 999,
@@ -393,12 +394,12 @@ export const insertInventoryStyles = StyleSheet.create({
         flex: 1,
         alignItems: 'center',
         position: 'relative',
-        paddingHorizontal: 4,
+        paddingHorizontal: wp(1),
     },
     stepCircle: {
-        width: 20,
-        height: 20,
-        borderRadius: 10,
+        width: wp(5),
+        height: wp(5),
+        borderRadius: wp(2.5),
         justifyContent: 'center',
         alignItems: 'center',
         marginBottom: 4,
@@ -426,7 +427,7 @@ export const insertInventoryStyles = StyleSheet.create({
         fontWeight: '600',
         textAlign: 'center',
         color: '#333',
-        paddingHorizontal: 8,
+        paddingHorizontal: wp(2),
         lineHeight: 16,
         alignSelf: 'stretch',
         flexGrow: 1,
@@ -460,8 +461,8 @@ export const insertInventoryStyles = StyleSheet.create({
 
     // Active Filters Chips
     filtersBar: {
-        paddingHorizontal: 16,
-        paddingVertical: 12,
+        paddingHorizontal: wp(4),
+        paddingVertical: hp(1.5),
         backgroundColor: colors.gray50,
         borderBottomWidth: StyleSheet.hairlineWidth,
         borderBottomColor: colors.gray200,
@@ -474,8 +475,8 @@ export const insertInventoryStyles = StyleSheet.create({
     filterChip: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 10,
-        paddingVertical: 6,
+        paddingHorizontal: wp(2.5),
+        paddingVertical: hp(0.75),
         borderRadius: 16,
         backgroundColor: '#FFFFFF',
         borderWidth: 1,
@@ -492,7 +493,7 @@ export const insertInventoryStyles = StyleSheet.create({
         backgroundColor: 'white',
         borderRadius: 8,
         marginBottom: 16,
-        marginHorizontal: 16,
+        marginHorizontal: wp(4),
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 1 },
         shadowOpacity: 0.05,
@@ -501,7 +502,7 @@ export const insertInventoryStyles = StyleSheet.create({
         overflow: 'hidden',
     },
     companyInfo: {
-        padding: 12,
+        padding: wp(3),
     },
     companyLine: {
         fontSize: fs(12),
@@ -513,7 +514,7 @@ export const insertInventoryStyles = StyleSheet.create({
 
     // Main Content - Mobile optimized
     mainContent: {
-        padding: 16,
+        padding: wp(4),
     },
 
     // Shop Section - Mobile optimized
@@ -521,7 +522,7 @@ export const insertInventoryStyles = StyleSheet.create({
         backgroundColor: 'white',
         borderRadius: 8,
         marginBottom: 12,
-        marginHorizontal: 16,
+        marginHorizontal: wp(4),
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 1 },
         shadowOpacity: 0.05,
@@ -530,7 +531,7 @@ export const insertInventoryStyles = StyleSheet.create({
         overflow: 'hidden',
     },
     productItem: {
-        padding: 12,
+        padding: wp(3),
     },
     productMain: {
         flexDirection: 'row',
@@ -597,11 +598,11 @@ export const insertInventoryStyles = StyleSheet.create({
         gap: 6,
     },
     quantityBtn: {
-        width: 32,
-        height: 32,
+            width: wp(8),
+        height: wp(8),
         borderWidth: 1,
         borderColor: '#ddd',
-        borderRadius: 16,
+        borderRadius: wp(4),
         backgroundColor: 'white',
         justifyContent: 'center',
         alignItems: 'center',
@@ -651,7 +652,7 @@ export const insertInventoryStyles = StyleSheet.create({
         borderRadius: 8,
         borderWidth: 1,
         borderColor: '#E5E7EB',
-        marginHorizontal: 16,
+        marginHorizontal: wp(4),
     },
     emptyIcon: {
         width: 48,
@@ -682,12 +683,12 @@ export const insertInventoryStyles = StyleSheet.create({
     // Add Product Button - Mobile optimized
     addProductBtn: {
         backgroundColor: '#111111',
-        paddingVertical: 12,
-        paddingHorizontal: 20,
+        paddingVertical: hp(1.5),
+        paddingHorizontal: wp(5),
         borderRadius: 8,
         alignItems: 'center',
         marginTop: 12,
-        marginHorizontal: 16,
+        marginHorizontal: wp(4),
     },
     addProductBtnText: {
         color: 'white',
@@ -704,7 +705,7 @@ export const insertInventoryStyles = StyleSheet.create({
         backgroundColor: 'white',
         borderTopWidth: 1,
         borderTopColor: '#f0f0f0',
-        padding: 16,
+        padding: wp(4),
         shadowColor: '#000',
         shadowOffset: { width: 0, height: -1 },
         shadowOpacity: 0.1,
@@ -761,8 +762,8 @@ export const insertInventoryStyles = StyleSheet.create({
     checkoutBtn: {
         backgroundColor: '#111111',
         borderRadius: 8,
-        paddingVertical: 12,
-        paddingHorizontal: 20,
+        paddingVertical: hp(1.5),
+        paddingHorizontal: wp(5),
         alignItems: 'center',
         marginTop: 8,
     },

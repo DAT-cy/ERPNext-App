@@ -132,16 +132,67 @@ export const getResponsiveValue = (values: {
   }
 };
 
+// Platform-specific responsive utilities
+export const wpPlatform = (iosPercentage: number, androidPercentage?: number): number => {
+  const percentage = Platform.OS === 'ios' ? iosPercentage : (androidPercentage || iosPercentage);
+  return wp(percentage);
+};
+
+export const hpPlatform = (iosPercentage: number, androidPercentage?: number): number => {
+  const percentage = Platform.OS === 'ios' ? iosPercentage : (androidPercentage || iosPercentage);
+  return hp(percentage);
+};
+
+export const fsPlatform = (iosSize: number, androidSize?: number): number => {
+  const size = Platform.OS === 'ios' ? iosSize : (androidSize || iosSize);
+  return fs(size);
+};
+
+export const ssPlatform = (iosSize: number, androidSize?: number): number => {
+  const size = Platform.OS === 'ios' ? iosSize : (androidSize || iosSize);
+  return ss(size);
+};
+
+// Platform-specific responsive values with breakpoints
+export const getPlatformResponsiveValue = (values: {
+  ios?: {
+    xs?: number;
+    sm?: number;
+    md?: number;
+    lg?: number;
+    xl?: number;
+    xxl?: number;
+  };
+  android?: {
+    xs?: number;
+    sm?: number;
+    md?: number;
+    lg?: number;
+    xl?: number;
+    xxl?: number;
+  };
+}): number => {
+  const platformValues = Platform.OS === 'ios' ? values.ios : values.android;
+  if (!platformValues) return 0;
+  
+  return getResponsiveValue(platformValues);
+};
+
 // Export default object with all functions
 export default {
   wp,
   hp,
   fs,
   ss,
+  wpPlatform,
+  hpPlatform,
+  fsPlatform,
+  ssPlatform,
   deviceInfo,
   breakpoints,
   getCurrentBreakpoint,
   getResponsiveValue,
+  getPlatformResponsiveValue,
   isSmallScreen,
   isMediumScreen,
   isLargeScreen,

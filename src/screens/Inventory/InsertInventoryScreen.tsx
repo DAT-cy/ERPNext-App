@@ -100,9 +100,9 @@ export default function InsertInventoryScreen() {
     const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
     const [filterCategories] = useState<FilterCategory[]>([
         { key: 'stock_entry_type', title: 'Loại nhập xuất *' },
-        { key: 'warehouse_origin', title: 'Kho gốc' },
-        { key: 'warehouse_export', title: 'Kho xuất *' },
-        {key : 'warehouse_import', title: 'Kho nhập *'}
+        { key: 'warehouse_origin', title: 'Kho Đích' },
+        { key: 'warehouse_export', title: 'Kho Xuất *' },
+        {key : 'warehouse_import', title: 'Kho Nhập *'}
     ]);
     const [filterOptions, setFilterOptions] = useState<Record<string, FilterOption[]>>({
         stock_entry_type: [],
