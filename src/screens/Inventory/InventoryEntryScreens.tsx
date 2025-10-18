@@ -12,6 +12,7 @@ import {
     StatusBar,
     ActivityIndicator,
     Alert,
+    RefreshControl,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -75,6 +76,7 @@ export default function InventoryEntryScreens() {
     const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
     const [exportImportTypesOption, setExportImportTypesOption] = useState<Record<string, FilterOption[]>>({});
     const [isScannerVisible, setIsScannerVisible] = useState(false);
+    const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
 
     const scrollY = useRef(new Animated.Value(0)).current;
 
@@ -86,6 +88,8 @@ export default function InventoryEntryScreens() {
             { value: 'Đã xử lý', label: 'Đã xử lý', category: 'workflow_state' },
             { value: 'Draft', label: 'Nháp', category: 'workflow_state' },
             { value: 'Hủy', label: 'Hủy', category: 'workflow_state' },
+            { value: 'Đóng', label: 'Đóng', category: 'workflow_state' },
+
 
 
         ],
@@ -430,6 +434,19 @@ export default function InventoryEntryScreens() {
         setActiveFilters(prev => prev.filter(f => f.key !== filterToRemove.key));
     };
 
+    // Handle pull-to-refresh
+    const handleRefresh = async () => {
+        setIsRefreshing(true);
+        try {
+            // Reset to first page and reload data
+            setCurrentPage(0);
+            setIsEndReachedCalled(false);
+            await fetchInventoryData(0, false);
+        } finally {
+            setIsRefreshing(false);
+        }
+    };
+
     // Fetch inventory data from API
     const fetchInventoryData = async (page: number = 0, isLoadMore: boolean = false) => {
         if (isLoadMore) {
@@ -706,6 +723,16 @@ export default function InventoryEntryScreens() {
                 )}
                 onEndReached={loadMoreData}
                 onEndReachedThreshold={0.5}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={isRefreshing}
+                        onRefresh={handleRefresh}
+                        colors={['#3B82F6']} // Android
+                        tintColor="#3B82F6" // iOS
+                        title="Đang tải lại..."
+                        titleColor="#6B7280"
+                    />
+                }
                 ListFooterComponent={() => {
                     if (loadingMore) {
                         return (

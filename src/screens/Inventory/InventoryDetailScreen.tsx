@@ -8,10 +8,11 @@ import {
   Platform,
   TextInput,
   Image,
+  RefreshControl,
 } from 'react-native';
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import { hp } from '../../utils/responsive';
-import { InventoryDetailData } from '../../services/inventoryDetailService';
+import { InventoryDetailData, updateStockEntry, getInventoryDetail } from '../../services/inventoryDetailService';
 import { Input } from '../../components/Input';
 import { inventoryDetailStyles as styles } from '../../styles/InventoryDetailScreen.styles';
 import { colors } from '../../styles/globalStyles';
@@ -29,10 +30,17 @@ export default function InventoryDetailScreen() {
   const [commentText, setCommentText] = useState('');
   const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
   const [itemsState, setItemsState] = useState<any[]>([]);
   const [currentStatus, setCurrentStatus] = useState<string>('');
   const [isStatusPickerOpen, setIsStatusPickerOpen] = useState(false);
+  const [data, setData] = useState<InventoryDetailData | null>(null);
+  
+  // Track original values to detect changes
+  const [originalDescription, setOriginalDescription] = useState('');
+  const [originalStatus, setOriginalStatus] = useState('');
+  const [originalItems, setOriginalItems] = useState<any[]>([]);
   
   // Fallback data if no inventory detail provided
   const defaultData: InventoryDetailData = {
@@ -49,21 +57,36 @@ export default function InventoryDetailScreen() {
     owner: 'N/A',
   };
   
-  const data = inventoryDetail || defaultData;
+  // Initialize data from route params or use current state
+  const currentData = data || inventoryDetail || defaultData;
+  
+  // Initialize data from route params on mount
   useEffect(() => {
-    setDescription(data.custom_interpretation || '');
-  }, [data.custom_interpretation]);
+    if (inventoryDetail && !data) {
+      setData(inventoryDetail);
+    }
+  }, [inventoryDetail, data]);
+
+  useEffect(() => {
+    const desc = currentData.custom_interpretation || '';
+    setDescription(desc);
+    setOriginalDescription(desc);
+  }, [currentData.custom_interpretation]);
 
   // Sync items into local state for editable quantity
   useEffect(() => {
-    const srcItems = Array.isArray((data as any)?.items) ? (data as any).items : [];
-    setItemsState(srcItems.map((it: any) => ({ ...it })));
-  }, [(data as any)?.items]);
+    const srcItems = Array.isArray((currentData as any)?.items) ? (currentData as any).items : [];
+    const itemsCopy = srcItems.map((it: any) => ({ ...it }));
+    setItemsState(itemsCopy);
+    setOriginalItems(itemsCopy);
+  }, [(currentData as any)?.items]);
 
   // Sync current status from data and update when data changes
   useEffect(() => {
-    setCurrentStatus(data.workflow_state || '');
-  }, [data.workflow_state]);
+    const status = currentData.workflow_state || '';
+    setCurrentStatus(status);
+    setOriginalStatus(status);
+  }, [currentData.workflow_state]);
 
   // Status mapping (aligned with InsertInventoryEntry)
   const statusMap: Record<string, { text: string; color: string; bgColor: string }> = {
@@ -89,26 +112,144 @@ export default function InventoryDetailScreen() {
     return { text: status, color: colors.gray700, bgColor: '#F3F4F6' };
   };
   const statusResolved = resolveStatus(currentStatus);
-  const isEditable = ['Nháp', 'Draft', 'Yêu cầu', 'Đang xử lý'].includes(statusResolved.text);
+  const isEditable = ['Nháp', 'Draft', 'Yêu cầu', 'Đang xử lý','Đóng'].includes(statusResolved.text);
 
   // Allowed transitions
   const transitionMap: Record<string, string[]> = {
     'Nháp': ['Yêu cầu'],
-    'Yêu cầu': ['Đang xử lý', 'Hủy'],
-    'Đang xử lý': ['Đã xử lý', 'Hủy'],
+    'Yêu cầu': ['Đang xử lý', 'Đóng'],
+    'Đang xử lý': ['Đã xử lý', 'Đóng'],
+    'Đã xử lý' : ['Hủy'],
   };
   const allowedNextStatuses = transitionMap[statusResolved.text] || [];
 
-  const handleSave = () => {
-    // TODO: connect to API to save description, quantities, and status
-    console.log('[InventoryDetail] Save clicked', {
-      name: data.name,
-      status: currentStatus,
-      description,
-      items: itemsState.map(it => ({ item_code: it.item_code, qty: it.qty })),
-    });
-    // You can navigate back after successful save
-    // (navigation as any)?.goBack?.();
+  // Function to check if there are any changes
+  const hasChanges = () => {
+    // Check description changes
+    if (description !== originalDescription) {
+      return true;
+    }
+    
+    // Check status changes
+    if (currentStatus !== originalStatus) {
+      return true;
+    }
+    
+    // Check items changes
+    if (itemsState.length !== originalItems.length) {
+      return true;
+    }
+    
+    // Check individual item changes (quantity, basic_rate)
+    for (let i = 0; i < itemsState.length; i++) {
+      const currentItem = itemsState[i];
+      const originalItem = originalItems[i];
+      
+      if (!originalItem) return true;
+      
+      // Compare quantities (handle both string and number)
+      const currentQty = parseFloat(String(currentItem.qty)) || 0;
+      const originalQty = parseFloat(String(originalItem.qty)) || 0;
+      
+      if (currentQty !== originalQty) {
+        return true;
+      }
+      
+      // Compare basic rates
+      const currentRate = parseFloat(String(currentItem.basic_rate)) || 0;
+      const originalRate = parseFloat(String(originalItem.basic_rate)) || 0;
+      
+      if (currentRate !== originalRate) {
+        return true;
+      }
+    }
+    
+    return false;
+  };
+
+  const hasAnyChanges = hasChanges();
+
+  // Function to refresh data
+  const refreshData = async () => {
+    if (!currentData.name || currentData.name === 'N/A') {
+      console.log('⚠️ [InventoryDetail] No valid data name to refresh');
+      return;
+    }
+
+    try {
+      console.log('🔄 [InventoryDetail] Refreshing data for:', currentData.name);
+      const result = await getInventoryDetail(currentData.name);
+      
+      if (result.success && result.data) {
+        console.log('✅ [InventoryDetail] Data refreshed successfully');
+        setData(result.data);
+      } else {
+        console.error('❌ [InventoryDetail] Failed to refresh data:', result.error);
+      }
+    } catch (error) {
+      console.error('💥 [InventoryDetail] Refresh error:', error);
+    }
+  };
+
+  // Handle pull-to-refresh
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await refreshData();
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (isSubmitting) return;
+    
+    setIsSubmitting(true);
+    try {
+      // Prepare items data for update
+      const itemsToUpdate = itemsState.map(item => ({
+        item_code: item.item_code,
+        item_name: item.item_name,
+        is_finished_item: item.is_finished_item ? 1 : 0,
+        qty: parseFloat(String(item.qty)) || 0,
+        uom: item.uom,
+        basic_rate: parseFloat(String(item.basic_rate)) || 0
+      }));
+
+      console.log('🔄 [InventoryDetail] Saving changes...');
+      
+      // Call update API with only changed fields
+      const result = await updateStockEntry(currentData.name, currentData, {
+        custom_interpretation: description,
+        workflow_state: currentStatus,
+        items: itemsToUpdate
+      });
+
+      if (result.success) {
+        console.log('✅ [InventoryDetail] Save successful');
+        // Update original values to reset change detection
+        setOriginalDescription(description);
+        setOriginalStatus(currentStatus);
+        setOriginalItems([...itemsState]);
+        
+        // Update local data with server response
+        if (result.data) {
+          console.log('📝 [InventoryDetail] Data updated from server');
+        }
+        // TODO: Show success message to user
+        // You can add a toast notification here
+      } else {
+        console.error('❌ [InventoryDetail] Save failed:', result.error);
+        // TODO: Show error message to user
+        // You can add error toast notification here
+      }
+    } catch (error) {
+      console.error('💥 [InventoryDetail] Save error:', error);
+      // TODO: Show error message to user
+      // You can add error toast notification here
+    } finally {
+      setIsSubmitting(false);
+    }
   };
   
   // Handle comment input focus - do not auto scroll
@@ -179,6 +320,7 @@ export default function InventoryDetailScreen() {
                 backgroundColor: statusResolved.bgColor,
                 borderWidth: 1,
                 borderColor: statusResolved.bgColor,
+                opacity: 1,
               }}
             >
               <TouchableOpacity
@@ -214,14 +356,21 @@ export default function InventoryDetailScreen() {
               return (
                 <TouchableOpacity
                   key={opt}
-                  onPress={() => { setCurrentStatus(opt); setIsStatusPickerOpen(false); }}
+                  onPress={() => {
+                    // Just change local state, don't call API immediately
+                    setIsStatusPickerOpen(false);
+                    setCurrentStatus(opt);
+                    console.log('📝 [InventoryDetail] Status changed locally to:', opt);
+                  }}
                   style={{
                     flexDirection: 'row',
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     paddingVertical: 10,
+                    opacity: 1,
                   }}
                   activeOpacity={0.7}
+                  disabled={false}
                 >
                   <Text style={{ fontSize: 14, color: '#111827', fontWeight: isSelected ? '700' as any : '500' as any }}>
                     {r.text}
@@ -239,7 +388,7 @@ export default function InventoryDetailScreen() {
       {/* Progress Bar (mirrors insert) */}
       <View style={styles.progressBar}>
         <View style={styles.progressContainer}>
-          {[{ id: 'export', label: (data.from_warehouse || 'Kho xuất') }, { id: 'import', label: (data.custom_original_target_warehouse || 'Kho nhập') }].map((step, index) => {
+          {[{ id: 'export', label: (currentData.from_warehouse || 'Kho xuất') }, { id: 'import', label: (currentData.custom_original_target_warehouse || 'Kho nhập') }].map((step, index) => {
             const isSelected = true; // in detail view both are effectively selected/completed
             const isCompleted = true;
             return (
@@ -283,21 +432,34 @@ export default function InventoryDetailScreen() {
 
       <ScrollView 
         ref={scrollViewRef}
-        contentContainerStyle={[styles.container, { paddingBottom: 120 }]}
+        contentContainerStyle={[
+          styles.container, 
+          { paddingBottom: hasAnyChanges ? 120 : 20 }
+        ]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+            colors={['#3B82F6']} // Android
+            tintColor="#3B82F6" // iOS
+            title="Đang tải lại..."
+            titleColor="#6B7280"
+          />
+        }
       >
         {/* Company Details (Insert style) */}
         <View style={styles.companyDetails}>
           <View style={styles.companyInfo}>
-            <Text style={styles.companyLine}>{data.name}</Text>
-            <Text style={styles.companyLine}>{formatDate(data.creation)} - {formatTime(data.creation)}</Text>
+            <Text style={styles.companyLine}>{currentData.name}</Text>
+            <Text style={styles.companyLine}>{formatDate(currentData.creation)} - {formatTime(currentData.creation)}</Text>
 
-            {data.owner ? (
-              <Text style={styles.companyLine}>Người tạo: {data.owner}</Text>
+            {currentData.owner ? (
+              <Text style={styles.companyLine}>Người tạo: {currentData.owner}</Text>
             ) : null}
-            {data.outgoing_stock_entry ? (
-            <Text style={styles.companyLine}>Mã (GIT): {data.outgoing_stock_entry}</Text>
+            {currentData.outgoing_stock_entry ? (
+            <Text style={styles.companyLine}>Mã (GIT): {currentData.outgoing_stock_entry}</Text>
           ) : null}
           </View>
         </View>
@@ -411,21 +573,6 @@ export default function InventoryDetailScreen() {
           )}
         </View>
 
-          {/* Stock Summary (Insert style) */}
-          <View style={styles.shopSection}>
-            <View style={styles.productItem}>
-              <Text style={styles.sectionTitle}>Tổng Kết</Text>
-              <View style={{ marginTop: 8 }}>
-                <Text style={styles.productCode}>Tổng Giá Trị Nhập: {data.total_incoming_value?.toLocaleString('vi-VN') || '0'} VNĐ</Text>
-                <Text style={styles.productCode}>Tổng Giá Trị Xuất: {data.total_outgoing_value?.toLocaleString('vi-VN') || '0'} VNĐ</Text>
-                <Text style={styles.productCode}>Chênh Lệch: {data.value_difference?.toLocaleString('vi-VN') || '0'} VNĐ</Text>
-              </View>
-            </View>
-          </View>
-
-
-
-
           {/* Action Buttons */}
           {/* <View style={styles.sectionCard}>
             <View style={styles.mobileActionButtonsContainer}>
@@ -454,16 +601,24 @@ export default function InventoryDetailScreen() {
           </View> */}
       </ScrollView>
 
-      {/* Footer (mirrors insert: single primary action) */}
-      <View style={styles.footer}>
-        <TouchableOpacity
-          style={styles.checkoutBtn}
-          onPress={handleSave}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.checkoutBtnText}>Lưu</Text>
-        </TouchableOpacity>
-      </View>
+      {/* Footer (mirrors insert: single primary action) - Only show when there are changes */}
+      {hasAnyChanges && (
+        <View style={styles.footer}>
+          <TouchableOpacity
+            style={[
+              styles.checkoutBtn,
+              isSubmitting && { opacity: 0.6 }
+            ]}
+            onPress={handleSave}
+            activeOpacity={0.8}
+            disabled={isSubmitting}
+          >
+            <Text style={styles.checkoutBtnText}>
+              {isSubmitting ? 'Đang lưu...' : 'Lưu'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </KeyboardAvoidingView>
   );
 }

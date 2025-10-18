@@ -48,3 +48,17 @@ export type SaveInventoryResponse = {
         name: string;
     };
 };
+
+export interface UpdateStockEntryPayload {
+    custom_interpretation?: string;
+    workflow_state?: string;
+    items?:UpdateStockEntryItem[];
+}
+export type UpdateStockEntryItem = {
+    item_code: string;
+    item_name: string;
+    is_finished_item: number;
+    qty: number;
+    uom: string;
+    basic_rate: number;
+}

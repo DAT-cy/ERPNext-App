@@ -99,10 +99,10 @@ export default function InsertInventoryScreen() {
     const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
     const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
     const [filterCategories] = useState<FilterCategory[]>([
-        { key: 'stock_entry_type', title: 'Loại nhập xuất' },
+        { key: 'stock_entry_type', title: 'Loại nhập xuất *' },
         { key: 'warehouse_origin', title: 'Kho gốc' },
-        { key: 'warehouse_export', title: 'Kho xuất' },
-        {key : 'warehouse_import', title: 'Kho nhập'}
+        { key: 'warehouse_export', title: 'Kho xuất *' },
+        {key : 'warehouse_import', title: 'Kho nhập *'}
     ]);
     const [filterOptions, setFilterOptions] = useState<Record<string, FilterOption[]>>({
         stock_entry_type: [],
@@ -186,27 +186,49 @@ export default function InsertInventoryScreen() {
 
     const saveTransfer = useCallback(async () => {
         try {
-            // Check if export warehouse is selected
-            const hasExportSelected = activeFilters.some(f => f.category === 'warehouse_export');
-            
-            // Validate required fields
-            if (!hasExportSelected) {
-                showToast('Vui lòng chọn kho xuất');
-                return;
-            }
-
-            if (items.length === 0) {
-                showToast('Vui lòng thêm ít nhất một sản phẩm');
-                return;
-            }
-
             // Get selected filters
             const stockEntryTypeFilter = activeFilters.find(f => f.category === 'stock_entry_type');
             const exportWarehouseFilter = activeFilters.find(f => f.category === 'warehouse_export');
             const importWarehouseFilter = activeFilters.find(f => f.category === 'warehouse_import');
 
-            if (!stockEntryTypeFilter || !exportWarehouseFilter || !importWarehouseFilter) {
-                showToast('Vui lòng chọn đầy đủ thông tin kho và loại nhập xuất');
+            // Collect all validation errors
+            const validationErrors: string[] = [];
+
+            if (!stockEntryTypeFilter) {
+                validationErrors.push('• Loại nhập xuất');
+            }
+
+            if (!exportWarehouseFilter) {
+                validationErrors.push('• Kho xuất');
+            }
+
+            if (!importWarehouseFilter) {
+                validationErrors.push('• Kho nhập');
+            }
+
+            if (items.length === 0) {
+                validationErrors.push('• Ít nhất một sản phẩm');
+            } else {
+                // Validate item quantities
+                const itemsWithEmptyQty = items.filter(item => !item.qty || item.qty.trim() === '' || parseFloat(item.qty) <= 0);
+                if (itemsWithEmptyQty.length > 0) {
+                    validationErrors.push('• Số lượng cho tất cả sản phẩm');
+                }
+
+                // Validate item codes
+                const itemsWithEmptyCode = items.filter(item => !item.code || item.code.trim() === '');
+                if (itemsWithEmptyCode.length > 0) {
+                    validationErrors.push('• Mã sản phẩm cho tất cả items');
+                }
+            }
+
+            // Show validation errors if any
+            if (validationErrors.length > 0) {
+                Alert.alert(
+                    'Thiếu thông tin bắt buộc', 
+                    `Vui lòng điền đầy đủ các trường sau:\n\n${validationErrors.join('\n')}`,
+                    [{ text: 'OK', style: 'default' }]
+                );
                 return;
             }
 
@@ -216,8 +238,8 @@ export default function InsertInventoryScreen() {
                 item_code: item.code,
                 item_name: item.name,
                 qty: parseFloat(item.qty) || 0,
-                s_warehouse: exportWarehouseFilter.value,
-                t_warehouse: importWarehouseFilter.value,
+                s_warehouse: exportWarehouseFilter!.value,
+                t_warehouse: importWarehouseFilter!.value,
                 basic_rate: parseFloat(item.price) || 0,
                 stock_uom: item.unit,
                 uom: item.unit,
@@ -227,21 +249,21 @@ export default function InsertInventoryScreen() {
             // Origin warehouse logic for transit
             const originWarehouseFilter = activeFilters.find(f => f.category === 'warehouse_origin');
             const addToTransit = originWarehouseFilter ? '1' : '0';
-            const originalTargetWarehouse = originWarehouseFilter?.value || importWarehouseFilter.value;
+            const originalTargetWarehouse = originWarehouseFilter?.value || importWarehouseFilter!.value;
 
             // Prepare save request
             const saveRequest: SaveInventoryRequest = {
                 docstatus: '0',
                 doctype: 'Stock Entry',
-                purpose: toEnglishStockEntryType(stockEntryTypeFilter.value),
+                purpose: toEnglishStockEntryType(stockEntryTypeFilter!.value),
                 company: 'CTY REMAK',
                 posting_date: postDate,
                 posting_time: postTime,
-                stock_entry_type: stockEntryTypeFilter.value,
+                stock_entry_type: stockEntryTypeFilter!.value,
                 add_to_transit: addToTransit,
                 custom_original_target_warehouse: originalTargetWarehouse,
-                from_warehouse: exportWarehouseFilter.value,
-                to_warehouse: importWarehouseFilter.value,
+                from_warehouse: exportWarehouseFilter!.value,
+                to_warehouse: importWarehouseFilter!.value,
                 custom_interpretation: description,
                 items: stockEntryItems
             };
@@ -255,12 +277,12 @@ export default function InsertInventoryScreen() {
                 setIsSaved(true);
                 handleItemPress(response.data.name);
             } else {
-                showToast('Lưu thất bại');
+                Alert.alert('Lỗi', 'Lưu thất bại. Vui lòng thử lại.');
             }
         } catch (error: any) {
             console.error('Save error:', error);
 
-            showToast(`Lỗi: ${error.message || 'Không thể lưu dữ liệu'}`);
+            Alert.alert('Lỗi', `Không thể lưu dữ liệu: ${error.message || 'Có lỗi xảy ra'}`);
         }
     }, [items, activeFilters, postDate, postTime, showToast, navigation]);
 
@@ -289,7 +311,12 @@ export default function InsertInventoryScreen() {
     useEffect(() => {
         if (!hasExportSelected) {
             setDefaultFromWarehouse('');
-            setItems(prev => prev.map(it => ({ ...it, fromWarehouse: '', qtyAvailable: '0' })));
+            // Only update qtyAvailable, don't reset other user data
+            setItems(prev => prev.map(it => ({ 
+                ...it, 
+                fromWarehouse: '', 
+                qtyAvailable: '0' 
+            })));
         }
     }, [hasExportSelected]);
     const exportWarehouseLabel = React.useMemo(() => {
@@ -297,7 +324,7 @@ export default function InsertInventoryScreen() {
             .filter(f => f.category === 'warehouse_export')
             .map(f => f.label)
             .filter(Boolean);
-        return labels.length > 0 ? labels.join(', ') : 'Kho xuất';
+        return labels.length > 0 ? labels.join(', ') : 'Kho xuất *';
     }, [activeFilters]);
 
     const importWarehouseLabel = React.useMemo(() => {
@@ -305,7 +332,7 @@ export default function InsertInventoryScreen() {
             .filter(f => f.category === 'warehouse_import')
             .map(f => f.label)
             .filter(Boolean);
-        return labels.length > 0 ? labels.join(', ') : 'Kho nhập';
+        return labels.length > 0 ? labels.join(', ') : 'Kho nhập *';
     }, [activeFilters]);
 
     // Show (1/0) status depending on selection
@@ -717,10 +744,10 @@ export default function InsertInventoryScreen() {
                                     // Split input back to code and name if user edits
                                     const [maybeCode, ...rest] = text.split(' - ');
                                     updateItem(index, 'code', maybeCode);
-                                    updateItem(index, 'name', rest.join(' - '));
+                                    updateItem(index, 'name', rest.join(' - '));    
                                 }}
                                 style={styles.productTitle}
-                                placeholder="Mã - Tên sản phẩm"
+                                placeholder="Mã - Tên sản phẩm *"
                         placeholderTextColor="#9CA3AF"
                     />
                     <TextInput
@@ -794,7 +821,7 @@ export default function InsertInventoryScreen() {
                                     // fallback: keep previous value if input is invalid
                                 }}
                                 style={styles.quantityInput}
-                            placeholder="0"
+                            placeholder="Số lượng *"
                             placeholderTextColor="#9CA3AF"
                         />
                         
