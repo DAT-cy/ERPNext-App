@@ -26,6 +26,7 @@ import { InventoryFilterModal } from '../../components/InventoryFilter';
 import { getAllExportImportType, getWarehouse, getAllInventory } from '../../services/inventoryService';
 import { getInventoryDetail } from '../../services/inventoryDetailService';
 import { BarcodeScanner } from '../../components/Scanner/BarcodeScanner';
+import { RealtimePollingManager } from '../../utils/RealtimePollingManager';
 
 // Types for filters
 interface FilterCategory {
@@ -73,10 +74,12 @@ export default function InventoryEntryScreens() {
     const [hasMoreData, setHasMoreData] = useState<boolean>(true);
     const [currentPage, setCurrentPage] = useState<number>(0);
     const [isEndReachedCalled, setIsEndReachedCalled] = useState<boolean>(false);
+    const [lastUpdateTime, setLastUpdateTime] = useState<number>(Date.now());
     const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
     const [exportImportTypesOption, setExportImportTypesOption] = useState<Record<string, FilterOption[]>>({});
     const [isScannerVisible, setIsScannerVisible] = useState(false);
     const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+    const [isScanning, setIsScanning] = useState(false);
 
     const scrollY = useRef(new Animated.Value(0)).current;
 
@@ -325,21 +328,43 @@ export default function InventoryEntryScreens() {
 
     // Handle barcode scan -> try open detail directly; fallback to search
     const handleBarcodeScan = async (barcode: string) => {
+        // Prevent multiple simultaneous scans
+        if (isScanning) {
+            console.log('🚫 [InventoryEntryScreens] Scan already in progress, ignoring duplicate scan');
+            return;
+        }
+
         try {
+            console.log('🔍 [InventoryEntryScreens] Starting scan for barcode:', barcode);
+            setIsScanning(true);
             setIsScannerVisible(false);
+            
+            // Validate barcode input
+            if (!barcode || barcode.trim().length === 0) {
+                console.log('❌ [InventoryEntryScreens] Invalid barcode input');
+                setIsScanning(false);
+                return;
+            }
+
             // Try fetch detail by scanned code (assumed to be document name/ID)
-            const response = await getInventoryDetail(barcode);
+            const response = await getInventoryDetail(barcode.trim());
             if (response?.success && response?.data) {
+                console.log('✅ [InventoryEntryScreens] Scan successful, navigating to detail');
                 (navigation as any).navigate('InventoryDetailScreen', {
                     inventoryDetail: response.data
                 });
                 return;
             }
             // Not found: show message
+            console.log('❌ [InventoryEntryScreens] No data found for barcode:', barcode);
             Alert.alert('Không tìm thấy', `Không có phiếu nào với mã: ${barcode}`, [{ text: 'OK' }]);
         } catch (error) {
             // Error: show message
+            console.log('💥 [InventoryEntryScreens] Scan error:', error);
             Alert.alert('Lỗi', 'Có lỗi xảy ra khi tra cứu chi tiết phiếu. Vui lòng thử lại.', [{ text: 'OK' }]);
+        } finally {
+            console.log('🏁 [InventoryEntryScreens] Scan completed, resetting state');
+            setIsScanning(false);
         }
     };
 
@@ -447,6 +472,55 @@ export default function InventoryEntryScreens() {
         }
     };
 
+    // Helper functions for error handling and state management
+    const handleFetchError = (error: any) => {
+        console.error('❌ [InventoryEntryScreens] Error fetching inventory data:', error);
+        
+        if (error?.response?.status === 401) {
+            console.error('🔐 [InventoryEntryScreens] Authentication error - user may need to login');
+        } else if (error?.response?.status >= 500) {
+            console.error('🚨 [InventoryEntryScreens] Server error - backend issue');
+        } else if (error?.code === 'NETWORK_ERROR' || error?.message?.includes('Network')) {
+            console.error('🌐 [InventoryEntryScreens] Network error - check connection');
+        } else {
+            console.error('❓ [InventoryEntryScreens] Unknown error:', error?.message || 'Unknown error');
+        }
+    };
+
+    const resetLoadingStates = () => {
+        setLoading(false);
+        setLoadingMore(false);
+        setIsEndReachedCalled(false);
+    };
+
+    const processFilters = (filters: ActiveFilter[]): Record<string, string> => {
+        return filters.reduce((acc, filter) => {
+            if (filter.category === 'creation') {
+                acc[filter.category] = filter.value;
+            } else {
+                acc[filter.category] = filter.value;
+            }
+            return acc;
+        }, {} as Record<string, string>);
+    };
+
+    const handleSuccessfulResponse = (newData: InventoryItem[], isLoadMore: boolean, page: number) => {
+        if (isLoadMore) {
+            // Append new data to existing data
+            setInventoryData(prev => [...prev, ...newData]);
+            setFilteredData(prev => [...prev, ...newData]);
+        } else {
+            // Replace data for new search/filter
+            setInventoryData(newData);
+            setFilteredData(newData);
+        }
+
+        // Check if there's more data
+        setHasMoreData(newData.length >= 10);
+        setCurrentPage(page);
+        setLastUpdateTime(Date.now());
+    };
+
     // Fetch inventory data from API
     const fetchInventoryData = async (page: number = 0, isLoadMore: boolean = false) => {
         if (isLoadMore) {
@@ -458,16 +532,7 @@ export default function InventoryEntryScreens() {
         }
 
         try {
-            // Process filters to handle Frappe format for creation date
-            const filters = activeFilters.reduce((acc, filter) => {
-                if (filter.category === 'creation') {
-                    acc[filter.category] = filter.value;
-                } else {
-                    // For other filters, use simple value
-                    acc[filter.category] = filter.value;
-                }
-                return acc;
-            }, {} as Record<string, string>);
+            const filters = processFilters(activeFilters);
 
             const offset = page * 10; // 10 items per page
             const response = await getAllInventory({ 
@@ -477,32 +542,16 @@ export default function InventoryEntryScreens() {
             });
 
             if (response.success && response.data) {
-                const newData = response.data;
-                if (isLoadMore) {
-                    // Append new data to existing data
-                    setInventoryData(prev => [...prev, ...newData]);
-                    setFilteredData(prev => [...prev, ...newData]);
-                } else {
-                    // Replace data for new search/filter
-                    setInventoryData(newData);
-                    setFilteredData(newData);
-                }
-
-                // Check if there's more data
-                // If we get less than 10 items, there's no more data
-                // If we get exactly 10 items, there might be more data
-                setHasMoreData(newData.length >= 10);
-                setCurrentPage(page);
+                handleSuccessfulResponse(response.data, isLoadMore, page);
             } else {
                 setHasMoreData(false);
             }
-        } catch (error) {
-            console.error('Error fetching inventory data:', error);
+        } catch (error: any) {
+            handleFetchError(error);
             setHasMoreData(false);
+            throw error;
         } finally {
-            setLoading(false);
-            setLoadingMore(false);
-            setIsEndReachedCalled(false); // Reset flag when loading is complete
+            resetLoadingStates();
         }
     };
 
@@ -510,6 +559,47 @@ export default function InventoryEntryScreens() {
     useEffect(() => {
         fetchInventoryData(0, false);
     }, [activeFilters]);
+
+    // Refresh data when screen comes into focus (e.g., after delete)
+    useFocusEffect(
+        React.useCallback(() => {
+            console.log('🔄 [InventoryEntryScreens] Screen focused, refreshing data...');
+            fetchInventoryData(0, false);
+        }, [activeFilters])
+    );
+
+    // Realtime polling only when screen is focused
+    useFocusEffect(
+        React.useCallback(() => {
+            console.log('🔄 [InventoryEntryScreens] Screen focused, starting realtime polling...');
+            
+            const pollingManager = new RealtimePollingManager({
+                fetchData: () => fetchInventoryData(0, false),
+                lastUpdateTime,
+                onError: (error, consecutiveErrors) => {
+                    console.error(`❌ [InventoryEntryScreens] Polling error (${consecutiveErrors}):`, error);
+                },
+                onSuccess: () => {
+                    console.log('✅ [InventoryEntryScreens] Polling successful');
+                },
+                onActivityDetected: () => {
+                    console.log('📦 [InventoryEntryScreens] Recent activity detected');
+                },
+                onInactivityDetected: () => {
+                    console.log('⏰ [InventoryEntryScreens] Switching to slow polling');
+                }
+            });
+
+            // Start polling when screen is focused
+            pollingManager.start();
+
+            return () => {
+                console.log('🔄 [InventoryEntryScreens] Screen unfocused, stopping realtime polling...');
+                // Cleanup completely when leaving screen
+                pollingManager.cleanup();
+            };
+        }, [activeFilters, lastUpdateTime])
+    );
 
     // Handle item click to navigate to detail
     const handleItemPress = async (item: InventoryItem) => {
@@ -627,7 +717,7 @@ export default function InventoryEntryScreens() {
                         {/* Search Input */}
                         <TextInput
                             style={inventoryEntryStyles.enhancedSearchInput}
-                            placeholder="Tìm kiếm phiếu nhập xuất..."
+                            placeholder="Nhập mã phiếu"
                             value={searchQuery}
                             onChangeText={setSearchQuery}
                             placeholderTextColor={colors.gray500}
@@ -668,7 +758,10 @@ export default function InventoryEntryScreens() {
                         {/* Scan Button */}
                         <TouchableOpacity
                             style={inventoryEntryStyles.scanButton}
-                            onPress={() => setIsScannerVisible(true)}
+                            onPress={() => {
+                                setIsScanning(false);
+                                setIsScannerVisible(true);
+                            }}
                             activeOpacity={0.7}
                         >
                             <Feather name="maximize" size={wp(4.5)} color={colors.white} />

@@ -553,6 +553,22 @@ export const insertInventoryStyles = StyleSheet.create({
         borderBottomWidth: 1,
         borderBottomColor: 'transparent',
     },
+    productNameReadOnly: {
+        backgroundColor: '#F9FAFB', // Màu nền khác để phân biệt
+        borderBottomColor: '#D1D5DB', // Màu border khác
+        color: '#6B7280', // Màu text khác để cho thấy chỉ đọc
+        fontWeight: '300', // Font weight nhẹ hơn
+        textAlignVertical: 'center', // Căn giữa theo chiều dọc
+        paddingRight: 8, // Thêm padding bên phải để text không bị cắt
+    },
+    productTitleScrollContainer: {
+        maxHeight: 40, // Giới hạn chiều cao
+        marginBottom: 2,
+    },
+    productTitleScrollContent: {
+        flexGrow: 1,
+        alignItems: 'center',
+    },
     productCode: {
         fontSize: fs(10),
         color: '#6B7280',
@@ -613,7 +629,7 @@ export const insertInventoryStyles = StyleSheet.create({
     },
     quantityInput: {
         width: 50,
-        height: 32,
+        height: hp(4),
         borderWidth: 1,
         borderColor: '#ddd',
         borderRadius: 4,

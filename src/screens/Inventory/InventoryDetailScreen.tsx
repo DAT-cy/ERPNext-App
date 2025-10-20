@@ -9,10 +9,11 @@ import {
   TextInput,
   Image,
   RefreshControl,
+  Alert,
 } from 'react-native';
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import { hp } from '../../utils/responsive';
-import { InventoryDetailData, updateStockEntry, getInventoryDetail } from '../../services/inventoryDetailService';
+import { InventoryDetailData, updateStockEntry, getInventoryDetail, deleteStockEntry } from '../../services/inventoryDetailService';
 import { Input } from '../../components/Input';
 import { inventoryDetailStyles as styles } from '../../styles/InventoryDetailScreen.styles';
 import { colors } from '../../styles/globalStyles';
@@ -31,6 +32,7 @@ export default function InventoryDetailScreen() {
   const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
   const [itemsState, setItemsState] = useState<any[]>([]);
   const [currentStatus, setCurrentStatus] = useState<string>('');
@@ -236,20 +238,69 @@ export default function InventoryDetailScreen() {
         if (result.data) {
           console.log('📝 [InventoryDetail] Data updated from server');
         }
-        // TODO: Show success message to user
-        // You can add a toast notification here
+        
+        // Show success message
+        Alert.alert('Thành công', 'Lưu thành công!');
       } else {
         console.error('❌ [InventoryDetail] Save failed:', result.error);
-        // TODO: Show error message to user
-        // You can add error toast notification here
+        // Show error message
+        Alert.alert('Lỗi', result.error?.message || 'Không thể lưu dữ liệu. Vui lòng thử lại.');
       }
     } catch (error) {
       console.error('💥 [InventoryDetail] Save error:', error);
-      // TODO: Show error message to user
-      // You can add error toast notification here
+      // Show error message
+      Alert.alert('Lỗi', 'Có lỗi xảy ra khi lưu dữ liệu. Vui lòng thử lại.');
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleDelete = async () => {
+    if (isDeleting) return;
+    
+    // Show confirmation dialog
+    Alert.alert(
+      'Xác nhận xóa',
+      `Bạn có chắc chắn muốn xóa phiếu nhập xuất "${currentData.name}" không?\n\nHành động này không thể hoàn tác.`,
+      [
+        {
+          text: 'Hủy',
+          style: 'cancel',
+        },
+        {
+          text: 'Xóa',
+          style: 'destructive',
+          onPress: async () => {
+            setIsDeleting(true);
+            try {
+              console.log('🗑️ [InventoryDetail] Deleting:', currentData.name);
+              
+              // Call delete API using service
+              const result = await deleteStockEntry(currentData.name);
+              
+              if (result.success) {
+                console.log('✅ [InventoryDetail] Delete successful');
+                // Show success message
+                Alert.alert('Thành công', 'Phiếu nhập xuất đã được xóa thành công.', [
+                  {
+                    text: 'OK',
+                    onPress: () => navigation.goBack()
+                  }
+                ]);
+              } else {
+                console.error('❌ [InventoryDetail] Delete failed:', result.error);
+                Alert.alert('Lỗi', result.error?.message || 'Không thể xóa phiếu nhập xuất. Vui lòng thử lại.');
+              }
+            } catch (error) {
+              console.error('💥 [InventoryDetail] Delete error:', error);
+              Alert.alert('Lỗi', 'Có lỗi xảy ra khi xóa phiếu nhập xuất. Vui lòng thử lại.');
+            } finally {
+              setIsDeleting(false);
+            }
+          },
+        },
+      ]
+    );
   };
   
   // Handle comment input focus - do not auto scroll
@@ -482,12 +533,7 @@ export default function InventoryDetailScreen() {
                         
                         console.log('Navigation with real data called successfully');
                       } else {
-                        // Show error or fallback
-                        console.warn('Không thể tải dữ liệu cho mã:', currentData.outgoing_stock_entry);
-                        console.warn('Result:', result);
-                        console.warn('Error details:', result.error);
-                        
-                        // Fallback: Navigate với data cơ bản
+
                         console.log('Using fallback navigation...');
                         navigation.push('InventoryDetailScreen', {
                           inventoryDetail: {
@@ -682,24 +728,42 @@ export default function InventoryDetailScreen() {
           </View> */}
       </ScrollView>
 
-      {/* Footer (mirrors insert: single primary action) - Only show when there are changes */}
-      {hasAnyChanges && (
-        <View style={styles.footer}>
+      {/* Footer with Save and Delete buttons */}
+      <View style={styles.footer}>
+        <View style={styles.footerButtonsContainer}>
+          {/* Save Button - Left side */}
           <TouchableOpacity
             style={[
-              styles.checkoutBtn,
-              isSubmitting && { opacity: 0.6 }
+              styles.footerButton,
+              styles.saveButton,
+              (!hasAnyChanges || isSubmitting) && { opacity: 0.6 }
             ]}
             onPress={handleSave}
             activeOpacity={0.8}
-            disabled={isSubmitting}
+            disabled={!hasAnyChanges || isSubmitting}
           >
-            <Text style={styles.checkoutBtnText}>
+            <Text style={styles.saveButtonText}>
               {isSubmitting ? 'Đang lưu...' : 'Lưu'}
             </Text>
           </TouchableOpacity>
+
+          {/* Delete Button - Right side */}
+          <TouchableOpacity
+            style={[
+              styles.footerButton,
+              styles.deleteButton,
+              isDeleting && { opacity: 0.6 }
+            ]}
+            onPress={handleDelete}
+            activeOpacity={0.8}
+            disabled={isDeleting}
+          >
+            <Text style={styles.deleteButtonText}>
+              {isDeleting ? 'Đang xóa...' : 'Xóa'}
+            </Text>
+          </TouchableOpacity>
         </View>
-      )}
+      </View>
     </KeyboardAvoidingView>
   );
 }

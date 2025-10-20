@@ -773,6 +773,35 @@ export const insertInventoryStyles = StyleSheet.create({
         fontWeight: '600',
         color: '#FFFFFF',
     },
+    // New styles for Save and Delete buttons
+    footerButtonsContainer: {
+        flexDirection: 'row',
+        gap: 12,
+    },
+    footerButton: {
+        flex: 1,
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        borderRadius: 8,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    saveButton: {
+        backgroundColor: '#10B981', // Green color for save
+    },
+    saveButtonText: {
+        fontSize: fs(14),
+        fontWeight: '600',
+        color: '#FFFFFF',
+    },
+    deleteButton: {
+        backgroundColor: '#EF4444', // Red color for delete
+    },
+    deleteButtonText: {
+        fontSize: fs(14),
+        fontWeight: '600',
+        color: '#FFFFFF',
+    },
 });
 
 export const inventoryDetailStyles = insertInventoryStyles;

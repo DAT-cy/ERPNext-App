@@ -114,17 +114,6 @@ export default function InsertInventoryScreen() {
 
     // Animations
     const toastAnim = useRef(new Animated.Value(-100)).current;
-
-    // Toast function
-    const showToast = useCallback((message: string) => {
-        setToastMessage(message);
-        Animated.sequence([
-            Animated.timing(toastAnim, { toValue: 0, duration: 200, useNativeDriver: true }),
-            Animated.delay(2400),
-            Animated.timing(toastAnim, { toValue: -100, duration: 200, useNativeDriver: true }),
-        ]).start();
-    }, [toastAnim]);
-
         // Helpers
     const toApiDate = (ddmmyyyy: string) => {
         if (/^\d{4}-\d{2}-\d{2}$/.test(ddmmyyyy)) return ddmmyyyy;
@@ -181,8 +170,8 @@ export default function InsertInventoryScreen() {
 
     // Navigation
     const goBack = useCallback(() => {
-        (navigation as any)?.goBack?.() || showToast('Quay lại');
-    }, [navigation, showToast]);
+        (navigation as any)?.goBack?.();
+    }, [navigation]);
 
     const saveTransfer = useCallback(async () => {
         try {
@@ -275,16 +264,41 @@ export default function InsertInventoryScreen() {
             
             if (response?.data?.name) {
                 setIsSaved(true);
-                handleItemPress(response.data.name);
+                Alert.alert(
+                    'Thêm thành công',
+                    'Bạn có muốn chuyển đến chi tiết Nhập Xuất Kho không?',
+                    [
+                        {
+                            text: 'Không',
+                            style: 'cancel',
+                            onPress: () => goBack(),
+                        },
+                        {
+                            text: 'Có',
+                            onPress: () => handleItemPress(response.data.name),
+                        },
+                    ]
+                );
             } else {
-                Alert.alert('Lỗi', 'Lưu thất bại. Vui lòng thử lại.');
+                // Handle API error response
+                const errorMessage = (response as any)?.error?.message || (response as any)?.message || 'Lưu thất bại. Vui lòng thử lại.';
+                Alert.alert('Lỗi', errorMessage);
             }
         } catch (error: any) {
             console.error('Save error:', error);
 
-            Alert.alert('Lỗi', `Không thể lưu dữ liệu: ${error.message || 'Có lỗi xảy ra'}`);
+            // Handle different types of errors
+            if (error?.response?.status === 401) {
+                Alert.alert('Lỗi', 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+            } else if (error?.response?.status >= 500) {
+                Alert.alert('Lỗi', 'Lỗi máy chủ. Vui lòng thử lại sau.');
+            } else if (error?.code === 'NETWORK_ERROR' || error?.message?.includes('Network')) {
+                Alert.alert('Lỗi', 'Lỗi kết nối mạng. Vui lòng kiểm tra kết nối và thử lại.');
+            } else {
+                Alert.alert('Lỗi', `Không thể lưu dữ liệu: ${error?.message || 'Có lỗi xảy ra'}`);
+            }
         }
-    }, [items, activeFilters, postDate, postTime, showToast, navigation]);
+    }, [items, activeFilters, postDate, postTime, navigation]);
 
 
     const handleItemPress = async (item: string) => {
@@ -345,16 +359,14 @@ export default function InsertInventoryScreen() {
     const nextStep = useCallback(() => {
         if (currentStep < progressSteps.length - 1) {
             setCurrentStep(prev => prev + 1);
-            showToast(`Đã chuyển đến: ${progressSteps[currentStep + 1]?.label}`);
         }
-    }, [currentStep, progressSteps, showToast]);
+    }, [currentStep, progressSteps]);
 
     const prevStep = useCallback(() => {
         if (currentStep > 0) {
             setCurrentStep(prev => prev - 1);
-            showToast(`Đã quay lại: ${progressSteps[currentStep - 1]?.label}`);
         }
-    }, [currentStep, progressSteps, showToast]);
+    }, [currentStep, progressSteps]);
 
     // Items management
     const addNewRow = useCallback(() => {
@@ -477,16 +489,67 @@ export default function InsertInventoryScreen() {
                     isSelected: false,
                     qtyAvailable: stockQty || '0',
                 } as InventoryItemRow;
-                // Always show only one product per successful scan
-                setItems([newItem]);
+                // Check if item already exists
+                setItems(prev => {
+                    const existingIndex = prev.findIndex(item => item.code === newItem.code);
+                    if (existingIndex >= 0) {
+                        // Item exists, update it with new data
+                        const updatedItems = [...prev];
+                        updatedItems[existingIndex] = {
+                            ...updatedItems[existingIndex],
+                            ...newItem,
+                            qty: updatedItems[existingIndex].qty || '', // Keep existing qty if user has entered
+                        };
+                        return updatedItems;
+                    } else {
+                        // New item, add to list
+                        return [...prev, newItem];
+                    }
+                });
             } else {
-                updateItem(itemIndex, 'code', barcode);
+                // Not found: show a single alert with Close and Scan Again
+                Alert.alert(
+                    'Không tìm thấy sản phẩm',
+                    `Mã "${barcode}" không tồn tại trong hệ thống.`,
+                    [
+                        {
+                            text: 'Đóng',
+                            style: 'cancel',
+                            onPress: () => {},
+                        },
+                        {
+                            text: 'Quét lại',
+                            onPress: () => {
+                                // Reopen scanner to try again on the same row
+                                setCurrentScanningItemIndex(itemIndex);
+                                setTimeout(() => setIsScannerVisible(true), 200);
+                            },
+                        },
+                    ]
+                );
             }
         } catch (error) {
-            updateItem(itemIndex, 'code', barcode);
-            showToast(`Đã quét barcode: ${barcode}`);
+            // Treat errors as not found for user simplicity
+            Alert.alert(
+                'Không tìm thấy sản phẩm',
+                `Mã "${barcode}" không tồn tại trong hệ thống.`,
+                [
+                    {
+                        text: 'Đóng',
+                        style: 'cancel',
+                        onPress: () => {},
+                    },
+                    {
+                        text: 'Quét lại',
+                        onPress: () => {
+                            setCurrentScanningItemIndex(itemIndex);
+                            setTimeout(() => setIsScannerVisible(true), 200);
+                        },
+                    },
+                ]
+            );
         }
-    }, [currentScanningItemIndex, showToast, updateItem, postDate, postTime, company]);
+    }, [currentScanningItemIndex, updateItem, postDate, postTime, company]);
 
     // Warehouse management
     const loadWarehouses = useCallback(async () => {
@@ -738,18 +801,25 @@ export default function InsertInventoryScreen() {
                       
 
                         <View style={styles.productInfo}>
-                    <TextInput
-                                value={item.code && item.name ? `${item.code} - ${item.name}` : (item.code || item.name || '')}
-                                onChangeText={(text) => {
-                                    // Split input back to code and name if user edits
-                                    const [maybeCode, ...rest] = text.split(' - ');
-                                    updateItem(index, 'code', maybeCode);
-                                    updateItem(index, 'name', rest.join(' - '));    
-                                }}
-                                style={styles.productTitle}
-                                placeholder="Mã - Tên sản phẩm *"
-                        placeholderTextColor="#9CA3AF"
-                    />
+                    <ScrollView 
+                        horizontal={true} 
+                        showsHorizontalScrollIndicator={false}
+                        style={styles.productTitleScrollContainer}
+                        contentContainerStyle={styles.productTitleScrollContent}
+                    >
+                        <TextInput
+                            value={item.code ? 
+                                (item.name ? `${item.code} - ${item.name}` : item.code) : 
+                                (item.name || '')
+                            }
+                            editable={false}
+                            scrollEnabled={false}
+                            multiline={false}
+                            style={[styles.productTitle, styles.productNameReadOnly]}
+                            placeholder="Mã - Tên sản phẩm *"
+                            placeholderTextColor="#9CA3AF"
+                        />
+                    </ScrollView>
                     <TextInput
                                 value={item.unit}
                                 onChangeText={(text) => updateItem(index, 'unit', text)}

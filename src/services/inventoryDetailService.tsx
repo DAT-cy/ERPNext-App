@@ -150,3 +150,24 @@ function buildUpdatePayload(currentData: InventoryDetailData, newData: UpdateSto
     
     return payload;
 }
+
+/**
+ * Xóa phiếu nhập xuất kho
+ */
+export async function deleteStockEntry(name: string): Promise<{success: boolean, error?: CommonException}> {
+    try {
+        console.log('🗑️ [deleteStockEntry] Deleting:', name);
+        
+        const response = await api.delete(`/api/resource/Stock Entry/${encodeURIComponent(name)}`);
+        
+        console.log('✅ [deleteStockEntry] Success');
+        return { success: true };
+        
+    } catch (error: any) {
+        console.log('💥 [deleteStockEntry] Error:', error?.message);
+        return {
+            success: false,
+            error: new CommonException(ErrorCode.NETWORK_ERROR, error?.response?.data?.message || error?.message || 'Lỗi xóa phiếu nhập xuất')
+        };
+    }
+}

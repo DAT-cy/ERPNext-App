@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -27,6 +27,7 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
 }) => {
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [scanned, setScanned] = useState(false);
+  const isProcessingRef = useRef(false);
 
   // Request camera permission
   useEffect(() => {
@@ -38,20 +39,36 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
     if (visible) {
       getCameraPermissions();
       setScanned(false);
+      isProcessingRef.current = false;
+    } else {
+      // Reset scanned state when scanner is closed
+      setScanned(false);
+      isProcessingRef.current = false;
     }
   }, [visible]);
 
   // Handle barcode scanning
   const handleBarCodeScanned = ({ type, data }: { type: string; data: string }) => {
-    if (!scanned) {
+    if (!scanned && !isProcessingRef.current && data && data.trim().length > 0) {
+      console.log('📱 [BarcodeScanner] Barcode detected:', data);
       setScanned(true);
-      // Chỉ gọi onScan, để parent component tự quản lý việc đóng scanner
-      onScan(data);
+      isProcessingRef.current = true;
+      
+      // Add small delay to prevent rapid multiple calls
+      setTimeout(() => {
+        onScan(data);
+        isProcessingRef.current = false;
+      }, 100);
+    } else if (scanned || isProcessingRef.current) {
+      console.log('🚫 [BarcodeScanner] Already scanned or processing, ignoring duplicate');
+    } else {
+      console.log('❌ [BarcodeScanner] Invalid barcode data:', data);
     }
   };
 
   const handleClose = () => {
     setScanned(false);
+    isProcessingRef.current = false;
     onClose();
   };
 

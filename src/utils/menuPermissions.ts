@@ -64,26 +64,6 @@ export const MENU_DEFINITIONS: MenuItemDef[] = [
     ],
     subItems: [
       {
-        id: 'stock-overview',
-        title: 'Tổng Quan Kho',
-        icon: require('../assets/overview.png'),
-        allowedRoles: [
-          ...ROLE_GROUPS.STOCK_ROLES,
-          ...ROLE_GROUPS.ADMIN_ROLES,
-          ...ROLE_GROUPS.BASIC_USER
-        ]
-      },
-      {
-        id: 'items-catalogue',
-        title: 'Danh Mục Mặt Hàng',
-        icon: require('../assets/inventory/inventory.png'),
-        allowedRoles: [
-          ...ROLE_GROUPS.STOCK_ROLES,
-          ...ROLE_GROUPS.ADMIN_ROLES,
-          ...ROLE_GROUPS.BASIC_USER
-        ]
-      },
-      {
         id: 'inventory-operations',
         title: 'Nghiệp Vụ Tồn Kho',
         icon: require('../assets/inventory/nghiep-vu-ton-kho.png'),
@@ -94,18 +74,6 @@ export const MENU_DEFINITIONS: MenuItemDef[] = [
           ...ROLE_GROUPS.BASIC_USER
         ],
         subItems: [
-          {
-            id: 'material-request',
-            title: 'Yêu Cầu Vật Tư',
-            icon: '📦',
-            description: 'Tạo và theo dõi yêu cầu vật tư, đảm bảo quá trình mua sắm và cung ứng được thực hiện đúng hạn.',
-            backgroundColor: '#10b981',
-            allowedRoles: [
-              ...ROLE_GROUPS.STOCK_ROLES,
-              ...ROLE_GROUPS.ADMIN_ROLES,
-              ...ROLE_GROUPS.BASIC_USER
-            ]
-          },
           {
             id: 'stock-entry',
             title: 'Nhập Xuất Kho',
@@ -118,66 +86,6 @@ export const MENU_DEFINITIONS: MenuItemDef[] = [
               ...ROLE_GROUPS.BASIC_USER
             ]
           },
-          {
-            id: 'delivery-note',
-            title: 'Phiếu Giao Hàng',
-            icon: '🚚',
-            description: 'Xem chi tiết và quản lý các phiếu giao hàng, theo dõi tiến độ giao hàng và đảm bảo mọi đơn hàng được hoàn thành đúng hẹn.',
-            backgroundColor: '#3b82f6',
-            allowedRoles: [
-              ...ROLE_GROUPS.STOCK_ROLES,
-              ...ROLE_GROUPS.ADMIN_ROLES,
-              ...ROLE_GROUPS.BASIC_USER
-            ]
-          },
-          {
-            id: 'purchase-receipt',
-            title: 'Phiếu Nhập Hàng',
-            icon: '📥',
-            description: 'Xem và quản lý các phiếu nhập hàng, theo dõi hàng hóa mới nhập vào kho và cập nhật trạng thái.',
-            backgroundColor: '#3b82f6',
-            allowedRoles: [
-              ...ROLE_GROUPS.STOCK_ROLES,
-              ...ROLE_GROUPS.ADMIN_ROLES,
-              ...ROLE_GROUPS.BASIC_USER
-            ]
-          },
-          {
-            id: 'pick-list',
-            title: 'Danh Sách Lựa Chọn',
-            icon: '📋',
-            description: 'Quản lý và cấu hình các tùy chọn cho hệ thống, giúp dễ dàng quản lý các loại mặt hàng và quy trình kho.',
-            backgroundColor: '#8b5cf6',
-            allowedRoles: [
-              ...ROLE_GROUPS.STOCK_ROLES,
-              ...ROLE_GROUPS.ADMIN_ROLES,
-              ...ROLE_GROUPS.BASIC_USER
-            ]
-          },
-          {
-            id: 'delivery-trip',
-            title: 'Chuyến Giao Hàng',
-            icon: '🛣️',
-            description: 'Quản lý các chuyến giao hàng, theo dõi và báo cáo số liệu giao hàng cho các bộ phận liên quan.',
-            backgroundColor: '#ef4444',
-            allowedRoles: [
-              ...ROLE_GROUPS.STOCK_ROLES,
-              ...ROLE_GROUPS.ADMIN_ROLES,
-              ...ROLE_GROUPS.BASIC_USER
-            ]
-          },
-          {
-            id: 'shipment',
-            title: 'Vận Chuyển',
-            icon: '🚛',
-            description: 'Theo dõi và báo cáo về việc vận chuyển, cung cấp các số liệu tổng hợp về quá trình vận chuyển và giao hàng cho quản lý.',
-            backgroundColor: '#06b6d4',
-            allowedRoles: [
-              ...ROLE_GROUPS.STOCK_ROLES,
-              ...ROLE_GROUPS.ADMIN_ROLES,
-              ...ROLE_GROUPS.BASIC_USER
-            ]
-          }
         ]
       }
     ]
@@ -345,62 +253,62 @@ export const MENU_DEFINITIONS: MenuItemDef[] = [
     ]
   },
   // === EMPLOYEE MENU ===
-  {
-    id: 'employee',
-    title: 'Nhân viên',
-    icon: require('../assets/employee/foulder.png'), // Using existing icon as example
-    hasSubItems: true,
-    allowedRoles: [
-      ...ROLE_GROUPS.EMPLOYEE,
-      ...ROLE_GROUPS.REMAK_ROLES,
-      ...ROLE_GROUPS.ADMIN_ROLES,
-      ...ROLE_GROUPS.BASIC_USER
-    ],
-    subItems: [
-      {
-        id: 'overview-employee',
-        title: 'Tổng quan',
-        icon: require('../assets/overview.png'),
-        allowedRoles: [
-          ...ROLE_GROUPS.EMPLOYEE,
-          ...ROLE_GROUPS.REMAK_ROLES,
-          ...ROLE_GROUPS.ADMIN_ROLES,
-          ...ROLE_GROUPS.BASIC_USER
-        ]
-      },
-      {
-        id: 'issue-employee',
-        title: 'Vấn đề cần xử lý',
-        icon: require("../assets/employee/issue.png"),
-        allowedRoles: [
-          ...ROLE_GROUPS.EMPLOYEE,
-          ...ROLE_GROUPS.REMAK_ROLES,
-          ...ROLE_GROUPS.ADMIN_ROLES,
-          ...ROLE_GROUPS.BASIC_USER
-        ]
-      },
-      {
-        id: 'tasks-employee',
-        title: 'Công việc',
-        icon: require('../assets/employee/tasks.png'),
-        allowedRoles: [
-          ...ROLE_GROUPS.EMPLOYEE,
-          ...ROLE_GROUPS.REMAK_ROLES,
-          ...ROLE_GROUPS.ADMIN_ROLES
-        ]
-      },
-      {
-        id: 'tasks-manager-employee',
-        title: 'Quản lý công việc',
-        icon: require('../assets/employee/tasks-manager.png'),
-        allowedRoles: [
-          ...ROLE_GROUPS.EMPLOYEE,
-          ...ROLE_GROUPS.HR_ROLES,
-          ...ROLE_GROUPS.ADMIN_ROLES
-        ]
-      }
-    ]
-  },
+  // {
+  //   id: 'employee',
+  //   title: 'Nhân viên',
+  //   icon: require('../assets/employee/foulder.png'), // Using existing icon as example
+  //   hasSubItems: true,
+  //   allowedRoles: [
+  //     ...ROLE_GROUPS.EMPLOYEE,
+  //     ...ROLE_GROUPS.REMAK_ROLES,
+  //     ...ROLE_GROUPS.ADMIN_ROLES,
+  //     ...ROLE_GROUPS.BASIC_USER
+  //   ],
+  //   subItems: [
+  //     {
+  //       id: 'overview-employee',
+  //       title: 'Tổng quan',
+  //       icon: require('../assets/overview.png'),
+  //       allowedRoles: [
+  //         ...ROLE_GROUPS.EMPLOYEE,
+  //         ...ROLE_GROUPS.REMAK_ROLES,
+  //         ...ROLE_GROUPS.ADMIN_ROLES,
+  //         ...ROLE_GROUPS.BASIC_USER
+  //       ]
+  //     },
+  //     {
+  //       id: 'issue-employee',
+  //       title: 'Vấn đề cần xử lý',
+  //       icon: require("../assets/employee/issue.png"),
+  //       allowedRoles: [
+  //         ...ROLE_GROUPS.EMPLOYEE,
+  //         ...ROLE_GROUPS.REMAK_ROLES,
+  //         ...ROLE_GROUPS.ADMIN_ROLES,
+  //         ...ROLE_GROUPS.BASIC_USER
+  //       ]
+  //     },
+  //     {
+  //       id: 'tasks-employee',
+  //       title: 'Công việc',
+  //       icon: require('../assets/employee/tasks.png'),
+  //       allowedRoles: [
+  //         ...ROLE_GROUPS.EMPLOYEE,
+  //         ...ROLE_GROUPS.REMAK_ROLES,
+  //         ...ROLE_GROUPS.ADMIN_ROLES
+  //       ]
+  //     },
+  //     {
+  //       id: 'tasks-manager-employee',
+  //       title: 'Quản lý công việc',
+  //       icon: require('../assets/employee/tasks-manager.png'),
+  //       allowedRoles: [
+  //         ...ROLE_GROUPS.EMPLOYEE,
+  //         ...ROLE_GROUPS.HR_ROLES,
+  //         ...ROLE_GROUPS.ADMIN_ROLES
+  //       ]
+  //     }
+  //   ]
+  // },
   // === SALES MENU (Nhân viên kinh doanh) ===
 
 
