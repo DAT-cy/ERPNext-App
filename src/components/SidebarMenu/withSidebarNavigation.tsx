@@ -25,11 +25,12 @@ export const withSidebarNavigation = (
     
     // Handler cho việc click vào submenu item
     const handleSubItemPress = (menuId: string, subMenuId: string) => {
-      // Navigate to menu
+      console.log('🔍 [withSidebarNavigation] handleSubItemPress called:', { menuId, subMenuId });
       
       // Special handling for nested submenu items
       // Nếu subMenuId là một nested item, cần gọi nested navigation
-      if (subMenuId === 'stock-entry') {
+      if (subMenuId === 'stock-entry' || subMenuId === 'check-quantity-inventory') {
+        console.log('🔍 [withSidebarNavigation] Using nested navigation for:', subMenuId);
         // Đây là nested submenu thuộc về inventory-operations
         screenNavigator.handleNestedSidebarMenuNavigation(
           'inventory', 
@@ -39,6 +40,7 @@ export const withSidebarNavigation = (
           props.onClose
         );
       } else {
+        console.log('🔍 [withSidebarNavigation] Using standard navigation for:', subMenuId);
         // Standard submenu navigation
         screenNavigator.handleSidebarMenuNavigation(menuId, subMenuId, roles, props.onClose);
       }

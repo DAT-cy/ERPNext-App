@@ -44,11 +44,20 @@ export class RealtimePollingManager {
     }
 
     private async pollData(): Promise<void> {
-        if (!this.isActive || this.isPolling) return;
+        if (!this.isActive || this.isPolling) {
+            console.log('⏸️ [RealtimePollingManager] Polling skipped - not active or already polling');
+            return;
+        }
         
         try {
             this.isPolling = true;
             console.log('🔄 [RealtimePollingManager] Polling data...');
+            
+            // Double check if still active before making API call
+            if (!this.isActive) {
+                console.log('⏸️ [RealtimePollingManager] Polling cancelled - no longer active');
+                return;
+            }
             
             await this.config.fetchData();
             
@@ -129,14 +138,19 @@ export class RealtimePollingManager {
     cleanup(): void {
         console.log('🧹 [RealtimePollingManager] Cleaning up...');
         
+        // Set inactive first to prevent any new polling
         this.isActive = false;
         this.isPolling = false;
         
+        // Stop all polling intervals
         this.stopPolling();
         
+        // Clear any pending retry timeouts
         if (this.retryTimeout) {
             clearTimeout(this.retryTimeout);
             this.retryTimeout = null;
         }
+        
+        console.log('✅ [RealtimePollingManager] Cleanup completed');
     }
 }

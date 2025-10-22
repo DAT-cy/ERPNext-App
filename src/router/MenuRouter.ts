@@ -15,7 +15,8 @@ export enum RouteNames {
   LEAVE_MANAGEMENT = 'LeaveManagement',
   APPLICATION_LEAVE = 'ApplicationLeave',
   INVENTORY_MANAGEMENT = 'InventoryManagement',
-  INVENTORY_ENTRY = 'InventoryEntry'
+  INVENTORY_ENTRY = 'InventoryEntry',
+  CHECK_LIST_INVENTORY = 'CheckListInventoryScreen'
 }
 
 /**
@@ -33,6 +34,7 @@ export type RouteParams = {
   };
   [RouteNames.INVENTORY_MANAGEMENT]: undefined;
   [RouteNames.INVENTORY_ENTRY]: undefined;
+  [RouteNames.CHECK_LIST_INVENTORY]: undefined;
 };
 
 /**
@@ -55,6 +57,7 @@ export const MENU_ROUTE_MAP: Record<string, {
   // Inventory Menu Routes
   'inventory:inventory-operations': { routeName: RouteNames.INVENTORY_MANAGEMENT },
   'inventory-operations:stock-entry': { routeName: RouteNames.INVENTORY_ENTRY },
+  'inventory-operations:check-quantity-inventory': { routeName: RouteNames.CHECK_LIST_INVENTORY },
 };
 
 class MenuRouter {

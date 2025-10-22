@@ -60,7 +60,6 @@ export const MENU_DEFINITIONS: MenuItemDef[] = [
     allowedRoles: [
       ...ROLE_GROUPS.STOCK_ROLES,
       ...ROLE_GROUPS.ADMIN_ROLES,
-      ...ROLE_GROUPS.BASIC_USER
     ],
     subItems: [
       {
@@ -71,7 +70,6 @@ export const MENU_DEFINITIONS: MenuItemDef[] = [
         allowedRoles: [
           ...ROLE_GROUPS.STOCK_ROLES,
           ...ROLE_GROUPS.ADMIN_ROLES,
-          ...ROLE_GROUPS.BASIC_USER
         ],
         subItems: [
           {
@@ -83,9 +81,31 @@ export const MENU_DEFINITIONS: MenuItemDef[] = [
             allowedRoles: [
               ...ROLE_GROUPS.STOCK_ROLES,
               ...ROLE_GROUPS.ADMIN_ROLES,
-              ...ROLE_GROUPS.BASIC_USER
             ]
           },
+          {
+            id: 'delivery-note',
+            title: 'Phiếu Giao Hàng',
+            icon: '📦',
+            description: 'Quản lý việc giao hàng, bao gồm việc đăng ký các giao dịch giao hàng để đảm bảo lưu trữ chính xác và hiệu quả.',
+            backgroundColor: '#60a5fa',
+            allowedRoles: [
+              ...ROLE_GROUPS.STOCK_ROLES,
+              ...ROLE_GROUPS.ADMIN_ROLES,
+            ]
+          },
+          {
+            id: 'check-quantity-inventory',
+            title: 'Kiểm kê Tồn Kho',
+            icon: '📦',
+            description: 'Nhập mã code hoặc quét QR để kiểm tra tồn kho',
+            backgroundColor: '#60a5fa',
+            allowedRoles: [
+              ...ROLE_GROUPS.STOCK_ROLES,
+              ...ROLE_GROUPS.ADMIN_ROLES,
+            ]
+          }
+          
         ]
       }
     ]
@@ -100,7 +120,6 @@ export const MENU_DEFINITIONS: MenuItemDef[] = [
     allowedRoles: [
       ...ROLE_GROUPS.HR_ROLES,
       ...ROLE_GROUPS.ADMIN_ROLES,
-      ...ROLE_GROUPS.BASIC_USER
     ],
     subItems: [
       {
@@ -110,7 +129,6 @@ export const MENU_DEFINITIONS: MenuItemDef[] = [
         allowedRoles: [
           ...ROLE_GROUPS.HR_ROLES,
           ...ROLE_GROUPS.ADMIN_ROLES,
-          ...ROLE_GROUPS.BASIC_USER
         ]
       },
       {
@@ -120,7 +138,6 @@ export const MENU_DEFINITIONS: MenuItemDef[] = [
         allowedRoles: [
           ...ROLE_GROUPS.HR_ROLES,
           ...ROLE_GROUPS.ADMIN_ROLES,
-          ...ROLE_GROUPS.BASIC_USER
         ]
       },
       {
@@ -130,7 +147,6 @@ export const MENU_DEFINITIONS: MenuItemDef[] = [
         allowedRoles: [
           ...ROLE_GROUPS.HR_ROLES,
           ...ROLE_GROUPS.ADMIN_ROLES,
-          ...ROLE_GROUPS.BASIC_USER
         ]
       },
       {
@@ -140,7 +156,6 @@ export const MENU_DEFINITIONS: MenuItemDef[] = [
         allowedRoles: [
           ...ROLE_GROUPS.HR_ROLES,
           ...ROLE_GROUPS.ADMIN_ROLES,
-          ...ROLE_GROUPS.BASIC_USER
         ]
       },
       {
@@ -150,7 +165,6 @@ export const MENU_DEFINITIONS: MenuItemDef[] = [
         allowedRoles: [
           ...ROLE_GROUPS.HR_ROLES,
           ...ROLE_GROUPS.ADMIN_ROLES,
-          ...ROLE_GROUPS.BASIC_USER
         ]
       },
       {
@@ -160,7 +174,6 @@ export const MENU_DEFINITIONS: MenuItemDef[] = [
         allowedRoles: [
           ...ROLE_GROUPS.HR_ROLES,
           ...ROLE_GROUPS.ADMIN_ROLES,
-          ...ROLE_GROUPS.BASIC_USER
         ]
       },
       {
@@ -171,7 +184,6 @@ export const MENU_DEFINITIONS: MenuItemDef[] = [
         allowedRoles: [
           ...ROLE_GROUPS.HR_ROLES,
           ...ROLE_GROUPS.ADMIN_ROLES,
-          ...ROLE_GROUPS.BASIC_USER
         ],
         subItems: [
           {
@@ -182,9 +194,7 @@ export const MENU_DEFINITIONS: MenuItemDef[] = [
             backgroundColor: '#10b981',
             allowedRoles: [
               ...ROLE_GROUPS.HR_ROLES,
-              ...ROLE_GROUPS.EMPLOYEE,
               ...ROLE_GROUPS.ADMIN_ROLES,
-              ...ROLE_GROUPS.BASIC_USER
             ]
           },
           {
@@ -195,9 +205,7 @@ export const MENU_DEFINITIONS: MenuItemDef[] = [
             backgroundColor: '#f59e0b',
             allowedRoles: [
               ...ROLE_GROUPS.HR_ROLES,
-              ...ROLE_GROUPS.EMPLOYEE,
               ...ROLE_GROUPS.ADMIN_ROLES,
-              ...ROLE_GROUPS.BASIC_USER
             ]
           },
           {
@@ -208,9 +216,7 @@ export const MENU_DEFINITIONS: MenuItemDef[] = [
             backgroundColor: '#3b82f6',
             allowedRoles: [
               ...ROLE_GROUPS.HR_ROLES,
-              ...ROLE_GROUPS.EMPLOYEE,
               ...ROLE_GROUPS.ADMIN_ROLES,
-              ...ROLE_GROUPS.BASIC_USER
             ]
           },
           {
@@ -232,9 +238,7 @@ export const MENU_DEFINITIONS: MenuItemDef[] = [
             backgroundColor: '#ef4444',
             allowedRoles: [
               ...ROLE_GROUPS.HR_ROLES,
-              ...ROLE_GROUPS.EMPLOYEE,
               ...ROLE_GROUPS.ADMIN_ROLES,
-              ...ROLE_GROUPS.BASIC_USER
             ]
           },
           {

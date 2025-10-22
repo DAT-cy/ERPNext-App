@@ -67,6 +67,8 @@ export enum ErrorCode {
   STOCK_BALANCE_NOT_FOUND = 'STOCK_BALANCE_NOT_FOUND',
 
   SAVE_INVENTORY_FAILED = 'SAVE_INVENTORY_FAILED',
+
+  DELIVERY_NOTE_NOT_FOUND = 'DELIVERY_NOTE_NOT_FOUND',
 }
 
 // Interface cho Error Definition
@@ -378,5 +380,11 @@ export const ERROR_DEFINITIONS: Record<ErrorCode, ErrorDefinition> = {
     errorCode: 'SAVE-INVENTORY-ERR-001',
     message: 'SAVE INVENTORY FAILED',
     userMessage: 'Lỗi khi lưu phiếu nhập xuất'
+  },
+  [ErrorCode.DELIVERY_NOTE_NOT_FOUND]: {
+    status: StatusCode.NOT_FOUND,
+    errorCode: 'DELIVERY-NOTE-ERR-001',
+    message: 'DELIVERY NOTE NOT FOUND',
+    userMessage: 'Không tìm thấy phiếu giao hàng'
   },
 };

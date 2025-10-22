@@ -36,14 +36,20 @@ export const hp = (percentage: number): number => {
  */
 export const fs = (size: number): number => {
   const scale = Math.min(widthScale, heightScale);
-  const newSize = size * scale;
   
   // Giới hạn scale không quá nhỏ hoặc quá lớn
-  const minScale = 0.85;
-  const maxScale = 1.3;
+  const minScale = 0.8;
+  const maxScale = 1.4;
   const limitedScale = Math.max(minScale, Math.min(maxScale, scale));
   
-  return Math.round(PixelRatio.roundToNearestPixel(size * limitedScale));
+  // Đảm bảo font size không quá nhỏ để đọc được
+  const minFontSize = 10;
+  const maxFontSize = 48;
+  const scaledSize = size * limitedScale;
+  
+  return Math.round(PixelRatio.roundToNearestPixel(
+    Math.max(minFontSize, Math.min(maxFontSize, scaledSize))
+  ));
 };
 
 /**
@@ -52,7 +58,13 @@ export const fs = (size: number): number => {
  */
 export const ss = (size: number): number => {
   const scale = Math.min(widthScale, heightScale);
-  const newSize = size * scale;
+  
+  // Giới hạn scale cho spacing để không quá nhỏ hoặc quá lớn
+  const minScale = 0.7;
+  const maxScale = 1.5;
+  const limitedScale = Math.max(minScale, Math.min(maxScale, scale));
+  
+  const newSize = size * limitedScale;
   return Math.round(PixelRatio.roundToNearestPixel(newSize));
 };
 
@@ -178,6 +190,66 @@ export const getPlatformResponsiveValue = (values: {
   return getResponsiveValue(platformValues);
 };
 
+// Enhanced responsive utilities
+export const getResponsiveFontSize = (baseSize: number, options?: {
+  minSize?: number;
+  maxSize?: number;
+  scaleFactor?: number;
+}): number => {
+  const { minSize = 10, maxSize = 48, scaleFactor = 1 } = options || {};
+  const scaledSize = fs(baseSize * scaleFactor);
+  return Math.max(minSize, Math.min(maxSize, scaledSize));
+};
+
+export const getResponsiveSpacing = (baseSize: number, options?: {
+  minSize?: number;
+  maxSize?: number;
+  scaleFactor?: number;
+}): number => {
+  const { minSize = 4, maxSize = 80, scaleFactor = 1 } = options || {};
+  const scaledSize = ss(baseSize * scaleFactor);
+  return Math.max(minSize, Math.min(maxSize, scaledSize));
+};
+
+// Responsive text styles
+export const getResponsiveTextStyle = (baseSize: number, options?: {
+  fontWeight?: '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900';
+  color?: string;
+  lineHeight?: number;
+}): any => {
+  const { fontWeight = '400', color = '#000000', lineHeight } = options || {};
+  const fontSize = getResponsiveFontSize(baseSize);
+  
+  return {
+    fontSize,
+    fontWeight,
+    color,
+    ...(lineHeight && { lineHeight: getResponsiveFontSize(lineHeight) }),
+  };
+};
+
+// Responsive container styles
+export const getResponsiveContainerStyle = (options?: {
+  padding?: number;
+  margin?: number;
+  borderRadius?: number;
+  backgroundColor?: string;
+}): any => {
+  const { 
+    padding = 16, 
+    margin = 0, 
+    borderRadius = 8, 
+    backgroundColor = '#FFFFFF' 
+  } = options || {};
+  
+  return {
+    padding: getResponsiveSpacing(padding),
+    margin: getResponsiveSpacing(margin),
+    borderRadius: getResponsiveSpacing(borderRadius),
+    backgroundColor,
+  };
+};
+
 // Export default object with all functions
 export default {
   wp,
@@ -193,6 +265,10 @@ export default {
   getCurrentBreakpoint,
   getResponsiveValue,
   getPlatformResponsiveValue,
+  getResponsiveFontSize,
+  getResponsiveSpacing,
+  getResponsiveTextStyle,
+  getResponsiveContainerStyle,
   isSmallScreen,
   isMediumScreen,
   isLargeScreen,

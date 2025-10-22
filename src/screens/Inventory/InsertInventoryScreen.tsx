@@ -13,7 +13,7 @@ import {
     Alert,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { getAllExportImportType, getWarehouse, InventoryItem, toEnglishStockEntryType } from '../../services/inventoryService';
+import { getAllExportImportType, getWarehouse, getWarehouseList, toEnglishStockEntryType } from '../../services/inventoryService';
 import { getItemDetails, getIncomingRate, getStockBalance, saveInventory } from '../../services/inventoryInsertService';
 import { BarcodeScanner } from '../../components/Scanner/BarcodeScanner';
 import { Input } from '../../components/Input';
@@ -71,7 +71,7 @@ export default function InsertInventoryScreen() {
     // Form data
     const [code, setCode] = useState('MAT-STE-.YYYY.');
     const [company, setCompany] = useState('CTY REMAK');
-    const [entryType, setEntryType] = useState('');
+    const [entryType, setEntryType] = useState('Chuyển kho');
     const [stockEntryTypes, setStockEntryTypes] = useState<string[]>([]);
     const [postDate, setPostDate] = useState('');
     const [postTime, setPostTime] = useState('');
@@ -98,12 +98,47 @@ export default function InsertInventoryScreen() {
     // Filter states
     const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
     const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
-    const [filterCategories] = useState<FilterCategory[]>([
-        { key: 'stock_entry_type', title: 'Loại nhập xuất *' },
-        { key: 'warehouse_origin', title: 'Kho Đích' },
-        { key: 'warehouse_export', title: 'Kho Xuất *' },
-        {key : 'warehouse_import', title: 'Kho Nhập *'}
-    ]);
+
+    // Enforce rules when filters change from modal
+    const handleFiltersChange = useCallback((nextFilters: ActiveFilter[]) => {
+        let adjusted = Array.isArray(nextFilters) ? [...nextFilters] : [];
+        const hasOrigin = adjusted.some(f => f.category === 'warehouse_origin');
+
+        if (hasOrigin) {
+            // Force warehouse_import to 'Kho đi đường - COM' and make it sticky
+            adjusted = adjusted.filter(f => f.category !== 'warehouse_import');
+            adjusted.push({
+                key: 'warehouse_import-Kho đi đường - COM',
+                label: 'Kho đi đường - COM',
+                category: 'warehouse_import',
+                value: 'Kho đi đường - COM'
+            });
+        }
+
+        setActiveFilters(adjusted);
+    }, []);
+    // Dynamic filter categories based on stock entry type
+    const getFilterCategories = (): FilterCategory[] => {
+        const stockEntryTypeFilter = activeFilters.find(f => f.category === 'stock_entry_type');
+        const isTransferType = stockEntryTypeFilter?.value === 'Chuyển kho';
+        
+        const baseCategories: FilterCategory[] = [
+            { key: 'stock_entry_type', title: 'Loại nhập xuất *' },
+            { key: 'warehouse_export', title: 'Kho Xuất *' },
+        ];
+        
+        // Only add warehouse_origin if it's "Chuyển kho" type
+        if (isTransferType) {
+            baseCategories.splice(1, 0, { key: 'warehouse_origin', title: 'Kho Đích' });
+        }
+        
+        // Always add warehouse_import
+        baseCategories.push({ key: 'warehouse_import', title: 'Kho Nhập *' });
+        
+        return baseCategories;
+    };
+    
+    const filterCategories = getFilterCategories();
     const [filterOptions, setFilterOptions] = useState<Record<string, FilterOption[]>>({
         stock_entry_type: [],
         warehouse_origin: [],
@@ -179,6 +214,7 @@ export default function InsertInventoryScreen() {
             const stockEntryTypeFilter = activeFilters.find(f => f.category === 'stock_entry_type');
             const exportWarehouseFilter = activeFilters.find(f => f.category === 'warehouse_export');
             const importWarehouseFilter = activeFilters.find(f => f.category === 'warehouse_import');
+            const originWarehouseFilter = activeFilters.find(f => f.category === 'warehouse_origin');
 
             // Collect all validation errors
             const validationErrors: string[] = [];
@@ -193,6 +229,11 @@ export default function InsertInventoryScreen() {
 
             if (!importWarehouseFilter) {
                 validationErrors.push('• Kho nhập');
+            }
+
+            // Require warehouse_origin only when "Chuyển kho"
+            if (stockEntryTypeFilter?.value === 'Chuyển kho' && !originWarehouseFilter) {
+                validationErrors.push('• Kho Đích');
             }
 
             if (items.length === 0) {
@@ -236,7 +277,6 @@ export default function InsertInventoryScreen() {
             }));
 
             // Origin warehouse logic for transit
-            const originWarehouseFilter = activeFilters.find(f => f.category === 'warehouse_origin');
             const addToTransit = originWarehouseFilter ? '1' : '0';
             const originalTargetWarehouse = originWarehouseFilter?.value || importWarehouseFilter!.value;
 
@@ -607,6 +647,7 @@ export default function InsertInventoryScreen() {
         };
         const loadWarehouses = async () => {
             try {
+                // Load warehouses for export and import
                 const whs = await getWarehouse();
                 const whOptions: FilterOption[] = Array.isArray(whs)
                     ? whs
@@ -614,20 +655,67 @@ export default function InsertInventoryScreen() {
                         .filter((v: string) => !!v)
                         .map((v: string) => ({ value: v, label: v, category: 'warehouse' }))
                     : [];
-                // Reuse same options for all three warehouse categories
+
+                // Load warehouse list for origin (different API)
+                const whList = await getWarehouseList();
+                const whOriginOptions: FilterOption[] = Array.isArray(whList)
+                    ? whList
+                        .map((w: any) => w?.name || '')
+                        .filter((v: string) => !!v)
+                        .filter((v: string) => !v.includes('- TONG')) // Exclude warehouses with "- TONG"
+                        .map((v: string) => ({ value: v, label: v, category: 'warehouse_origin' }))
+                    : [];
+
                 setFilterOptions(prev => ({
                     ...prev,
-                    warehouse_origin: whOptions.map(o => ({ ...o, category: 'warehouse_origin' })),
+                    warehouse_origin: whOriginOptions,
                     warehouse_export: whOptions.map(o => ({ ...o, category: 'warehouse_export' })),
                     warehouse_import: whOptions.map(o => ({ ...o, category: 'warehouse_import' })),
                 }));
+
+                // Auto-selection logic for export warehouse based on count and presence of COM
+                const warehouseNames = whOptions.map(o => o.value);
+                const warehouseCount = warehouseNames.length;
+                const hasCom = warehouseNames.includes('Kho đi đường - COM');
+
+                // Do not override if user already selected
+                const alreadyHasExport = activeFilters.some(f => f.category === 'warehouse_export');
+
+                let nextFilters = [...activeFilters];
+
+                if (warehouseCount === 1) {
+                    const onlyWh = warehouseNames[0];
+                    if (!alreadyHasExport) {
+                        nextFilters = [
+                            ...nextFilters.filter(f => f.category !== 'warehouse_export'),
+                            { key: `warehouse_export-${onlyWh}`, label: onlyWh, category: 'warehouse_export', value: onlyWh },
+                        ];
+                    }
+                } else if (warehouseCount === 2 && hasCom) {
+                    const otherWh = warehouseNames.find(n => n !== 'Kho đi đường - COM');
+                    if (otherWh) {
+                        if (!alreadyHasExport) {
+                            nextFilters = [
+                                ...nextFilters.filter(f => f.category !== 'warehouse_export'),
+                                { key: `warehouse_export-${otherWh}`, label: otherWh, category: 'warehouse_export', value: otherWh },
+                            ];
+                        }
+                    }
+                } // 2 warehouses without COM => let user choose; 3+ => let user choose
+
+                // Apply if there are changes
+                const same = nextFilters.length === activeFilters.length && nextFilters.every((n, i) => {
+                    const a = activeFilters[i];
+                    return a && a.key === n.key && a.value === n.value && a.category === n.category && a.label === n.label;
+                });
+                if (!same) setActiveFilters(nextFilters);
             } catch {}
         };
         loadTypes();
         loadWarehouses();
     }, []);
 
-    // Default stock_entry_type to "Chuyển kho" once options are ready
+    // Default stock_entry_type to "Chuyển kho" - only add once
     useEffect(() => {
         const hasType = activeFilters.some(f => f.category === 'stock_entry_type');
         if (!hasType) {
@@ -641,34 +729,46 @@ export default function InsertInventoryScreen() {
                 }
             ]);
         }
-    }, [filterOptions.stock_entry_type]);
+    }, [activeFilters]);
+
+    // Auto-remove warehouse_origin filter when not "Chuyển kho"
+    useEffect(() => {
+        const stockEntryTypeFilter = activeFilters.find(f => f.category === 'stock_entry_type');
+        const isTransferType = stockEntryTypeFilter?.value === 'Chuyển kho';
+        const hasOriginFilter = activeFilters.some(f => f.category === 'warehouse_origin');
+        
+        // If not transfer type but has origin filter, remove it
+        if (!isTransferType && hasOriginFilter) {
+            console.log('🏪 [InsertInventoryScreen] Removing warehouse_origin filter - not transfer type');
+            setActiveFilters(prev => prev.filter(f => f.category !== 'warehouse_origin'));
+        }
+    }, [activeFilters]);
 
     useEffect(() => {
         setPostDate(prev => prev || formatCurrentDateDisplay());
         setPostTime(prev => prev || formatCurrentTimeHMS());
     }, []);
 
-    // When origin warehouse is selected via filters, default (and lock) import warehouse filter
+    // When origin warehouse is selected via filters, auto-lock import to 'Kho đi đường - COM'
     useEffect(() => {
         const hasOrigin = activeFilters.some(f => f.category === 'warehouse_origin');
-        const hasFixedImport = activeFilters.some(f => f.category === 'warehouse_import' && f.value === 'Kho đi đường - COM');
         if (!hasOrigin) return;
-        if (hasFixedImport) return;
-        const next = [
-            ...activeFilters.filter(f => f.category !== 'warehouse_import'),
-            {
-                key: 'warehouse_import-Kho đi đường - COM',
-                label: 'Kho đi đường - COM',
-                category: 'warehouse_import',
-                value: 'Kho đi đường - COM',
-            },
-        ];
-        // Shallow equality check to avoid unnecessary set and loops
-        const same = next.length === activeFilters.length && next.every((n, i) => {
-            const a = activeFilters[i];
-            return a && a.key === n.key && a.value === n.value && a.category === n.category && a.label === n.label;
-        });
-        if (!same) setActiveFilters(next);
+
+        const hasImportCom = activeFilters.some(
+            f => f.category === 'warehouse_import' && f.value === 'Kho đi đường - COM'
+        );
+
+        if (!hasImportCom) {
+            setActiveFilters(prev => ([
+                ...prev.filter(f => f.category !== 'warehouse_import'),
+                {
+                    key: 'warehouse_import-Kho đi đường - COM',
+                    label: 'Kho đi đường - COM',
+                    category: 'warehouse_import',
+                    value: 'Kho đi đường - COM'
+                }
+            ]));
+        }
     }, [activeFilters]);
 
     // Sync selected warehouse filters to defaultFromWarehouse/defaultToWarehouse
@@ -1032,7 +1132,7 @@ export default function InsertInventoryScreen() {
                 visible={isFilterModalVisible}
                 onClose={() => setIsFilterModalVisible(false)}
                 activeFilters={activeFilters}
-                onFiltersChange={setActiveFilters}
+                onFiltersChange={handleFiltersChange}
                 filterCategories={filterCategories}
                 filterOptions={filterOptions}
             />

@@ -369,10 +369,14 @@ export default function InventoryEntryScreens() {
     };
 
     // Search with API call (debounced)
-    const performSearch = async (query: string) => {
-        setLoading(true);
-        setCurrentPage(0);
-        setIsEndReachedCalled(false);
+    const performSearch = async (query: string, page: number = 0, isLoadMore: boolean = false) => {
+        if (isLoadMore) {
+            setLoadingMore(true);
+        } else {
+            setLoading(true);
+            setCurrentPage(0);
+            setIsEndReachedCalled(false);
+        }
         
         try {
             const filters = activeFilters.reduce((acc, filter) => {
@@ -384,6 +388,8 @@ export default function InventoryEntryScreens() {
                 return acc;
             }, {} as Record<string, string>);
 
+            const offset = page * 10; // 10 items per page
+
             // Add search filter to API call with LIKE operator for partial search
             const response = await getAllInventory({ 
                 filters: {
@@ -391,26 +397,39 @@ export default function InventoryEntryScreens() {
                     name: `%${query}%` // Partial search with LIKE operator
                 }, 
                 limit: 10, 
-                offset: 0 
+                offset: offset 
             });
 
             if (response.success && response.data) {
-                setInventoryData(response.data);
-                setFilteredData(response.data);
-                setHasMoreData(response.data.length >= 10);
+                if (isLoadMore) {
+                    // Append new data to existing data
+                    setInventoryData(prev => [...prev, ...(response.data || [])]);
+                    setFilteredData(prev => [...prev, ...(response.data || [])]);
+                } else {
+                    // Replace data for new search
+                    setInventoryData(response.data || []);
+                    setFilteredData(response.data || []);
+                }
+                setHasMoreData((response.data || []).length >= 10);
+                setCurrentPage(page);
             } else {
                 console.error('❌ [InventoryEntryScreens] Search failed:', response.error);
-                setInventoryData([]);
-                setFilteredData([]);
+                if (!isLoadMore) {
+                    setInventoryData([]);
+                    setFilteredData([]);
+                }
                 setHasMoreData(false);
             }
         } catch (error) {
             console.error('💥 [InventoryEntryScreens] Search error:', error);
-            setInventoryData([]);
-            setFilteredData([]);
+            if (!isLoadMore) {
+                setInventoryData([]);
+                setFilteredData([]);
+            }
             setHasMoreData(false);
         } finally {
             setLoading(false);
+            setLoadingMore(false);
         }
     };
 
@@ -424,7 +443,7 @@ export default function InventoryEntryScreens() {
         // Set new timeout
         const timeout = setTimeout(() => {
             if (query.trim()) {
-                performSearch(query);
+                performSearch(query, 0, false);
             } else {
                 // If query is empty, fetch fresh data
                 fetchInventoryData(0, false);
@@ -466,7 +485,12 @@ export default function InventoryEntryScreens() {
             // Reset to first page and reload data
             setCurrentPage(0);
             setIsEndReachedCalled(false);
-            await fetchInventoryData(0, false);
+            // Use current search query when refreshing
+            if (searchQuery.trim()) {
+                await performSearch(searchQuery, 0, false);
+            } else {
+                await fetchInventoryData(0, false);
+            }
         } finally {
             setIsRefreshing(false);
         }
@@ -564,8 +588,13 @@ export default function InventoryEntryScreens() {
     useFocusEffect(
         React.useCallback(() => {
             console.log('🔄 [InventoryEntryScreens] Screen focused, refreshing data...');
-            fetchInventoryData(0, false);
-        }, [activeFilters])
+            // Use current search query when refreshing
+            if (searchQuery.trim()) {
+                performSearch(searchQuery, 0, false);
+            } else {
+                fetchInventoryData(0, false);
+            }
+        }, [activeFilters, searchQuery])
     );
 
     // Realtime polling only when screen is focused
@@ -574,7 +603,14 @@ export default function InventoryEntryScreens() {
             console.log('🔄 [InventoryEntryScreens] Screen focused, starting realtime polling...');
             
             const pollingManager = new RealtimePollingManager({
-                fetchData: () => fetchInventoryData(0, false),
+                fetchData: () => {
+                    // Use current search query for realtime polling
+                    if (searchQuery.trim()) {
+                        return performSearch(searchQuery, 0, false);
+                    } else {
+                        return fetchInventoryData(0, false);
+                    }
+                },
                 lastUpdateTime,
                 onError: (error, consecutiveErrors) => {
                     console.error(`❌ [InventoryEntryScreens] Polling error (${consecutiveErrors}):`, error);
@@ -593,12 +629,13 @@ export default function InventoryEntryScreens() {
             // Start polling when screen is focused
             pollingManager.start();
 
+            // Cleanup function - this will be called when screen loses focus
             return () => {
                 console.log('🔄 [InventoryEntryScreens] Screen unfocused, stopping realtime polling...');
                 // Cleanup completely when leaving screen
                 pollingManager.cleanup();
             };
-        }, [activeFilters, lastUpdateTime])
+        }, [activeFilters, lastUpdateTime, searchQuery])
     );
 
     // Handle item click to navigate to detail
@@ -623,19 +660,20 @@ export default function InventoryEntryScreens() {
     };
 
     const loadMoreData = () => {
-        
-        if (searchQuery.trim()) {
-            return;
-        }
-    
         if (isEndReachedCalled) {
             return;
         }
     
         if (!loadingMore && hasMoreData) {
             setIsEndReachedCalled(true);
-            fetchInventoryData(currentPage + 1, true);
-        } else {
+            
+            // If searching, use performSearch with load more
+            if (searchQuery.trim()) {
+                performSearch(searchQuery, currentPage + 1, true);
+            } else {
+                // If not searching, use normal fetch
+                fetchInventoryData(currentPage + 1, true);
+            }
         }
     };
 

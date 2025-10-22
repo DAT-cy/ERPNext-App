@@ -174,10 +174,8 @@ export async function getAllInventory(options: InventoryQueryOptions = {}): Prom
                 queryParams.append('filters', JSON.stringify(filtersArray));
             }
         }
-        console.log( "queryParams", queryParams.toString());
         const fullUrl = `/api/resource/Stock Entry?${queryParams.toString()}`;
         const { data } = await api.get(fullUrl);
-        console.log( "data", JSON.stringify(data));
 
         if (data && data.data) {
             return {
@@ -216,6 +214,25 @@ export async function getWarehouse(): Promise<dataFill[]> {
         return data.data as dataFill[];
     } catch (error) {
         console.error("Error fetching Warehouses:", error);
+        throw new CommonException(ErrorCode.WAREHOUSE_NOT_FOUND);
+    }
+}
+
+export async function getWarehouseList(): Promise<dataFill[]> {
+    try {
+        const { data } = await api.get("/api/method/remak.utils.warehouse.get_list");
+        console.log('🔍 [inventoryService] getWarehouseList response:', data);
+        
+        // Response format: { "message": [...] }
+        if (data && data.message && Array.isArray(data.message)) {
+            console.log('🔍 [inventoryService] Found', data.message.length, 'warehouses');
+            return data.message as dataFill[];
+        }
+        
+        console.warn('⚠️ [inventoryService] No message array in response');
+        return [];
+    } catch (error) {
+        console.error("Error fetching warehouse list:", error);
         throw new CommonException(ErrorCode.WAREHOUSE_NOT_FOUND);
     }
 }

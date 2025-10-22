@@ -39,6 +39,12 @@ export const useFeatureNavigation = () => {
         navigation.navigate('DeliveryNote' as never);
         break;
         
+      case 'check-quantity-inventory':
+        // Navigate to check list inventory
+        console.log('🔍 [navigationHelpers] Navigating to CheckListInventoryScreen');
+        navigation.navigate('CheckListInventoryScreen' as never);
+        break;
+        
       case 'purchase-receipt':
         // Navigate to purchase receipt
         navigation.navigate('PurchaseReceipt' as never);
@@ -78,6 +84,10 @@ export const navigateToFeature = (feature: NavigationFeature, navigation: any) =
       
     case 'delivery-note':
       navigation.navigate('DeliveryNote');
+      break;
+      
+    case 'check-quantity-inventory':
+      navigation.navigate('CheckListInventoryScreen');
       break;
       
     case 'purchase-receipt':

@@ -1,6 +1,6 @@
 // src/styles/globalStyles.ts
 import { StyleSheet } from 'react-native';
-import { wp, hp, fs, ss, deviceInfo } from '../utils/responsive';
+import { wp, hp, fs, ss, deviceInfo, getResponsiveValue } from '../utils/responsive';
 import { typography, spacing, borderRadius, touchTargets, shadows } from '../utils/dimensions';
 
 // Colors
@@ -131,17 +131,17 @@ export const globalStyles = StyleSheet.create({
   myLG: { marginVertical: spacing.lg },
   myXL: { marginVertical: spacing.xl },
   
-  // Typography
-  textXS: { fontSize: typography.xs, color: colors.textPrimary },
-  textSM: { fontSize: typography.sm, color: colors.textPrimary },
-  textBase: { fontSize: typography.base, color: colors.textPrimary },
-  textMD: { fontSize: typography.md, color: colors.textPrimary },
-  textLG: { fontSize: typography.lg, color: colors.textPrimary },
-  textXL: { fontSize: typography.xl, color: colors.textPrimary },
-  text2XL: { fontSize: typography['2xl'], color: colors.textPrimary },
-  text3XL: { fontSize: typography['3xl'], color: colors.textPrimary },
-  text4XL: { fontSize: typography['4xl'], color: colors.textPrimary },
-  text5XL: { fontSize: typography['5xl'], color: colors.textPrimary },
+  // Typography - Responsive text sizes
+  textXS: { fontSize: typography.xs, color: colors.textPrimary, lineHeight: typography.xs * 1.4 },
+  textSM: { fontSize: typography.sm, color: colors.textPrimary, lineHeight: typography.sm * 1.4 },
+  textBase: { fontSize: typography.base, color: colors.textPrimary, lineHeight: typography.base * 1.4 },
+  textMD: { fontSize: typography.md, color: colors.textPrimary, lineHeight: typography.md * 1.4 },
+  textLG: { fontSize: typography.lg, color: colors.textPrimary, lineHeight: typography.lg * 1.4 },
+  textXL: { fontSize: typography.xl, color: colors.textPrimary, lineHeight: typography.xl * 1.3 },
+  text2XL: { fontSize: typography['2xl'], color: colors.textPrimary, lineHeight: typography['2xl'] * 1.2 },
+  text3XL: { fontSize: typography['3xl'], color: colors.textPrimary, lineHeight: typography['3xl'] * 1.1 },
+  text4XL: { fontSize: typography['4xl'], color: colors.textPrimary, lineHeight: typography['4xl'] * 1.1 },
+  text5XL: { fontSize: typography['5xl'], color: colors.textPrimary, lineHeight: typography['5xl'] * 1.0 },
   
   // Font weights
   fontThin: { fontWeight: '100' },
@@ -319,6 +319,123 @@ export const globalStyles = StyleSheet.create({
     color: colors.error,
     textAlign: 'center',
     marginBottom: spacing.md,
+  },
+  
+  // Responsive utilities
+  responsiveContainer: {
+    flex: 1,
+    paddingHorizontal: getResponsiveValue({
+      xs: spacing.md,
+      sm: spacing.lg,
+      md: spacing.xl,
+      lg: spacing['2xl'],
+    }),
+    paddingVertical: getResponsiveValue({
+      xs: spacing.sm,
+      sm: spacing.md,
+      md: spacing.lg,
+      lg: spacing.xl,
+    }),
+  },
+  
+  responsiveText: {
+    fontSize: getResponsiveValue({
+      xs: typography.sm,
+      sm: typography.base,
+      md: typography.md,
+      lg: typography.lg,
+    }),
+    lineHeight: getResponsiveValue({
+      xs: typography.sm * 1.4,
+      sm: typography.base * 1.4,
+      md: typography.md * 1.4,
+      lg: typography.lg * 1.4,
+    }),
+    color: colors.textPrimary,
+  },
+  
+  responsiveTitle: {
+    fontSize: getResponsiveValue({
+      xs: typography.lg,
+      sm: typography.xl,
+      md: typography['2xl'],
+      lg: typography['3xl'],
+    }),
+    fontWeight: '700',
+    color: colors.textPrimary,
+    textAlign: 'center',
+    marginBottom: getResponsiveValue({
+      xs: spacing.md,
+      sm: spacing.lg,
+      md: spacing.xl,
+      lg: spacing['2xl'],
+    }),
+  },
+  
+  responsiveButton: {
+    paddingVertical: getResponsiveValue({
+      xs: spacing.sm,
+      sm: spacing.md,
+      md: spacing.lg,
+      lg: spacing.xl,
+    }),
+    paddingHorizontal: getResponsiveValue({
+      xs: spacing.md,
+      sm: spacing.lg,
+      md: spacing.xl,
+      lg: spacing['2xl'],
+    }),
+    borderRadius: getResponsiveValue({
+      xs: borderRadius.md,
+      sm: borderRadius.lg,
+      md: borderRadius.xl,
+      lg: borderRadius['2xl'],
+    }),
+    minHeight: getResponsiveValue({
+      xs: touchTargets.medium,
+      sm: touchTargets.large,
+      md: touchTargets.xl,
+      lg: touchTargets.xl,
+    }),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  
+  responsiveInput: {
+    height: getResponsiveValue({
+      xs: touchTargets.medium,
+      sm: touchTargets.large,
+      md: touchTargets.large,
+      lg: touchTargets.xl,
+    }),
+    paddingHorizontal: getResponsiveValue({
+      xs: spacing.md,
+      sm: spacing.lg,
+      md: spacing.xl,
+      lg: spacing['2xl'],
+    }),
+    paddingVertical: getResponsiveValue({
+      xs: spacing.sm,
+      sm: spacing.md,
+      md: spacing.lg,
+      lg: spacing.xl,
+    }),
+    fontSize: getResponsiveValue({
+      xs: typography.sm,
+      sm: typography.base,
+      md: typography.md,
+      lg: typography.lg,
+    }),
+    borderRadius: getResponsiveValue({
+      xs: borderRadius.md,
+      sm: borderRadius.lg,
+      md: borderRadius.xl,
+      lg: borderRadius['2xl'],
+    }),
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.white,
+    color: colors.textPrimary,
   },
 });
 

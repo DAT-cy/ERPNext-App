@@ -11,6 +11,9 @@ import InventoryManagementScreen from "../screens/Inventory/InventoryManagementS
 import InventoryEntryScreens from "../screens/Inventory/InventoryEntryScreens";
 import InventoryDetailScreen from "../screens/Inventory/InventoryDetailScreen";
 import InsertInventoryScreen from "@/screens/Inventory/InsertInventoryScreen";
+import DeliveryNoteScreen from "../screens/DeliveryNote/DeliveryNoteScreen";
+import DeliveryNoteDetailScreen from "../screens/DeliveryNote/DeliveryNoteDetailScreen";
+import CheckListInventoryScreen from "../screens/CheckListInventoryScreen";
 
 const Stack = createStackNavigator();
 
@@ -32,6 +35,9 @@ export default function AppNavigator() {
       <Stack.Screen name="InventoryEntry" component={InventoryEntryScreens} />
       <Stack.Screen name="InventoryDetailScreen" component={InventoryDetailScreen} />
       <Stack.Screen name="InsertInventoryScreen" component={InsertInventoryScreen} />
+      <Stack.Screen name="DeliveryNote" component={DeliveryNoteScreen} />
+      <Stack.Screen name="DeliveryNoteDetailScreen" component={DeliveryNoteDetailScreen} />
+      <Stack.Screen name="CheckListInventoryScreen" component={CheckListInventoryScreen} />
     </Stack.Navigator>
   );
 }

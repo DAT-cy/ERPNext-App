@@ -14,4 +14,9 @@ export type RootStackParamList = {
   InventoryDetailScreen: {
     inventoryDetail: any; // InventoryDetailData type
   };
+  DeliveryNote: undefined; // Delivery Note Screen
+  DeliveryNoteDetailScreen: {
+    deliveryNoteDetail?: any;
+    name?: string;
+  };
 };

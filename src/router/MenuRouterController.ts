@@ -47,8 +47,13 @@ class MenuRouterController {
     userRoles: string[],
     params?: any
   ): boolean {
+    console.log('🔍 [MenuRouterController] handleNestedMenuNavigation called:', { 
+      parentMenuId, menuId, nestedSubMenuId 
+    });
+    
     // Kiểm tra quyền truy cập nested menu bằng hasSubItemAccess với nestedSubItemId
     const hasAccess = hasSubItemAccess(userRoles, parentMenuId, menuId, nestedSubMenuId);
+    console.log('🔍 [MenuRouterController] hasAccess:', hasAccess);
     
     if (!hasAccess) {
       return false;
@@ -56,14 +61,19 @@ class MenuRouterController {
 
     // Tạo route key cho nested menu
     const routeKey = `${menuId}:${nestedSubMenuId}`;
+    console.log('🔍 [MenuRouterController] routeKey:', routeKey);
     
     // Kiểm tra xem có route mapping không
     if (!MENU_ROUTE_MAP[routeKey]) {
+      console.log('🔍 [MenuRouterController] No route mapping found for:', routeKey);
       return false;
     }
 
+    console.log('🔍 [MenuRouterController] Route mapping found:', MENU_ROUTE_MAP[routeKey]);
+
     // Thực hiện điều hướng
     const success = menuRouter.navigateByMenuId(menuId, nestedSubMenuId, params);
+    console.log('🔍 [MenuRouterController] Navigation success:', success);
     return success;
   }
 

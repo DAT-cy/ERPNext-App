@@ -8,6 +8,9 @@ import {
   ViewStyle,
   TouchableOpacity,
 } from 'react-native';
+import { globalStyles, colors } from '../../styles';
+import { typography, spacing, borderRadius, touchTargets } from '../../utils/dimensions';
+import { getResponsiveValue } from '../../utils/responsive';
 
 export interface InputProps extends TextInputProps {
   label?: string;
@@ -86,41 +89,113 @@ export default function Input({
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 16,
+    marginBottom: getResponsiveValue({
+      xs: spacing.xs,
+      sm: spacing.sm,
+      md: spacing.md,
+      lg: spacing.lg,
+    }),
   },
   label: {
-    fontSize: 16,
+    fontSize: getResponsiveValue({
+      xs: typography.xs,
+      sm: typography.sm,
+      md: typography.base,
+      lg: typography.md,
+    }),
     fontWeight: '500',
-    color: '#333333',
-    marginBottom: 8,
+    color: colors.textPrimary,
+    marginBottom: getResponsiveValue({
+      xs: spacing.xs,
+      sm: spacing.xs,
+      md: spacing.sm,
+      lg: spacing.md,
+    }),
   },
   inputContainer: {
     position: 'relative',
   },
   input: {
     borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
-    backgroundColor: '#FFFFFF',
+    borderColor: colors.border,
+    borderRadius: getResponsiveValue({
+      xs: borderRadius.xs,
+      sm: borderRadius.sm,
+      md: borderRadius.md,
+      lg: borderRadius.lg,
+    }),
+    paddingHorizontal: getResponsiveValue({
+      xs: spacing.sm,
+      sm: spacing.md,
+      md: spacing.lg,
+      lg: spacing.xl,
+    }),
+    paddingVertical: getResponsiveValue({
+      xs: spacing.xs,
+      sm: spacing.sm,
+      md: spacing.md,
+      lg: spacing.lg,
+    }),
+    fontSize: getResponsiveValue({
+      xs: typography.xs,
+      sm: typography.sm,
+      md: typography.base,
+      lg: typography.md,
+    }),
+    backgroundColor: colors.white,
+    color: colors.textPrimary,
+    minHeight: getResponsiveValue({
+      xs: 32,
+      sm: 36,
+      md: 40,
+      lg: 44,
+    }),
   },
   inputError: {
-    borderColor: '#FF3B30',
+    borderColor: colors.error,
   },
   secureToggle: {
     position: 'absolute',
-    right: 12,
-    top: 12,
-    padding: 4,
+    right: getResponsiveValue({
+      xs: spacing.xs,
+      sm: spacing.sm,
+      md: spacing.md,
+      lg: spacing.lg,
+    }),
+    top: getResponsiveValue({
+      xs: spacing.xs,
+      sm: spacing.sm,
+      md: spacing.md,
+      lg: spacing.lg,
+    }),
+    padding: getResponsiveValue({
+      xs: 2,
+      sm: 4,
+      md: 6,
+      lg: 8,
+    }),
   },
   secureToggleText: {
-    fontSize: 16,
+    fontSize: getResponsiveValue({
+      xs: typography.xs,
+      sm: typography.sm,
+      md: typography.base,
+      lg: typography.md,
+    }),
   },
   errorText: {
-    color: '#FF3B30',
-    fontSize: 14,
-    marginTop: 4,
+    color: colors.error,
+    fontSize: getResponsiveValue({
+      xs: typography.xs,
+      sm: typography.sm,
+      md: typography.base,
+      lg: typography.md,
+    }),
+    marginTop: getResponsiveValue({
+      xs: spacing.xs,
+      sm: spacing.sm,
+      md: spacing.md,
+      lg: spacing.lg,
+    }),
   },
 });

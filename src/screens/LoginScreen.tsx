@@ -5,6 +5,9 @@ import { useNavigation } from "@react-navigation/native";
 import { useAuth } from "../hooks";
 import { Input } from "../components";
 import { CommonException, ErrorCode, StatusCode } from "../utils/error";
+import { globalStyles, colors } from "../styles";
+import { typography, spacing, borderRadius, touchTargets } from "../utils/dimensions";
+import { getResponsiveValue } from "..";
 
 type FieldErrors = {
   usr?: string | null;
@@ -156,7 +159,7 @@ export default function LoginScreen() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <View style={styles.container}>
-        <Text style={styles.title}>REMAK Login</Text>
+        <Text style={[globalStyles.responsiveTitle, styles.title]}>REMAK Login</Text>
 
         <Input
           value={usr}
@@ -166,7 +169,7 @@ export default function LoginScreen() {
           autoCapitalize="none"
           textContentType="username"
         />
-        {showUsrErr && <Text style={styles.fieldError}>{errors.usr}</Text>}
+        {showUsrErr && <Text style={[globalStyles.responsiveText, styles.fieldError]}>{errors.usr}</Text>}
 
         <Input
           value={pwd}
@@ -178,35 +181,148 @@ export default function LoginScreen() {
           autoCapitalize="none"
           textContentType="password"
         />
-        {showPwdErr && <Text style={styles.fieldError}>{errors.pwd}</Text>}
+        {showPwdErr && <Text style={[globalStyles.responsiveText, styles.fieldError]}>{errors.pwd}</Text>}
 
         <Pressable
-          style={[styles.btn, loginLoading && styles.btnDisabled]}
+          style={[globalStyles.responsiveButton, styles.btn, loginLoading && styles.btnDisabled]}
           onPress={onSubmit}
           disabled={loginLoading}
           accessibilityRole="button"
         >
-          {loginLoading ? <ActivityIndicator /> : <Text style={styles.btnText}>Đăng nhập</Text>}
+          {loginLoading ? <ActivityIndicator /> : <Text style={[globalStyles.responsiveText, styles.btnText]}>Đăng nhập</Text>}
         </Pressable>
 
-        {!!formErr && <Text style={styles.formError}>{formErr}</Text>}
+        {!!formErr && <Text style={[globalStyles.responsiveText, styles.formError]}>{formErr}</Text>}
       </View>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, justifyContent: "center" },
-  title: { fontSize: 24, fontWeight: "700", textAlign: "center", marginBottom: 16 },
-  btn: {
-    backgroundColor: "black",
-    padding: 14,
-    borderRadius: 10,
-    alignItems: "center",
-    marginTop: 24,
+  container: { 
+    flex: 1,
+    paddingHorizontal: getResponsiveValue({
+      xs: spacing.md,
+      sm: spacing.lg,
+      md: spacing.xl,
+      lg: spacing['2xl'],
+    }),
+    paddingVertical: getResponsiveValue({
+      xs: spacing.sm,
+      sm: spacing.md,
+      md: spacing.lg,
+      lg: spacing.xl,
+    }),
+    justifyContent: "center",
+    backgroundColor: colors.background,
   },
-  btnDisabled: { opacity: 0.6 },
-  btnText: { color: "white", fontWeight: "700" },
-  fieldError: { color: "#dc2626", marginTop: 6, marginBottom: 4 },
-  formError: { color: "#dc2626", textAlign: "center", marginTop: 12 },
+  title: { 
+    fontSize: getResponsiveValue({
+      xs: typography.xl,
+      sm: typography['2xl'],
+      md: typography['3xl'],
+      lg: typography['4xl'],
+    }),
+    fontWeight: "700", 
+    textAlign: "center", 
+    marginBottom: getResponsiveValue({
+      xs: spacing.md,
+      sm: spacing.lg,
+      md: spacing.xl,
+      lg: spacing['2xl'],
+    }),
+    color: colors.textPrimary,
+    lineHeight: getResponsiveValue({
+      xs: typography.xl * 1.2,
+      sm: typography['2xl'] * 1.2,
+      md: typography['3xl'] * 1.1,
+      lg: typography['4xl'] * 1.1,
+    }),
+  },
+  btn: {
+    backgroundColor: colors.black,
+    paddingVertical: getResponsiveValue({
+      xs: spacing.xs,
+      sm: spacing.sm,
+      md: spacing.md,
+      lg: spacing.lg,
+    }),
+    paddingHorizontal: getResponsiveValue({
+      xs: spacing.md,
+      sm: spacing.lg,
+      md: spacing.xl,
+      lg: spacing['2xl'],
+    }),
+    borderRadius: getResponsiveValue({
+      xs: borderRadius.sm,
+      sm: borderRadius.md,
+      md: borderRadius.lg,
+      lg: borderRadius.xl,
+    }),
+    alignItems: "center",
+    marginTop: getResponsiveValue({
+      xs: spacing.md,
+      sm: spacing.lg,
+      md: spacing.xl,
+      lg: spacing['2xl'],
+    }),
+    minHeight: getResponsiveValue({
+      xs: touchTargets.small,
+      sm: touchTargets.medium,
+      md: touchTargets.large,
+      lg: touchTargets.xl,
+    }),
+    justifyContent: "center",
+  },
+  btnDisabled: { 
+    opacity: 0.6,
+    backgroundColor: colors.gray600,
+  },
+  btnText: { 
+    color: colors.white, 
+    fontWeight: "600",
+    fontSize: getResponsiveValue({
+      xs: typography.xs,
+      sm: typography.sm,
+      md: typography.base,
+      lg: typography.md,
+    }),
+  },
+  fieldError: { 
+    color: colors.error, 
+    marginTop: getResponsiveValue({
+      xs: spacing.xs,
+      sm: spacing.sm,
+      md: spacing.md,
+      lg: spacing.lg,
+    }),
+    marginBottom: getResponsiveValue({
+      xs: spacing.xs,
+      sm: spacing.sm,
+      md: spacing.md,
+      lg: spacing.lg,
+    }),
+    fontSize: getResponsiveValue({
+      xs: typography.xs,
+      sm: typography.sm,
+      md: typography.base,
+      lg: typography.md,
+    }),
+  },
+  formError: { 
+    color: colors.error, 
+    textAlign: "center", 
+    marginTop: getResponsiveValue({
+      xs: spacing.sm,
+      sm: spacing.md,
+      md: spacing.lg,
+      lg: spacing.xl,
+    }),
+    fontSize: getResponsiveValue({
+      xs: typography.xs,
+      sm: typography.sm,
+      md: typography.base,
+      lg: typography.md,
+    }),
+  },
 });
