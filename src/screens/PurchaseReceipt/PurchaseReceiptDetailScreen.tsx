@@ -16,18 +16,18 @@ import { Input } from '../../components/Input';
 import { inventoryDetailStyles as styles } from '../../styles/InventoryDetailScreen.styles';
 import { colors } from '../../styles/globalStyles';
 import { hp } from '../../utils/responsive';
-import { DeliveryNoteDetail } from '../../types/deliveryNote.types';
-import { getDeliveryNoteDetail, updateDeliveryNote, deleteDeliveryNote } from '../../services/deliveryNoteService';
+import { PurchaseReceiptDetail } from '../../services/purchaseReceiptService';
+import { getPurchaseReceiptDetail, updatePurchaseReceipt, deletePurchaseReceipt } from '../../services/purchaseReceiptService';
 import { RootStackParamList } from '../../navigation/types';
 
-type DeliveryNoteDetailRouteProp = RouteProp<RootStackParamList, 'DeliveryNoteDetailScreen'>;
+type PurchaseReceiptDetailRouteProp = RouteProp<RootStackParamList, 'PurchaseReceiptDetailScreen'>;
 
-export default function DeliveryNoteDtailScreen() {
+export default function PurchaseReceiptDetailScreen() {
   const navigation = useNavigation<any>();
-  const route = useRoute<DeliveryNoteDetailRouteProp>();
-  const { deliveryNoteDetail, name } = (route.params as any) || {};
+  const route = useRoute<PurchaseReceiptDetailRouteProp>();
+  const { purchaseReceiptDetail, name } = (route.params as any) || {};
 
-  const [data, setData] = useState<DeliveryNoteDetail | null>(deliveryNoteDetail || null);
+  const [data, setData] = useState<PurchaseReceiptDetail | null>(purchaseReceiptDetail || null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isStatusPickerOpen, setIsStatusPickerOpen] = useState(false);
   const [currentStatus, setCurrentStatus] = useState<string>('');
@@ -38,51 +38,18 @@ export default function DeliveryNoteDtailScreen() {
   const scrollViewRef = useRef<ScrollView>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const defaultData: DeliveryNoteDetail = {
+  const defaultData: PurchaseReceiptDetail = {
     name: name || 'N/A',
-    customer: '—',
-    customer_name: '—',
+    supplier: '—',
+    supplier_name: '—',
     posting_date: new Date().toISOString().slice(0, 10),
     creation: new Date().toISOString(),
-    workflow_state: 'Nháp',
-    custom_reference_name: '',
-    custom_sales_invoice: '',
+    workflow_state: 'Draft',
     total_qty: 0,
     items: [],
   };
 
   const currentData = useMemo(() => data || defaultData, [data]);
-
-  useEffect(() => {
-    setCurrentStatus(currentData.workflow_state || '');
-    setOriginalStatus(currentData.workflow_state || '');
-  }, [currentData.workflow_state]);
-
-  useEffect(() => {
-    setDescription(currentData.custom_reference_name || '');
-  }, [currentData.custom_reference_name]);
-
-  const statusMap: Record<string, { text: string; color: string; bgColor: string }> = {
-    'Nháp': { text: 'Nháp', color: '#3B82F6', bgColor: '#EFF6FF' },
-    'Draft': { text: 'Nháp', color: '#3B82F6', bgColor: '#EFF6FF' },
-    'Đang xử lý': { text: 'Đang xử lý', color: '#F59E0B', bgColor: '#FFFBEB' },
-    'Đã xử lý': { text: 'Đã xử lý', color: '#10B981', bgColor: '#F0FDF4' },
-    'Hủy': { text: 'Hủy', color: '#EF4444', bgColor: '#FEF2F2' },
-    'Cancelled': { text: 'Hủy', color: '#EF4444', bgColor: '#FEF2F2' },
-  };
-
-  const resolveStatus = (status?: string) => {
-    if (!status) return { text: '—', color: colors.gray700, bgColor: '#F3F4F6' };
-    const direct = statusMap[status];
-    if (direct) return direct;
-    const s = status.toLowerCase();
-    if (s.includes('draft') || s.includes('nháp')) return statusMap['Nháp'];
-    if (s.includes('cancel')) return statusMap['Hủy'];
-    if (s.includes('process') || s.includes('xử lý')) return statusMap['Đang xử lý'];
-    if (s.includes('done') || s.includes('đã xử lý')) return statusMap['Đã xử lý'];
-    return { text: status, color: colors.gray700, bgColor: '#F3F4F6' };
-  };
-  const statusResolved = resolveStatus(currentStatus);
 
   // Auto-load detail when navigated with only `name`
   useEffect(() => {
@@ -90,7 +57,7 @@ export default function DeliveryNoteDtailScreen() {
       if (!name || data) return;
       try {
         setIsLoading(true);
-        const res = await getDeliveryNoteDetail(name);
+        const res = await getPurchaseReceiptDetail(name);
         if (res.success && res.data) {
           setData(res.data);
         }
@@ -101,11 +68,58 @@ export default function DeliveryNoteDtailScreen() {
     load();
   }, [name, data]);
 
+  useEffect(() => {
+    setCurrentStatus(currentData.workflow_state || '');
+    setOriginalStatus(currentData.workflow_state || '');
+  }, [currentData.workflow_state]);
+
+  // Sync items to local editable state
+  useEffect(() => {
+    const src = Array.isArray(currentData.items) ? currentData.items : [];
+    const copy = src.map((it: any) => ({ ...it }));
+    setItemsState(copy);
+    setOriginalItems(copy);
+  }, [currentData.items]);
+
+  const statusMap: Record<string, { text: string; color: string; bgColor: string }> = {
+    'Nháp': { text: 'Nháp', color: '#3B82F6', bgColor: '#EFF6FF' },
+    'Draft': { text: 'Nháp', color: '#3B82F6', bgColor: '#EFF6FF' },
+    'Đang xử lý': { text: 'Đang xử lý', color: '#F59E0B', bgColor: '#FFFBEB' },
+    'Đã xử lý': { text: 'Đã xử lý', color: '#10B981', bgColor: '#F0FDF4' },
+    'Hủy': { text: 'Hủy', color: '#EF4444', bgColor: '#FEF2F2' },
+    'Cancelled': { text: 'Hủy', color: '#EF4444', bgColor: '#FEF2F2' },
+    'Yêu cầu': { text: 'Yêu cầu', color: colors.warning, bgColor: '#FFFBEB' },
+  };
+
+  const resolveStatus = (status?: string) => {
+    if (!status) return { text: '—', color: colors.gray700, bgColor: '#F3F4F6' };
+    const direct = statusMap[status];
+    if (direct) return direct;
+    const s = status.toLowerCase();
+    if (s.includes('draft') || s.includes('nháp')) return statusMap['Nháp'];
+    if (s.includes('cancel')) return statusMap['Hủy'];
+    if (s.includes('process') || s.includes('xử lý')) return statusMap['Đang xử lý'];
+    if (s.includes('done') || s.includes('xử lý xong') || s.includes('đã xử lý')) return statusMap['Đã xử lý'];
+    return { text: status, color: colors.gray700, bgColor: '#F3F4F6' };
+  };
+  const statusResolved = resolveStatus(currentStatus);
+  const isEditable = ['Nháp', 'Draft', 'Yêu cầu', 'Đang xử lý', 'Đóng'].includes(statusResolved.text);
+
+  // Allowed transitions
+  const transitionMap: Record<string, string[]> = {
+    'Nháp': ['Yêu cầu'],
+    'Yêu cầu': ['Đang xử lý', 'Đóng'],
+    'Đang xử lý': ['Đã xử lý', 'Đóng'],
+    'Đã xử lý': ['Hủy'],
+  };
+
+  const allowedNextStatuses = transitionMap[statusResolved.text] || [];
+
   const handleRefresh = async () => {
     if (!currentData.name || currentData.name === 'N/A') return;
     setIsRefreshing(true);
     try {
-      const res = await getDeliveryNoteDetail(currentData.name);
+      const res = await getPurchaseReceiptDetail(currentData.name);
       if (res.success && res.data) {
         setData(res.data);
       }
@@ -126,15 +140,6 @@ export default function DeliveryNoteDtailScreen() {
     const date = new Date(dateString);
     return date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
   };
-
-  const items = Array.isArray(currentData.items) ? currentData.items : [];
-  // Sync items to local editable state
-  useEffect(() => {
-    const src = Array.isArray(items) ? items : [];
-    const copy = src.map((it: any) => ({ ...it }));
-    setItemsState(copy);
-    setOriginalItems(copy);
-  }, [currentData.items]);
 
   // Change detection: status or any qty change
   const hasChanges = () => {
@@ -163,7 +168,7 @@ export default function DeliveryNoteDtailScreen() {
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} activeOpacity={0.7}>
             <Text style={styles.backBtnText}>←</Text>
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Chi tiết Phiếu Giao Hàng</Text>
+          <Text style={styles.headerTitle}>Chi tiết Phiếu Nhập Hàng</Text>
         </View>
         <View style={styles.headerRight}>
           {!!currentStatus && (
@@ -178,16 +183,22 @@ export default function DeliveryNoteDtailScreen() {
                 opacity: 1,
               }}
             >
-              <TouchableOpacity onPress={() => setIsStatusPickerOpen((prev) => !prev)} activeOpacity={0.7}>
+              <TouchableOpacity 
+                onPress={() => allowedNextStatuses.length > 0 && setIsStatusPickerOpen((prev) => !prev)} 
+                activeOpacity={0.7}
+                disabled={allowedNextStatuses.length === 0}
+              >
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                   <Text style={{ fontSize: 12, lineHeight: 14, fontWeight: '700', color: statusResolved.color }}>
                     {statusResolved.text}
                   </Text>
-                  <Image
-                    source={require('../../assets/dropdown.png')}
-                    style={{ width: 17, height: 17, tintColor: statusResolved.color, marginLeft: 4 }}
-                    resizeMode="contain"
-                  />
+                  {allowedNextStatuses.length > 0 && (
+                    <Image
+                      source={require('../../assets/dropdown.png')}
+                      style={{ width: 17, height: 17, tintColor: statusResolved.color, marginLeft: 4 }}
+                      resizeMode="contain"
+                    />
+                  )}
                 </View>
               </TouchableOpacity>
             </View>
@@ -195,13 +206,13 @@ export default function DeliveryNoteDtailScreen() {
         </View>
       </View>
 
-      {/* Status picker (view only for now) */}
-      {isStatusPickerOpen && (
+      {/* Status picker */}
+      {isStatusPickerOpen && allowedNextStatuses.length > 0 && (
         <View style={styles.shopSection}>
           <View style={styles.productItem}>
-            {Object.keys(statusMap).map((opt) => {
+            {allowedNextStatuses.map((opt) => {
               const r = resolveStatus(opt);
-              const isSelected = r.text === statusResolved.text;
+              const isSelected = opt === statusResolved.text;
               return (
                 <TouchableOpacity
                   key={opt}
@@ -221,7 +232,6 @@ export default function DeliveryNoteDtailScreen() {
         </View>
       )}
 
-
       <ScrollView
         ref={scrollViewRef}
         contentContainerStyle={[styles.container, { paddingBottom: hasAnyChanges ? 120 : 20 }]}
@@ -235,29 +245,23 @@ export default function DeliveryNoteDtailScreen() {
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
               <Text style={[styles.companyLine, { fontWeight: '700', color: '#111827' }]}>Số: {currentData.name}</Text>
               <View style={{ backgroundColor: '#F3F4F6', paddingVertical: 4, paddingHorizontal: 8, borderRadius: 12 }}>
-                <Text style={{ fontSize: 12, color: '#374151', fontWeight: '600' }}>Ngày: {formatDate(currentData.creation)}</Text>
+                <Text style={{ fontSize: 12, color: '#374151', fontWeight: '600' }}>Ngày: {formatDate(currentData.posting_date)}</Text>
               </View>
             </View>
-            {!!currentData.custom_reference_name && (
+            {!!currentData.supplier_name && (
               <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-                <Text style={[styles.companyLine, { fontWeight: '600', color: '#374151', marginRight: 6 }]}>Đơn hàng:</Text>
-                <Text style={[styles.companyLine, { marginBottom: 0 }]}>{currentData.custom_reference_name}</Text>
+                <Text style={[styles.companyLine, { fontWeight: '600', color: '#374151', marginRight: 6 }]}>Nhà cung cấp:</Text>
+                <Text style={[styles.companyLine, { marginBottom: 0 }]}>{currentData.supplier_name}</Text>
               </View>
             )}
-            {!!currentData.custom_sales_invoice && (
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-                <Text style={[styles.companyLine, { fontWeight: '600', color: '#374151', marginRight: 6 }]}>Hóa đơn:</Text>
-                <Text style={[styles.companyLine, { marginBottom: 0 }]}>{currentData.custom_sales_invoice}</Text>
-              </View>
-            )}
-            {!!currentData.customer_name && (
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-                <Text style={[styles.companyLine, { fontWeight: '600', color: '#374151', marginRight: 6 }]}>Khách hàng:</Text>
-                <Text style={[styles.companyLine, { marginBottom: 0 }]}>{currentData.customer_name}</Text>
+            {!!currentData.total_qty && (
+              <View style={{ marginTop: 4, alignSelf: 'flex-start', backgroundColor: '#ECFDF5', paddingVertical: 4, paddingHorizontal: 8, borderRadius: 12, borderWidth: 1, borderColor: '#D1FAE5' }}>
+                <Text style={{ fontSize: 12, color: '#065F46', fontWeight: '700' }}>Tổng SL: {currentData.total_qty}</Text>
               </View>
             )}
           </View>
         </View>
+
         {/* Items (editable quantities) */}
         <View style={styles.mainContent}>
           {itemsState.length > 0 ? (
@@ -334,7 +338,7 @@ export default function DeliveryNoteDtailScreen() {
         </View>
       </ScrollView>
 
-      {/* Footer Save button when changes exist */}
+      {/* Footer Save and Delete buttons */}
       <View style={styles.footer}>
         <View style={styles.footerButtonsContainer}>
           <TouchableOpacity
@@ -355,10 +359,9 @@ export default function DeliveryNoteDtailScreen() {
                 if (currentStatus !== originalStatus) {
                   payload.workflow_state = currentStatus;
                 }
-                const res = await updateDeliveryNote(currentData.name, payload);
+                const res = await updatePurchaseReceipt(currentData.name, payload);
                 if (res.success) {
-                  Alert.alert('Thành công', 'Đã cập nhật Delivery Note');
-                  // reset originals
+                  Alert.alert('Thành công', 'Đã cập nhật Purchase Receipt');
                   setOriginalStatus(currentStatus);
                   const fresh = (res.data?.items as any[])?.map((x: any) => ({ ...x })) || itemsToUpdate;
                   setItemsState(fresh);
@@ -388,9 +391,9 @@ export default function DeliveryNoteDtailScreen() {
                     text: 'Xóa',
                     style: 'destructive',
                     onPress: async () => {
-                      const res = await deleteDeliveryNote(currentData.name);
+                      const res = await deletePurchaseReceipt(currentData.name);
                       if (res.success) {
-                        Alert.alert('Thành công', 'Đã xóa Delivery Note', [
+                        Alert.alert('Thành công', 'Đã xóa Purchase Receipt', [
                           { text: 'OK', onPress: () => navigation.goBack() }
                         ]);
                       } else {
@@ -409,5 +412,3 @@ export default function DeliveryNoteDtailScreen() {
     </KeyboardAvoidingView>
   );
 }
-
-

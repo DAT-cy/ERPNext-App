@@ -118,6 +118,10 @@ export default function DeliveryNoteScreen() {
 
     useEffect(() => {
         loadFilterOptions();
+        // Set default filter for "Yêu cầu" status
+        setActiveFilters([
+            { key: 'workflow_state', label: 'Yêu cầu', category: 'workflow_state', value: 'Yêu cầu' }
+        ]);
     }, []);
 
     // Format date function

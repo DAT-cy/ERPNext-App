@@ -1,6 +1,6 @@
 import { api } from "../config/api";
 import { getEmployeeCodeByEmail } from "./authService";
-import { CommonException, ErrorCode, ApplicationLeaveResult, ApplicationLeaveErrorCode, ApplicationLeaveErrorHandler } from "../utils/error";
+import { handleServiceError, handleServiceThrow } from "../utils/error/ErrorHandler";
 import { dataFill } from "../types/inventory.types";
 
 
@@ -139,7 +139,7 @@ function buildFiltersArray(filters: InventoryFilters): string[][] {
     return filterArray;
 }
 
-export async function getAllInventory(options: InventoryQueryOptions = {}): Promise<ApplicationLeaveResult<InventoryItem[]>> {
+export async function getAllInventory(options: InventoryQueryOptions = {}): Promise<{ success: boolean; data?: InventoryItem[]; error?: string }> {
     try {
         
         const defaultFields = [
@@ -186,15 +186,11 @@ export async function getAllInventory(options: InventoryQueryOptions = {}): Prom
         }
         return {
             success: false,
-            error: new CommonException(ErrorCode.ENTITY_NOT_FOUND, 'Không có dữ liệu Stock Entry')
+            error: 'Không có dữ liệu Stock Entry'
         };
         
     } catch (error: any) {
-        const processedError = ApplicationLeaveErrorHandler.analyzeError(error);
-        return {
-            success: false,
-            error: processedError
-        };
+        return handleServiceError(error, 'Lỗi lưu phiếu nhập xuất');
     }
 }
 
@@ -204,7 +200,7 @@ export async function getAllExportImportType(): Promise<dataFill[]> {
         return data.data as dataFill[];
     } catch (error) {
         console.error("Error fetching Export/Import Types:", error);
-        throw new CommonException(ErrorCode.STOCK_ENTRY_TYPE_NOT_FOUND);
+        handleServiceThrow(error, 'Lỗi tải danh sách loại nhập xuất');
     }
 }
 
@@ -214,7 +210,7 @@ export async function getWarehouse(): Promise<dataFill[]> {
         return data.data as dataFill[];
     } catch (error) {
         console.error("Error fetching Warehouses:", error);
-        throw new CommonException(ErrorCode.WAREHOUSE_NOT_FOUND);
+        handleServiceThrow(error, 'Lỗi tải danh sách kho');
     }
 }
 
@@ -229,10 +225,9 @@ export async function getWarehouseList(): Promise<dataFill[]> {
             return data.message as dataFill[];
         }
         
-        console.warn('⚠️ [inventoryService] No message array in response');
         return [];
     } catch (error) {
         console.error("Error fetching warehouse list:", error);
-        throw new CommonException(ErrorCode.WAREHOUSE_NOT_FOUND);
+        handleServiceThrow(error, 'Lỗi tải danh sách kho');
     }
 }

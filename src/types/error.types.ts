@@ -1,7 +1,6 @@
-import { StatusCode } from "../enum/errorEnum";
-
+// Simplified error types
 export type ErrorDef = {
-  status: StatusCode;
+  status: number;
   sysCode: string;        
   defaultMessage: string; 
   uiMessage: string;     

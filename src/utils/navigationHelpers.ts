@@ -47,7 +47,7 @@ export const useFeatureNavigation = () => {
         
       case 'purchase-receipt':
         // Navigate to purchase receipt
-        navigation.navigate('PurchaseReceipt' as never);
+        navigation.navigate('PurchaseReceiptList' as never);
         break;
 
       case 'apply-hr':
@@ -91,7 +91,7 @@ export const navigateToFeature = (feature: NavigationFeature, navigation: any) =
       break;
       
     case 'purchase-receipt':
-      navigation.navigate('PurchaseReceipt');
+      navigation.navigate('PurchaseReceiptList');
       break;
 
     case 'apply-hr':

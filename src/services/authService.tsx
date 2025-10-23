@@ -2,6 +2,7 @@
 import { api, SID_KEY } from "../config/api";
 import * as SecureStore from "expo-secure-store";
 import { LoggedUser, LoginOk, LoginFail, LoginResult , RoleUsers, InformationUser, RoleUserMap } from "../types/auth.types";
+import { handleServiceThrow } from "../utils/error/ErrorHandler";
 // Hỗ trợ lấy SID từ cookie
 function extractSidFromSetCookie(setCookie?: string | string[]): string | null {
   if (!setCookie) return null;
@@ -140,7 +141,7 @@ export async function getEmployeeCodeByEmail(): Promise<string | null> {
       console.error('📡 [getEmployeeCodeByEmail] Response error:', error.response.data);
       console.error('📡 [getEmployeeCodeByEmail] Status:', error.response.status);
     }
-    return null;
+    handleServiceThrow(error, 'Lỗi lấy mã nhân viên');
   }
 }
 

@@ -1,14 +1,14 @@
 import { api } from "../config/api";
 import { getEmployeeCodeByEmail } from "./authService";
-import { CommonException, ErrorCode } from "../utils/error";
 import { InformationUser, RoleUserMap } from "../types";
 import { LeaveApplication, LeaveApprover, SaveLeaveApplicationPayload } from "../types/applicationLeave.types";
+import { handleServiceError, handleServiceThrow } from "../utils/error/ErrorHandler";
 
 // Interface cho kết quả trả về
 interface ApplicationLeaveResult<T = any> {
   success: boolean;
   data?: T;
-  error?: CommonException;
+  error?: string; // Vietnamese error message
 }
 
 export async function getLeaveApprovers(): Promise<ApplicationLeaveResult<LeaveApprover[]>> {
@@ -20,7 +20,7 @@ export async function getLeaveApprovers(): Promise<ApplicationLeaveResult<LeaveA
     
     if (!employeeCode) {
       console.log('❌ No employee code found');
-      throw new CommonException(ErrorCode.EMPLOYEE_NOT_FOUND);
+      handleServiceThrow(new Error('Không tìm thấy mã nhân viên'), 'Lỗi lấy mã nhân viên');
     }
 
     const payload = {
@@ -37,8 +37,7 @@ export async function getLeaveApprovers(): Promise<ApplicationLeaveResult<LeaveA
 
     return { success: true, data: approvers };
   } catch (error) {
-    const commonError = error instanceof CommonException ? error : new CommonException(ErrorCode.UNKNOWN_ERROR, error);
-    return { success: false, error: commonError };
+    return handleServiceError(error, 'Lỗi tải dữ liệu');
   }
 }
 
@@ -50,8 +49,7 @@ export async function getLeaveTypes(): Promise<ApplicationLeaveResult<any[]>> {
     const { data } = await api.get("/api/resource/Leave Type");
     return { success: true, data: data?.data || [] };
   } catch (error) {
-    const commonError = error instanceof CommonException ? error : new CommonException(ErrorCode.UNKNOWN_ERROR, error);
-    return { success: false, error: commonError };
+    return handleServiceError(error, 'Lỗi tải dữ liệu');
   }
 }
 
@@ -63,7 +61,7 @@ export async function getLeaveBalance(leaveType: string): Promise<ApplicationLea
     const employeeCode = await getEmployeeCodeByEmail();
     
     if (!employeeCode) {
-      throw new CommonException(ErrorCode.EMPLOYEE_NOT_FOUND);
+      handleServiceThrow(new Error('Không tìm thấy mã nhân viên'), 'Lỗi lấy mã nhân viên');
     }
 
     const { data } = await api.get("/api/method/hrms.hr.doctype.leave_application.leave_application.get_leave_balance_on", {
@@ -76,8 +74,7 @@ export async function getLeaveBalance(leaveType: string): Promise<ApplicationLea
     
     return { success: true, data: data?.message || {} };
   } catch (error) {
-    const commonError = error instanceof CommonException ? error : new CommonException(ErrorCode.UNKNOWN_ERROR, error);
-    return { success: false, error: commonError };
+    return handleServiceError(error, 'Lỗi tải dữ liệu');
   }
 }
 
@@ -89,8 +86,7 @@ export async function createLeaveApplication(leaveData: LeaveApplication): Promi
     const { data } = await api.post("/api/resource/Leave Application", leaveData);
     return { success: true, data: data || {} };
   } catch (error) {
-    const commonError = error instanceof CommonException ? error : new CommonException(ErrorCode.UNKNOWN_ERROR, error);
-    return { success: false, error: commonError };
+    return handleServiceError(error, 'Lỗi tải dữ liệu');
   }
 }
 
@@ -105,8 +101,7 @@ export async function updateLeaveApplication(
     const { data } = await api.put(`/api/resource/Leave Application/${leaveId}`, leaveData);
     return { success: true, data: data || {} };
   } catch (error) {
-    const commonError = error instanceof CommonException ? error : new CommonException(ErrorCode.UNKNOWN_ERROR, error);
-    return { success: false, error: commonError };
+    return handleServiceError(error, 'Lỗi tải dữ liệu');
   }
 }
 
@@ -120,8 +115,7 @@ export async function cancelLeaveApplication(leaveId: string): Promise<Applicati
     });
     return { success: true, data: data || {} };
   } catch (error) {
-    const commonError = error instanceof CommonException ? error : new CommonException(ErrorCode.UNKNOWN_ERROR, error);
-    return { success: false, error: commonError };
+    return handleServiceError(error, 'Lỗi tải dữ liệu');
   }
 }
 
@@ -133,7 +127,7 @@ export async function getEmployeeLeaveApplications(): Promise<ApplicationLeaveRe
     const employeeCode = await getEmployeeCodeByEmail();
 
     if (!employeeCode) {
-      throw new CommonException(ErrorCode.EMPLOYEE_NOT_FOUND);
+      handleServiceThrow(new Error('Không tìm thấy mã nhân viên'), 'Lỗi lấy mã nhân viên');
     }
 
     const { data } = await api.get(`/api/resource/Leave Application`, {
@@ -150,8 +144,7 @@ export async function getEmployeeLeaveApplications(): Promise<ApplicationLeaveRe
     
     return { success: true, data: data?.data || [] };
   } catch (error) {
-    const commonError = error instanceof CommonException ? error : new CommonException(ErrorCode.UNKNOWN_ERROR, error);
-    return { success: false, error: commonError };
+    return handleServiceError(error, 'Lỗi tải dữ liệu');
   }
 }
 
@@ -175,7 +168,7 @@ export async function getInformationEmployeeApplicationLeave(codeName: string): 
     return res.data.message;
   } catch (error) {
     console.error("Error fetching employee info:", error);
-    throw new CommonException(ErrorCode.UNKNOWN_ERROR);
+    handleServiceThrow(error, 'Lỗi tải thông tin nhân viên');
   }
 }
 
@@ -274,7 +267,7 @@ export async function saveLeaveApplication(payload: SaveLeaveApplicationPayload)
             console.error("❌ [saveLeaveApplication] Error setting up request:", error.message);
         }
 
-        throw error;
+        handleServiceThrow(error, 'Lỗi lưu đơn xin nghỉ phép');
     }
 }
 

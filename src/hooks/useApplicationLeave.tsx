@@ -5,8 +5,8 @@ import {
   getLeaveTypes,
   getInformationEmployeeApplicationLeave
 } from '../services/applicationLeave';
-import { CommonException, ErrorCode, ApplicationLeaveError, ApplicationLeaveResult, ApplicationLeaveErrorHandler } from '../utils/error';
 import { InformationUser } from '../types';
+import { showErrorAlert } from '../utils/error/ErrorHandler';
 
 export interface UseApplicationLeaveReturn {
   // Loading states
@@ -17,7 +17,7 @@ export interface UseApplicationLeaveReturn {
   leaveTypes: any[];
 
   // Error
-  error: ApplicationLeaveError | null;
+  error: string | null;
 
   // Methods
   loadApprovers: () => Promise<boolean>;
@@ -30,7 +30,7 @@ export const useApplicationLeave = (): UseApplicationLeaveReturn => {
   const [loading, setLoading] = useState(false);
   const [approvers, setApprovers] = useState<any>([]);
   const [leaveTypes, setLeaveTypes] = useState<any[]>([]);
-  const [error, setError] = useState<ApplicationLeaveError | null>(null);
+  const [error, setError] = useState<string | null>(null);
   
   // Auto-load approvers when hook is initialized
   useEffect(() => {
@@ -61,7 +61,7 @@ export const useApplicationLeave = (): UseApplicationLeaveReturn => {
    * Handle result từ service calls
    */
   const handleResult = useCallback(<T,>(
-    result: ApplicationLeaveResult<T>,
+    result: { success: boolean; data?: T; error?: string },
     onSuccess: (data: T) => void
   ): boolean => {
     if (result.success && result.data !== undefined) {
@@ -70,7 +70,7 @@ export const useApplicationLeave = (): UseApplicationLeaveReturn => {
       return true;
     } else if (result.error) {
       setError(result.error);
-      ApplicationLeaveErrorHandler.handleError(result.error);
+      showErrorAlert(result.error, 'Lỗi tải dữ liệu');
       return false;
     }
     return false;

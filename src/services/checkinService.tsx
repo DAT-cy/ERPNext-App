@@ -2,6 +2,7 @@ import { api, SID_KEY } from "../config/api";
 import { CheckinRecord, Checkin, CheckinAPIRequest } from "../types/checkin.types";
 import { InformationUser, RoleUserMap } from "../types/auth.types";
 import { getLoggedUser , getEmployeeCodeByEmail } from "./authService";
+import { handleServiceError, handleServiceThrow } from "../utils/error/ErrorHandler";
 
 
 
@@ -52,7 +53,7 @@ import { getLoggedUser , getEmployeeCodeByEmail } from "./authService";
 //             console.error("📡 [getCodeNameEmployee] Response error:", error.response.data);
 //             console.error("📡 [getCodeNameEmployee] Status:", error.response.status);
 //         }
-//         throw error;
+//         handleServiceThrow(error, 'Lỗi lấy thông tin nhân viên');
 //     }
 // }
 
@@ -206,7 +207,7 @@ export async function getInformationEmployee(): Promise<InformationUser> {
       console.error("📡 [getInformationEmployee] Response error:", error.response.data);
       console.error("📡 [getInformationEmployee] Status:", error.response.status);
     }
-    throw error;
+    handleServiceThrow(error, 'Lỗi lấy thông tin nhân viên');
   }
 }
 export async function submitCheckin(data: Checkin): Promise<any> {
@@ -235,6 +236,6 @@ export async function submitCheckin(data: Checkin): Promise<any> {
     
   } catch (error: any) {
 
-    throw error;
+    handleServiceThrow(error, 'Lỗi lấy thông tin nhân viên');
   }
 }

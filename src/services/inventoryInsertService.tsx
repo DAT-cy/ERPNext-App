@@ -1,7 +1,6 @@
-import { CommonException } from "@/utils/error/CommonException";
 import { api } from "../config/api";
-import { ErrorCode } from "@/utils/error/ErrorCode";
 import { SaveInventoryRequest, SaveInventoryResponse } from "@/types/inventory.types";
+import { handleServiceThrow } from "../utils/error/ErrorHandler";
 
 type IncomingRateResponse = { message?: number | string } | any;
 type StockBalanceResponse = { message?: { qty?: number | string } } | any;
@@ -11,7 +10,7 @@ export async function getItemDetails(itemCode: string): Promise<any> {
         const response = await api.get(`/api/resource/Item/${itemCode}`);
         return response.data;
     } catch (error: any) {
-        throw new CommonException(ErrorCode.DETAIL_ITEM_NOT_FOUND);
+        handleServiceThrow(error, 'Lỗi tải chi tiết sản phẩm');
     }
 }
 
@@ -34,7 +33,7 @@ export async function getIncomingRate(
         console.log('request getIncomingRate', args);
         return response.data;
     } catch (error: any) {
-        throw new CommonException(ErrorCode.INCOMING_RATE_NOT_FOUND);
+        handleServiceThrow(error, 'Lỗi tải tỷ giá nhập');
     }
 }
 
@@ -57,7 +56,7 @@ export async function getStockBalance(
         );
         return response.data;
     } catch (error: any) {
-        throw new CommonException(ErrorCode.STOCK_BALANCE_NOT_FOUND);
+        handleServiceThrow(error, 'Lỗi tải số lượng tồn kho');
     }
 }
 
@@ -68,6 +67,6 @@ export async function saveInventory(payload: SaveInventoryRequest): Promise<Save
         const response = await api.post('/api/resource/Stock Entry', form);
         return response.data;
     } catch (error: any) {
-        throw new CommonException(ErrorCode.SAVE_INVENTORY_FAILED);
+        handleServiceThrow(error, 'Lỗi lưu phiếu nhập xuất');
     }
 }

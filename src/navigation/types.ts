@@ -19,4 +19,9 @@ export type RootStackParamList = {
     deliveryNoteDetail?: any;
     name?: string;
   };
+  PurchaseReceiptList: undefined; // Purchase Receipt List Screen
+  PurchaseReceiptDetailScreen: {
+    purchaseReceiptDetail?: any;
+    name?: string;
+  };
 };

@@ -1,6 +1,6 @@
 import { api } from "../config/api";
-import { CommonException, ErrorCode } from "../utils/error";
 import { UpdateStockEntryPayload } from "../types/inventory.types";
+import { handleServiceError, handleServiceThrow } from "../utils/error/ErrorHandler";
 
 // ===== INTERFACES =====
 export interface InventoryDetailData {
@@ -32,13 +32,13 @@ export interface InventoryDetailItem {
 export interface InventoryDetailResult {
     success: boolean;
     data?: InventoryDetailData;
-    error?: CommonException;
+    error?: string; // Vietnamese error message
 }
 
 export interface UpdateStockEntryResult {
     success: boolean;
     data?: InventoryDetailData;
-    error?: CommonException;
+    error?: string; // Vietnamese error message
 }
 
 // ===== API FUNCTIONS =====
@@ -63,15 +63,12 @@ export async function getInventoryDetail(name: string): Promise<InventoryDetailR
         console.log('❌ [getInventoryDetail] No data found');
         return {
             success: false,
-            error: new CommonException(ErrorCode.ENTITY_NOT_FOUND, 'Không tìm thấy chi tiết phiếu nhập xuất')
+            error: 'Không tìm thấy chi tiết phiếu nhập xuất'
         };
         
     } catch (error: any) {
         console.log('💥 [getInventoryDetail] Error:', error?.message);
-        return {
-            success: false,
-            error: new CommonException(ErrorCode.NETWORK_ERROR, error?.message || 'Có lỗi xảy ra khi tải chi tiết')
-        };
+        return handleServiceError(error, 'Lỗi tải chi tiết phiếu nhập xuất');
     }
 }
 
@@ -107,18 +104,12 @@ export async function updateStockEntry(
         
         return {
             success: false,
-            error: new CommonException(ErrorCode.UNKNOWN_ERROR, 'Không nhận được dữ liệu sau khi cập nhật')
+            error: 'Không nhận được dữ liệu sau khi cập nhật'
         };
         
     } catch (error: any) {
         console.log('💥 [updateStockEntry] Error:', error?.message);
-        return {
-            success: false,
-            error: new CommonException(
-                ErrorCode.NETWORK_ERROR,
-                error?.response?.data?.message || error?.message || 'Lỗi cập nhật phiếu nhập xuất'
-            )
-        };
+        return handleServiceError(error, 'Lỗi cập nhật phiếu nhập xuất');
     }
 }
 
@@ -154,7 +145,7 @@ function buildUpdatePayload(currentData: InventoryDetailData, newData: UpdateSto
 /**
  * Xóa phiếu nhập xuất kho
  */
-export async function deleteStockEntry(name: string): Promise<{success: boolean, error?: CommonException}> {
+export async function deleteStockEntry(name: string): Promise<{success: boolean, error?: string}> {
     try {
         console.log('🗑️ [deleteStockEntry] Deleting:', name);
         
@@ -165,9 +156,6 @@ export async function deleteStockEntry(name: string): Promise<{success: boolean,
         
     } catch (error: any) {
         console.log('💥 [deleteStockEntry] Error:', error?.message);
-        return {
-            success: false,
-            error: new CommonException(ErrorCode.NETWORK_ERROR, error?.response?.data?.message || error?.message || 'Lỗi xóa phiếu nhập xuất')
-        };
+        return handleServiceError(error, 'Lỗi xóa phiếu nhập xuất');
     }
 }

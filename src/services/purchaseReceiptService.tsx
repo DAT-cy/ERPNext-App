@@ -1,86 +1,106 @@
 import { api } from "../config/api";
-import { DeliveryNote, DeliveryNoteDetail } from "../types/deliveryNote.types";
 import { handleServiceError, handleServiceThrow } from "../utils/error/ErrorHandler";
 
-
-
-export interface DeliveryNoteFilters {
-    custom_id?: string;
-    custom_sales_invoice?: string;
+export type PurchaseReceipt = {
+    name: string;
+    posting_date: string;
+    supplier_name?: string;
+    total_qty: string | number;
+    workflow_state: string;
     creation?: string;
-    customer?: string;
+    supplier?: string;
+}
+
+export type PurchaseReceiptItem = {
+    item_code?: string;
+    item_name?: string;
+    qty?: number | string;
+    uom?: string;
+    warehouse?: string;
+    barcode?: string;
+};
+
+export type PurchaseReceiptDetail = {
+    name: string;
+    supplier?: string;
+    supplier_name?: string;
+    posting_date?: string;
+    creation?: string;
+    workflow_state?: string;
+    total_qty?: number | string;
+    items?: PurchaseReceiptItem[];
+};
+
+export interface PurchaseReceiptFilters {
+    name?: string;
+    supplier?: string;
+    supplier_name?: string;
+    creation?: string;
     workflow_state?: string;
     search_query?: string; // For multi-field search
 }
 
-export interface DeliveryNoteQueryOptions {
+export interface PurchaseReceiptQueryOptions {
     fields?: string[];
-    filters?: DeliveryNoteFilters;
+    filters?: PurchaseReceiptFilters;
     limit?: number;
     offset?: number;
     orderBy?: string;
 }
 
-export interface DeliveryNoteResult<T = any> {
+export interface PurchaseReceiptResult<T = any> {
     success: boolean;
     data?: T;
     error?: string; // Vietnamese error message
 }
 
-export interface DeliveryNoteDetailOptions {
-    name: string; // e.g., XH251022069
+export interface PurchaseReceiptDetailOptions {
+    name: string; // e.g., PR-0001
     fields?: string[]; // optional list of fields
 }
-function buildFiltersArray(filters: DeliveryNoteFilters): any[] {
+
+
+function buildFiltersArray(filters: PurchaseReceiptFilters): any[] {
     const filterArray: any[] = [];
 
     // Multi-field search using search_query
     if (filters.search_query) {
         const searchTerm = filters.search_query.trim();
         if (searchTerm) {
-            // Try different approach - use multiple separate filters
-            // This should work as OR in Frappe when searching different fields
-            filterArray.push(["custom_id", "like", `%${searchTerm}%`]);
-            filterArray.push(["custom_sales_invoice", "like", `%${searchTerm}%`]);
-            filterArray.push(["customer", "like", `%${searchTerm}%`]);
+            filterArray.push(["name", "like", `%${searchTerm}%`]);
+            filterArray.push(["supplier", "like", `%${searchTerm}%`]);
         }
     } else {
         // Individual field filters (when not using search_query)
-        if (filters.custom_id) {
-            // Check if the name filter contains wildcards for partial search
-            if (filters.custom_id.includes('%')) {
-                filterArray.push(["custom_id", "like", filters.custom_id]);
+        if (filters.name) {
+            if (filters.name.includes('%')) {
+                filterArray.push(["name", "like", filters.name]);
             } else {
-                filterArray.push(["custom_id", "=", filters.custom_id]);
+                filterArray.push(["name", "=", filters.name]);
             }
         }
 
-        if (filters.custom_sales_invoice) {
-            if (filters.custom_sales_invoice.includes('%')) {
-                filterArray.push(["custom_sales_invoice", "like", filters.custom_sales_invoice]);
+        if (filters.supplier) {
+            if (filters.supplier.includes('%')) {
+                filterArray.push(["supplier", "like", filters.supplier]);
             } else {
-                filterArray.push(["custom_sales_invoice", "=", filters.custom_sales_invoice]);
+                filterArray.push(["supplier", "=", filters.supplier]);
             }
         }
 
-        if (filters.customer) {
-            if (filters.customer.includes('%')) {
-                filterArray.push(["customer", "like", filters.customer]);
+        if (filters.supplier_name) {
+            if (filters.supplier_name.includes('%')) {
+                filterArray.push(["supplier_name", "like", filters.supplier_name]);
             } else {
-                filterArray.push(["customer", "=", filters.customer]);
+                filterArray.push(["supplier_name", "=", filters.supplier_name]);
             }
         }
     }
 
-
     if (filters.creation) {
-        // Process creation date filter in Frappe format
         try {
-            // Parse Frappe filter format: [["creation", ">=", "2025-10-10 00:00:00"], ["creation", "<=", "2025-10-10 23:59:59"]]
             const frappeFilters = JSON.parse(filters.creation);
-
             if (Array.isArray(frappeFilters)) {
-                // Add all filters from the array
                 frappeFilters.forEach((filter, index) => {
                     if (Array.isArray(filter) && filter.length === 3) {
                         filterArray.push(filter);
@@ -98,17 +118,16 @@ function buildFiltersArray(filters: DeliveryNoteFilters): any[] {
     return filterArray;
 }
 
-export async function getDeliveryNote(options: DeliveryNoteQueryOptions = {}): Promise<DeliveryNoteResult<DeliveryNote[]>> {
+export async function getPurchaseReceipt(options: PurchaseReceiptQueryOptions = {}): Promise<PurchaseReceiptResult<PurchaseReceipt[]>> {
     try {
         const defaultFields = [
-            "custom_id",
-            "custom_sales_invoice",
+            "name",
             "posting_date",
-            "creation",
-            "customer",
-            "customer_name",
+            "supplier_name",
             "total_qty",
             "workflow_state",
+            "creation",
+            "supplier",
         ];
         const fields = options.fields || defaultFields;
         const limit = options.limit || 10;
@@ -132,34 +151,33 @@ export async function getDeliveryNote(options: DeliveryNoteQueryOptions = {}): P
                 queryParams.append('filters', JSON.stringify(filtersArray));
             }
         }
-        const fullUrl = `/api/resource/Delivery Note?${queryParams.toString()}`;
+        const fullUrl = `/api/resource/Purchase Receipt?${queryParams.toString()}`;
         const { data } = await api.get(fullUrl);
         if (data && data.data) {
             return {
-
                 success: true,
-                data: data.data as DeliveryNote[]
+                data: data.data as PurchaseReceipt[]
             };
         }
         return {
             success: false,
-            error: 'Không có dữ liệu Delivery Note'
+            error: 'Không có dữ liệu Purchase Receipt'
         };
     } catch (error) {
-        console.error("Error fetching Delivery Note:", error);
-        handleServiceThrow(error, 'Lỗi tải danh sách Delivery Note');
+        console.error("Error fetching Purchase Receipt:", error);
+        handleServiceThrow(error, 'Lỗi tải danh sách Purchase Receipt');
     }
 }
 
 /**
- * Get Delivery Note detail by name with optional fields selection
+ * Get Purchase Receipt detail by name with optional fields selection
  * Example endpoint:
- * /api/resource/Delivery Note/XH251022069?fields=["name","customer_name",...]
+ * /api/resource/Purchase Receipt/PR-0001?fields=["name","supplier_name",...]
  */
-export async function getDeliveryNoteDetail(
+export async function getPurchaseReceiptDetail(
     name: string,
     fields?: string[]
-): Promise<DeliveryNoteResult<DeliveryNoteDetail>> {
+): Promise<PurchaseReceiptResult<PurchaseReceiptDetail>> {
     try {
         const encodedName = encodeURIComponent(name);
         const queryParams = new URLSearchParams();
@@ -167,61 +185,60 @@ export async function getDeliveryNoteDetail(
             queryParams.append('fields', JSON.stringify(fields));
         }
         const url = queryParams.toString()
-            ? `/api/resource/Delivery Note/${encodedName}?${queryParams.toString()}`
-            : `/api/resource/Delivery Note/${encodedName}`;
+            ? `/api/resource/Purchase Receipt/${encodedName}?${queryParams.toString()}`
+            : `/api/resource/Purchase Receipt/${encodedName}`;
 
         const { data } = await api.get(url);
         if (data && data.data) {
-            return { success: true, data: data.data as DeliveryNoteDetail };
+            return { success: true, data: data.data as PurchaseReceiptDetail };
         }
         return {
             success: false,
-            error: 'Không tìm thấy chi tiết Delivery Note'
+            error: 'Không tìm thấy chi tiết Purchase Receipt'
         };
     } catch (error: any) {
-        return handleServiceError(error, 'Lỗi tải chi tiết Delivery Note');
+        return handleServiceError(error, 'Lỗi tải chi tiết Purchase Receipt');
     }
 }
 
 /**
- * Update Delivery Note by name. Pass only fields you want to update.
+ * Update Purchase Receipt by name. Pass only fields you want to update.
  * Note: For child table `items`, include full array with each child's `name` to update quantities safely.
  */
-export async function updateDeliveryNote(
+export async function updatePurchaseReceipt(
     name: string,
-    payload: Partial<DeliveryNoteDetail> & { items?: Array<any> }
-): Promise<DeliveryNoteResult<DeliveryNoteDetail>> {
+    payload: Partial<PurchaseReceiptDetail> & { items?: Array<any> }
+): Promise<PurchaseReceiptResult<PurchaseReceiptDetail>> {
     try {
         const encodedName = encodeURIComponent(name);
-        const url = `/api/resource/Delivery Note/${encodedName}`;
+        const url = `/api/resource/Purchase Receipt/${encodedName}`;
         const { data } = await api.put(url, payload);
         if (data && data.data) {
-            return { success: true, data: data.data as DeliveryNoteDetail };
+            return { success: true, data: data.data as PurchaseReceiptDetail };
         }
         return {
             success: false,
-            error: 'Không cập nhật được Delivery Note'
+            error: 'Không cập nhật được Purchase Receipt'
         };
     } catch (error: any) {
-        return handleServiceError(error, 'Lỗi cập nhật Delivery Note');
+        return handleServiceError(error, 'Lỗi cập nhật Purchase Receipt');
     }
 }
 
 /**
- * Delete Delivery Note by name
+ * Delete Purchase Receipt by name
  */
-export async function deleteDeliveryNote(name: string): Promise<DeliveryNoteResult<null>> {
+export async function deletePurchaseReceipt(name: string): Promise<PurchaseReceiptResult<null>> {
     try {
         const encodedName = encodeURIComponent(name);
-        const url = `/api/resource/Delivery Note/${encodedName}`;
+        const url = `/api/resource/Purchase Receipt/${encodedName}`;
         const { data } = await api.delete(url);
         // Frappe returns 202/200; treat as success when no error thrown
         return { success: true, data: null };
     } catch (error: any) {
-        return handleServiceError(error, 'Lỗi xóa Delivery Note');
+        return handleServiceError(error, 'Lỗi xóa Purchase Receipt');
     }
 }
-
 
 // New function to handle multi-field search
 async function performMultiFieldSearch(
@@ -229,8 +246,8 @@ async function performMultiFieldSearch(
     fields: string[], 
     limit: number, 
     offset: number, 
-    otherFilters: DeliveryNoteFilters
-): Promise<DeliveryNoteResult<DeliveryNote[]>> {
+    otherFilters: PurchaseReceiptFilters
+): Promise<PurchaseReceiptResult<PurchaseReceipt[]>> {
     try {
         const searchTermTrimmed = searchTerm.trim();
         if (!searchTermTrimmed) {
@@ -239,26 +256,24 @@ async function performMultiFieldSearch(
 
         // Create separate queries for each field
         const queries = [
-            // Search in custom_id
-            createSearchQuery(fields, limit, offset, [["custom_id", "like", `%${searchTermTrimmed}%`]], otherFilters),
-            // Search in custom_sales_invoice
-            createSearchQuery(fields, limit, offset, [["custom_sales_invoice", "like", `%${searchTermTrimmed}%`]], otherFilters),
-            // Search in customer
-            createSearchQuery(fields, limit, offset, [["customer", "like", `%${searchTermTrimmed}%`]], otherFilters)
+            // Search in name
+            createSearchQuery(fields, limit, offset, [["name", "like", `%${searchTermTrimmed}%`]], otherFilters),
+            // Search in supplier
+            createSearchQuery(fields, limit, offset, [["supplier", "like", `%${searchTermTrimmed}%`]], otherFilters)
         ];
 
         // Execute all queries in parallel
         const results = await Promise.all(queries);
         
         // Merge and deduplicate results
-        const allResults: DeliveryNote[] = [];
+        const allResults: PurchaseReceipt[] = [];
         const seenIds = new Set<string>();
         
         results.forEach(result => {
             if (result.success && result.data) {
                 result.data.forEach(item => {
-                    if (!seenIds.has(item.custom_id)) {
-                        seenIds.add(item.custom_id);
+                    if (!seenIds.has(item.name)) {
+                        seenIds.add(item.name);
                         allResults.push(item);
                     }
                 });
@@ -266,7 +281,7 @@ async function performMultiFieldSearch(
         });
 
         // Sort by creation date (newest first)
-        allResults.sort((a, b) => new Date(b.creation).getTime() - new Date(a.creation).getTime());
+        allResults.sort((a, b) => new Date(b.creation || '').getTime() - new Date(a.creation || '').getTime());
 
         // Apply limit and offset
         const startIndex = offset;
@@ -279,7 +294,7 @@ async function performMultiFieldSearch(
         };
     } catch (error) {
         console.error("Error in multi-field search:", error);
-        handleServiceThrow(error, 'Lỗi tìm kiếm Delivery Note');
+        handleServiceThrow(error, 'Lỗi tìm kiếm Purchase Receipt');
     }
 }
 
@@ -289,8 +304,8 @@ async function createSearchQuery(
     limit: number, 
     offset: number, 
     searchFilters: any[], 
-    otherFilters: DeliveryNoteFilters
-): Promise<DeliveryNoteResult<DeliveryNote[]>> {
+    otherFilters: PurchaseReceiptFilters
+): Promise<PurchaseReceiptResult<PurchaseReceipt[]>> {
     try {
         const queryParams = new URLSearchParams();
         queryParams.append('fields', JSON.stringify(fields));
@@ -312,13 +327,13 @@ async function createSearchQuery(
             queryParams.append('filters', JSON.stringify(allFilters));
         }
 
-        const fullUrl = `/api/resource/Delivery Note?${queryParams.toString()}`;
+        const fullUrl = `/api/resource/Purchase Receipt?${queryParams.toString()}`;
         const { data } = await api.get(fullUrl);
         
         if (data && data.data) {
             return {
                 success: true,
-                data: data.data as DeliveryNote[]
+                data: data.data as PurchaseReceipt[]
             };
         }
         
@@ -328,6 +343,6 @@ async function createSearchQuery(
         };
     } catch (error) {
         console.error("Error in createSearchQuery:", error);
-        return handleServiceError(error, 'Lỗi tìm kiếm Delivery Note');
+        return handleServiceError(error, 'Lỗi tìm kiếm Purchase Receipt');
     }
 }

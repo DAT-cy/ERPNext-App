@@ -17,7 +17,7 @@ import { fetchCheckinRecords } from "../services/checkinService";
 import { CheckinRecord, Checkin } from "../types/checkin.types";
 import { homeScreenStyles } from '../styles/HomeScreen.styles';
 import SimpleSuccessAnimation from '../components/SuccessAnimation/SimpleSuccessAnimation';
-import { CommonException, ErrorCode, homeScreenErrorHandler, HomeScreenErrorCode } from '../utils/error';
+import { showErrorAlert } from '../utils/error/ErrorHandler';
 import { getLeaveApproversName } from "../services/applicationLeave";
 
 // Helper functions for formatting date and time
@@ -146,10 +146,8 @@ export default function HomeScreen() {
         console.log('📍 Ngày mới, bắt đầu với checkin (IN)');
       }
     } catch (err) {
-      const error = homeScreenErrorHandler.analyzeError(err, 'loadCheckinData');
-      const errorDef = homeScreenErrorHandler.getErrorDefinition(error.code);
-      setError(errorDef.userMessage);
-      homeScreenErrorHandler.handleError(error, loadCheckinData);
+      setError('Lỗi tải dữ liệu chấm công');
+      showErrorAlert(err, 'Lỗi tải dữ liệu chấm công');
     } finally {
       setLoading(false);
     }
@@ -160,16 +158,13 @@ export default function HomeScreen() {
     try {
       const isEnabled = await Location.hasServicesEnabledAsync();
       if (!isEnabled) {
-        const error = homeScreenErrorHandler.createError(HomeScreenErrorCode.GPS_SERVICE_DISABLED);
-        const errorDef = homeScreenErrorHandler.getErrorDefinition(error.code);
-        setLocationError(errorDef.userMessage);
+        setLocationError('GPS không được bật. Vui lòng bật GPS để sử dụng tính năng chấm công.');
         setHasValidLocation(false);
         return false;
       }
       return true;
     } catch (error) {
-      const serviceError = homeScreenErrorHandler.analyzeError(error, 'locationService');
-      homeScreenErrorHandler.handleLocationError(serviceError);
+      showErrorAlert(error, 'Lỗi kiểm tra dịch vụ vị trí');
       return true; // Assume enabled if can't check
     }
   }, []);
@@ -194,9 +189,7 @@ export default function HomeScreen() {
       
       if (status !== 'granted') {
         console.warn('Quyền vị trí bị từ chối');
-        const error = homeScreenErrorHandler.createError(HomeScreenErrorCode.LOCATION_PERMISSION_DENIED);
-        const errorDef = homeScreenErrorHandler.getErrorDefinition(error.code);
-        setLocationError(errorDef.userMessage);
+        setLocationError('Quyền truy cập vị trí bị từ chối. Vui lòng cấp quyền để sử dụng tính năng chấm công.');
         setHasValidLocation(false);
         setLocationLoading(false);
         return;
@@ -271,22 +264,16 @@ export default function HomeScreen() {
         }
       } catch (err) {
         if ((err as Error).message !== 'LOCATION_TIMEOUT') {
-          const errorObj = homeScreenErrorHandler.analyzeError(err, 'location');
-          homeScreenErrorHandler.handleLocationError(errorObj);
+          showErrorAlert(err, 'Lỗi lấy vị trí');
         } else {
           console.log('⏱️ Lấy vị trí chính xác quá lâu, dùng last known (nếu có)');
         }
       }
       
     } catch (error: any) {
-      const locationError = error.code ? error : homeScreenErrorHandler.analyzeError(error, 'location');
-      const errorDef = homeScreenErrorHandler.getErrorDefinition(locationError.code);
-      
-      setLocationError(errorDef.userMessage);
+      setLocationError('Lỗi lấy vị trí. Vui lòng thử lại.');
       setHasValidLocation(false);
-      
-      // Xử lý với specialized location error handler
-      homeScreenErrorHandler.handleLocationError(locationError, getCurrentLocation);
+      showErrorAlert(error, 'Lỗi lấy vị trí');
     } finally {
       setLocationLoading(false);
     }
@@ -308,8 +295,7 @@ export default function HomeScreen() {
         loadCheckinData(),
         getCurrentLocation()
       ]).catch(error => {
-        const initError = homeScreenErrorHandler.analyzeError(error, 'initialization');
-        homeScreenErrorHandler.handleError(initError);
+        showErrorAlert(error, 'Lỗi khởi tạo ứng dụng');
       });
     }
   }, [loadCheckinData, getCurrentLocation]); 
@@ -433,8 +419,7 @@ export default function HomeScreen() {
   const handleCheckin = useCallback(async (type: 'IN' | 'OUT') => {
     // Chỉ cho phép chấm công khi có GPS hợp lệ
     if (!hasValidLocation) {
-      const error = homeScreenErrorHandler.createCheckinNoGpsError(locationError || undefined);
-      homeScreenErrorHandler.handleCheckinError(error, getCurrentLocation, type);
+      showErrorAlert(new Error('GPS không được bật'), 'Vui lòng bật GPS để chấm công');
       return;
     }
   
@@ -458,8 +443,7 @@ export default function HomeScreen() {
     
     try {
       if (!userLocation) {
-        const locationError = homeScreenErrorHandler.createCheckinNoLocationError();
-        throw locationError;
+        throw new Error('Không có vị trí để chấm công');
       }
 
       const checkinData: Checkin = {
@@ -485,9 +469,7 @@ export default function HomeScreen() {
       setDisplayRecords(prev => prev.filter(r => r.name !== tempRecord.name));
       setCheckinType(type); // Trả lại trạng thái ban đầu
       
-      // Xử lý error với specialized checkin error handler
-      const checkinError = error.code ? error : homeScreenErrorHandler.analyzeError(error, 'checkin');
-      homeScreenErrorHandler.handleCheckinError(checkinError, getCurrentLocation, type);
+      showErrorAlert(error, 'Lỗi chấm công. Vui lòng thử lại.');
     }
   }, [userLocation, loadCheckinData, handleSubmitCheckin, user, hasValidLocation, locationError, getCurrentLocation]);
   

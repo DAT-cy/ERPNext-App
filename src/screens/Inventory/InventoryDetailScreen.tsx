@@ -244,7 +244,7 @@ export default function InventoryDetailScreen() {
       } else {
         console.error('❌ [InventoryDetail] Save failed:', result.error);
         // Show error message
-        Alert.alert('Lỗi', result.error?.message || 'Không thể lưu dữ liệu. Vui lòng thử lại.');
+        Alert.alert('Lỗi', result.error || 'Không thể lưu dữ liệu. Vui lòng thử lại.');
       }
     } catch (error) {
       console.error('💥 [InventoryDetail] Save error:', error);
@@ -289,7 +289,7 @@ export default function InventoryDetailScreen() {
                 ]);
               } else {
                 console.error('❌ [InventoryDetail] Delete failed:', result.error);
-                Alert.alert('Lỗi', result.error?.message || 'Không thể xóa phiếu nhập xuất. Vui lòng thử lại.');
+                Alert.alert('Lỗi', result.error || 'Không thể xóa phiếu nhập xuất. Vui lòng thử lại.');
               }
             } catch (error) {
               console.error('💥 [InventoryDetail] Delete error:', error);

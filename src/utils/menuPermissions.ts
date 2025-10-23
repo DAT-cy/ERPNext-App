@@ -86,9 +86,20 @@ export const MENU_DEFINITIONS: MenuItemDef[] = [
           {
             id: 'delivery-note',
             title: 'Phiếu Giao Hàng',
-            icon: '📦',
-            description: 'Quản lý việc giao hàng, bao gồm việc đăng ký các giao dịch giao hàng để đảm bảo lưu trữ chính xác và hiệu quả.',
-            backgroundColor: '#60a5fa',
+            icon: '🚚',
+            description: 'Quản lý và theo dõi các đơn giao hàng, đảm bảo giao đúng, đủ và lưu trữ thông tin chính xác.',
+            backgroundColor: '#34d399', // xanh lá nhạt
+            allowedRoles: [
+              ...ROLE_GROUPS.STOCK_ROLES,
+              ...ROLE_GROUPS.ADMIN_ROLES,
+            ]
+          },
+          {
+            id: 'purchase-receipt',
+            title: 'Phiếu Nhập Hàng',
+            icon: '📥',
+            description: 'Ghi nhận các giao dịch nhập hàng từ nhà cung cấp, đảm bảo lưu kho đầy đủ và chính xác.',
+            backgroundColor: '#fbbf24', // vàng nhạt
             allowedRoles: [
               ...ROLE_GROUPS.STOCK_ROLES,
               ...ROLE_GROUPS.ADMIN_ROLES,
@@ -97,15 +108,14 @@ export const MENU_DEFINITIONS: MenuItemDef[] = [
           {
             id: 'check-quantity-inventory',
             title: 'Kiểm kê Tồn Kho',
-            icon: '📦',
-            description: 'Nhập mã code hoặc quét QR để kiểm tra tồn kho',
-            backgroundColor: '#60a5fa',
+            icon: '📊',
+            description: 'Quét QR hoặc nhập mã sản phẩm để kiểm tra số lượng tồn kho nhanh chóng và chính xác.',
+            backgroundColor: '#a78bfa', // tím nhạt
             allowedRoles: [
               ...ROLE_GROUPS.STOCK_ROLES,
               ...ROLE_GROUPS.ADMIN_ROLES,
             ]
           }
-          
         ]
       }
     ]
