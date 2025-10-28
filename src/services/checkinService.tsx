@@ -59,7 +59,7 @@ import { handleServiceError, handleServiceThrow } from "../utils/error/ErrorHand
 
 
 
-export async function fetchCheckinRecords(): Promise<CheckinRecord[]> {
+export async function fetchCheckinRecords(limit: number = 100): Promise<CheckinRecord[]> {
     console.log('🔍 [fetchCheckinRecords] Starting function...');
     
     let loggedUser;
@@ -106,7 +106,7 @@ export async function fetchCheckinRecords(): Promise<CheckinRecord[]> {
             cmd: "frappe.www.list.get_list_data",
             doctype: "Employee Checkin",
             limit_start: 0,
-            limit: 10,
+            limit: limit, // Sử dụng tham số limit được truyền vào
             web_form_name: "checkin",
             filters,
             fields,

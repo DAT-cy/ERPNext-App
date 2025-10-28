@@ -4,3 +4,4 @@ export { default as HomeScreen } from './HomeScreen';
 export { default as ApplicationLeave } from './ApplicationLeaveScreen';
 export { default as InventoryEntryScreens } from './Inventory/InventoryEntryScreens';
 export { default as DeliveryNoteScreen } from './DeliveryNote/DeliveryNoteScreen';
+export { default as AttendanceStatistics } from './AttendanceStatistics';

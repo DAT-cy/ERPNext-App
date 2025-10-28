@@ -2,7 +2,7 @@
   "expo": {
     "name": "Remak",
     "slug": "erpnext-rn-base",
-    "version": "1.0.7",
+    "version": "1.0.9",
     "orientation": "portrait",
     "icon": "./assets/remak-logo.jpg",
     "userInterfaceStyle": "light",
@@ -42,7 +42,10 @@
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.CAMERA",
         "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.WRITE_EXTERNAL_STORAGE"
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.VIBRATE",
+        "android.permission.WAKE_LOCK"
       ],
       "config": {
         "googleMaps": {
@@ -55,12 +58,20 @@
     },
     "extra": {
       "eas": {
-        "projectId": "dd3a79f4-73f2-4bb1-b76d-d025540ed3ac"
+        "projectId": "d4e5a1ca-6d6c-4519-b444-a682668d795f"
       }
     },
-    "owner": "tik11111",
+    "owner": "tiktik2202",
     "plugins": [
-      "expo-camera"
+      "expo-camera",  
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/remak-logo.jpg",
+          "color": "#ffffff",
+          "defaultChannel": "default"
+        }
+      ]
     ]
   }
 }

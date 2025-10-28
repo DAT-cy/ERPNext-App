@@ -17,8 +17,11 @@ import { fetchCheckinRecords } from "../services/checkinService";
 import { CheckinRecord, Checkin } from "../types/checkin.types";
 import { homeScreenStyles } from '../styles/HomeScreen.styles';
 import SimpleSuccessAnimation from '../components/SuccessAnimation/SimpleSuccessAnimation';
+import AttendanceStatistics from "./AttendanceStatistics";
 import { showErrorAlert } from '../utils/error/ErrorHandler';
 import { getLeaveApproversName } from "../services/applicationLeave";
+import { notificationService } from "../services";
+import { NotificationTimeHelper } from "../enum";
 
 // Helper functions for formatting date and time
 const formatTime = (dateTimeStr: string): string => {
@@ -94,6 +97,7 @@ export default function HomeScreen() {
   const [locationLoading, setLocationLoading] = useState(true);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [hasValidLocation, setHasValidLocation] = useState(false);
+  const [locationUpdateKey, setLocationUpdateKey] = useState(0); // Key để force re-render map
   
   // User Display Name State
   const [displayName, setDisplayName] = useState<string>('Người dùng');
@@ -113,7 +117,7 @@ export default function HomeScreen() {
   const loadCheckinData = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await fetchCheckinRecords();
+      const data = await fetchCheckinRecords(500); // Tăng limit lên 500 để lấy nhiều dữ liệu hơn
       
       // Chỉ log dữ liệu lần đầu tiên tải
       if (!hasLoggedRef.current) {
@@ -194,8 +198,8 @@ export default function HomeScreen() {
         setLocationLoading(false);
         return;
       }
-      // 1) Trả về cache ngay nếu còn hạn (<= 60s)
-      const cached = await getLocationFromCache(60_000);
+      // 1) Trả về cache ngay nếu còn hạn (<= 10s) để cập nhật thường xuyên hơn
+      const cached = await getLocationFromCache(10_000);
       if (cached) {
         setUserLocation({
           latitude: cached.latitude,
@@ -205,7 +209,8 @@ export default function HomeScreen() {
         });
         setHasValidLocation(true);
         setLocationError(null);
-        console.log('⚡ Dùng cached location (<60s):', {
+        setLocationUpdateKey(prev => prev + 1); // Force map re-render
+        console.log('⚡ Dùng cached location (<10s):', {
           lat: cached.latitude.toFixed(6),
           lng: cached.longitude.toFixed(6),
           accuracy: cached.accuracy
@@ -223,6 +228,7 @@ export default function HomeScreen() {
             });
             setHasValidLocation(true);
             setLocationError(null);
+            setLocationUpdateKey(prev => prev + 1); // Force map re-render
             console.log('✅ Dùng last known location:', {
               lat: last.coords.latitude.toFixed(6),
               lng: last.coords.longitude.toFixed(6),
@@ -256,6 +262,7 @@ export default function HomeScreen() {
           });
           setHasValidLocation(true);
           setLocationError(null);
+          setLocationUpdateKey(prev => prev + 1); // Force map re-render
           console.log('✅ Cập nhật vị trí chính xác:', {
             lat: precise.coords.latitude.toFixed(6),
             lng: precise.coords.longitude.toFixed(6),
@@ -298,19 +305,79 @@ export default function HomeScreen() {
         showErrorAlert(error, 'Lỗi khởi tạo ứng dụng');
       });
     }
-  }, [loadCheckinData, getCurrentLocation]); 
+  }, [loadCheckinData, getCurrentLocation]);
 
-  // Auto refresh vị trí mỗi 60 giây (chỉ khi không có location)
+  // Khởi tạo notification service và lên lịch nhắc nhở
+  useEffect(() => {
+    const initializeNotifications = async () => {
+      try {
+        console.log('🔄 Initializing notification service...');
+        await notificationService.initialize();
+        await notificationService.scheduleCheckinReminder();
+        console.log('✅ Notification service initialized and scheduled');
+        
+        // Export để có thể test từ console (optional)
+        (global as any).notificationService = notificationService;
+      } catch (error) {
+        console.error('❌ Failed to initialize notifications:', error);
+      }
+    };
+
+    initializeNotifications();
+  }, []); 
+
+  // Auto refresh vị trí mỗi 30 giây để cập nhật theo thời gian thực
   useEffect(() => {
     const locationInterval = setInterval(() => {
-      if (!hasValidLocation && !locationLoading) {
-        console.log('🔄 Auto refreshing location...');
+      if (!locationLoading) {
+        console.log('🔄 Auto refreshing location for real-time update...');
         getCurrentLocation();
       }
-    }, 60000); // 60 giây
+    }, 30000); // 30 giây để cập nhật thường xuyên hơn
 
     return () => clearInterval(locationInterval);
-  }, [hasValidLocation, locationLoading, getCurrentLocation]);
+  }, [locationLoading, getCurrentLocation]);
+
+  // Kiểm tra và gửi notification nhắc nhở chấm công dựa trên enum
+  useEffect(() => {
+    const checkinReminderInterval = setInterval(async () => {
+      try {
+        const now = new Date();
+        const currentHour = now.getHours();
+        const currentMinute = now.getMinutes();
+        const currentSecond = now.getSeconds();
+        
+        // Lấy records của ngày hôm nay
+        const today = new Date().toISOString().split('T')[0];
+        const todayRecords = records.filter(record => record.time.startsWith(today));
+        
+        // Debug log chỉ khi gần giờ (trong vòng 2 phút)
+        const checkinTime = NotificationTimeHelper.getCheckinTime();
+        const checkoutTime = NotificationTimeHelper.getCheckoutTime();
+        
+        const nearCheckin = currentHour === checkinTime.hour && 
+                          currentMinute >= checkinTime.minute - 2 && 
+                          currentMinute <= checkinTime.minute + 2;
+        const nearCheckout = currentHour === checkoutTime.hour && 
+                            currentMinute >= checkoutTime.minute - 2 && 
+                            currentMinute <= checkoutTime.minute + 2;
+        
+        // Gọi hàm kiểm tra mới - ĐƠN GIẢN HƠN NHIỀU!
+        await notificationService.checkAndSendNotification(
+          currentHour,
+          currentMinute,
+          currentSecond,
+          todayRecords
+        );
+        
+      } catch (error) {
+        console.error('❌ Error checking notification:', error);
+      }
+    }, 1000); // Kiểm tra mỗi 1 giây để đảm bảo chính xác
+
+    return () => clearInterval(checkinReminderInterval);
+  }, [records]);
+
   
   // Fetch display name khi user thay đổi
   useEffect(() => {
@@ -346,21 +413,53 @@ export default function HomeScreen() {
       return records.filter(record => record.time.startsWith(today));
     } else {
       const now = new Date();
-      const startOfWeek = new Date(now);
-      startOfWeek.setDate(now.getDate() - now.getDay());
-      startOfWeek.setHours(0, 0, 0, 0);
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      startOfMonth.setHours(0, 0, 0, 0);
       
-      const endOfWeek = new Date(now);
-      endOfWeek.setDate(now.getDate() + (6 - now.getDay()));
-      endOfWeek.setHours(23, 59, 59, 999);
+      // Sửa cách tính ngày cuối tháng
+      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      endOfMonth.setHours(23, 59, 59, 999);
       
-      // Lọc records trong tuần này
-      const weekRecords = records.filter(record => {
-        const recordDate = new Date(record.time);
-        return recordDate >= startOfWeek && recordDate <= endOfWeek;
+      console.log('📅 Lọc theo tháng:', {
+        currentDate: now.toISOString(),
+        startOfMonth: startOfMonth.toISOString(),
+        endOfMonth: endOfMonth.toISOString(),
+        totalRecords: records.length,
+        month: now.getMonth() + 1,
+        year: now.getFullYear()
       });
       
-      return weekRecords;
+      // Lọc records trong tháng này - sử dụng cách tiếp cận đơn giản hơn
+      const monthRecords = records.filter(record => {
+        // Lấy ngày từ record.time (format: YYYY-MM-DD HH:mm:ss)
+        const recordDateStr = record.time.split(' ')[0]; // Lấy phần YYYY-MM-DD
+        const recordYear = parseInt(recordDateStr.split('-')[0]);
+        const recordMonth = parseInt(recordDateStr.split('-')[1]);
+        
+        const currentYear = now.getFullYear();
+        const currentMonth = now.getMonth() + 1; // getMonth() trả về 0-11
+        
+        const isInCurrentMonth = recordYear === currentYear && recordMonth === currentMonth;
+        
+        // Debug từng record để xem tại sao không match
+        if (records.indexOf(record) < 5) { // Chỉ log 5 records đầu tiên
+          console.log('📅 Record check (simple):', {
+            recordTime: record.time,
+            recordDateStr: recordDateStr,
+            recordYear: recordYear,
+            recordMonth: recordMonth,
+            currentYear: currentYear,
+            currentMonth: currentMonth,
+            isInCurrentMonth: isInCurrentMonth
+          });
+        }
+        
+        return isInCurrentMonth;
+      });
+      
+      console.log('📅 Records trong tháng:', monthRecords.length);
+      
+      return monthRecords;
     }
   }, [activeContentTab, records]);
 
@@ -462,7 +561,17 @@ export default function HomeScreen() {
       setDisplayRecords(prev => prev.filter(r => r.name !== tempRecord.name));
       
       await loadCheckinData();
-            setShowSuccessAnimation(true);
+      setShowSuccessAnimation(true);
+      
+      // Gửi thông báo ngay lập tức khi chấm công ra ca
+      if (type === 'OUT') {
+        await notificationService.sendImmediateNotification({
+          title: '✅ Đã chấm công ra ca',
+          body: 'Bạn đã chấm công ra ca thành công! Chúc bạn buổi tối vui vẻ!',
+          data: { type: 'checkout_success' }
+        });
+        console.log('📱 Check-out success notification sent');
+      }
             
     } catch (error: any) {
       setRecords(prev => prev.filter(r => r.name !== tempRecord.name));
@@ -473,9 +582,14 @@ export default function HomeScreen() {
     }
   }, [userLocation, loadCheckinData, handleSubmitCheckin, user, hasValidLocation, locationError, getCurrentLocation]);
   
-  // Group records by date and create pairs for weekly view
+  // Group records by date and create pairs for monthly view
   const groupedRecords = useMemo(() => {
-    if (activeContentTab !== 'week') return [];
+    if (activeContentTab !== 'month') {
+      console.log('📅 groupedRecords: Tab không phải month, trả về []');
+      return [];
+    }
+    
+    console.log('📅 groupedRecords: Bắt đầu xử lý với', displayRecords.length, 'records');
     
     const grouped: { [key: string]: CheckinRecord[] } = {};
     
@@ -548,7 +662,9 @@ export default function HomeScreen() {
     });
     
     // Sort by date (newest first)
-    return result.sort((a, b) => b.date.localeCompare(a.date));
+    const finalResult = result.sort((a, b) => b.date.localeCompare(a.date));
+    console.log('📅 groupedRecords: Kết quả cuối cùng:', finalResult.length, 'ngày');
+    return finalResult;
   }, [displayRecords, activeContentTab]);
 
   // Render checkin item for today view
@@ -723,10 +839,16 @@ export default function HomeScreen() {
                 <Text style={[homeScreenStyles.contentTabText, activeContentTab === "today" && homeScreenStyles.contentTabTextActive]}>Hôm nay</Text>
               </TouchableOpacity>
               <TouchableOpacity 
-                style={[homeScreenStyles.contentTab, activeContentTab === "week" && homeScreenStyles.contentTabActive]}
-                onPress={() => setActiveContentTab("week")}
+                style={[homeScreenStyles.contentTab, activeContentTab === "month" && homeScreenStyles.contentTabActive]}
+                onPress={() => setActiveContentTab("month")}
               >
-                <Text style={[homeScreenStyles.contentTabText, activeContentTab === "week" && homeScreenStyles.contentTabTextActive]}>Tuần này</Text>
+                <Text style={[homeScreenStyles.contentTabText, activeContentTab === "month" && homeScreenStyles.contentTabTextActive]}>Tháng này</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[homeScreenStyles.contentTab, activeContentTab === "statistics" && homeScreenStyles.contentTabActive]}
+                onPress={() => setActiveContentTab("statistics")}
+              >
+                <Text style={[homeScreenStyles.contentTabText, activeContentTab === "statistics" && homeScreenStyles.contentTabTextActive]}>Thống kê</Text>
               </TouchableOpacity>
             </View>
 
@@ -809,6 +931,7 @@ export default function HomeScreen() {
             <View style={homeScreenStyles.mapContainer}>
               {userLocation ? (
                 <WebView
+                  key={locationUpdateKey} // Force re-render khi vị trí thay đổi
                   style={homeScreenStyles.map}
                   source={{
                     html: `
@@ -892,7 +1015,7 @@ export default function HomeScreen() {
               </TouchableOpacity>
             </View>
           </ScrollView>
-            ) : activeContentTab === "week" ? (
+            ) : activeContentTab === "month" ? (
               <FlatList
                 data={groupedRecords}
                 keyExtractor={(item) => item.date}
@@ -902,7 +1025,7 @@ export default function HomeScreen() {
                 onRefresh={loadCheckinData}
                 ListHeaderComponent={
                   <View style={homeScreenStyles.headerContainer}>
-                    <Text style={homeScreenStyles.headerTitle}>Chấm công tuần này</Text>
+                    <Text style={homeScreenStyles.headerTitle}>Chấm công tháng này</Text>
                     <View style={homeScreenStyles.checkinStatusBadge}>
                       <Text style={[
                         homeScreenStyles.checkinStatusText,
@@ -915,10 +1038,12 @@ export default function HomeScreen() {
                 }
                 ListEmptyComponent={
                   <View style={homeScreenStyles.centerContainer}>
-                    <Text style={homeScreenStyles.noDataText}>Chưa có dữ liệu chấm công tuần này</Text>
+                    <Text style={homeScreenStyles.noDataText}>Chưa có dữ liệu chấm công tháng này</Text>
                   </View>
                 }
               />
+            ) : activeContentTab === "statistics" ? (
+              <AttendanceStatistics records={filteredRecords} />
             ) : (
               <FlatList
                 data={displayRecords}
