@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, Modal, TouchableOpacity } from 'react-native';
 // Removed gradient import for basic styling
 import { CheckinRecord } from '../types/checkin.types';
 import { fs, ss } from '../utils/responsive';
@@ -25,6 +25,11 @@ interface DayStatus {
 }
 
 const AttendanceStatistics: React.FC<AttendanceStatisticsProps> = ({ records }) => {
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);
+  const [selectedPairs, setSelectedPairs] = useState<Array<{ inTime?: string; outTime?: string; inDraft?: boolean; outDraft?: boolean }>>([]);
+  const [selectedTotalMinutes, setSelectedTotalMinutes] = useState<number>(0);
+
   const monthYearText = useMemo(() => {
     const now = new Date();
     const vietnamTime = new Date(now.getTime() + (7 * 60 * 60 * 1000));
@@ -307,6 +312,60 @@ const AttendanceStatistics: React.FC<AttendanceStatisticsProps> = ({ records }) 
     return calendarDays;
   };
 
+  const buildPairsForDate = (dateKey: string) => {
+    const dayRecords = records
+      .filter(r => r.time.split(' ')[0] === dateKey)
+      .sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
+
+    const pairs: Array<{ inTime?: string; outTime?: string; inDraft?: boolean; outDraft?: boolean }> = [];
+    let current: { inTime?: string; outTime?: string; inDraft?: boolean; outDraft?: boolean } = {};
+    let totalMinutes = 0;
+
+    dayRecords.forEach(rec => {
+      if (rec.log_type === 'IN') {
+        if (current.inTime && !current.outTime) {
+          pairs.push(current);
+          current = {};
+        }
+        current.inTime = formatTime(rec.time);
+        // @ts-ignore custom_status may exist at runtime
+        current.inDraft = (rec as any).custom_status === 'Draft';
+      } else if (rec.log_type === 'OUT') {
+        current.outTime = formatTime(rec.time);
+        // @ts-ignore custom_status may exist at runtime
+        current.outDraft = (rec as any).custom_status === 'Draft';
+        // accumulate total minutes when we have both ends by reading original times again
+        const inRec = dayRecords.find(r => formatTime(r.time) === current.inTime && r.log_type === 'IN');
+        if (inRec) {
+          const inDateTime = new Date(inRec.time);
+          const outDateTime = new Date(rec.time);
+          totalMinutes += (outDateTime.getTime() - inDateTime.getTime()) / (1000 * 60);
+        }
+        pairs.push(current);
+        current = {};
+      }
+    });
+
+    if (current.inTime || current.outTime) {
+      pairs.push(current);
+    }
+
+    return { pairs, totalMinutes };
+  };
+
+  const onPressDay = (day: DayStatus) => {
+    if (!day) return;
+    // Allow viewing past and today; optionally block future days with no data
+    const result = buildPairsForDate(day.date);
+    if (result.pairs.length === 0 && day.isFuture) {
+      return;
+    }
+    setSelectedDateKey(day.date);
+    setSelectedPairs(result.pairs);
+    setSelectedTotalMinutes(result.totalMinutes);
+    setIsModalVisible(true);
+  };
+
   if (!statistics) {
     return (
       <View style={styles.container}>
@@ -341,16 +400,6 @@ const AttendanceStatistics: React.FC<AttendanceStatisticsProps> = ({ records }) 
             <Text style={styles.statValue}>{statistics.checkedInDays}</Text>
             <Text style={styles.statLabel}>Ngày có chấm công</Text>
           </View>
-          <View style={[styles.statCardBasic, styles.cardOrange]}>
-            <View style={[styles.accentBar, styles.accentOrange]} />
-            <Text style={styles.statValue}>{displayTotalHours}h</Text>
-            <Text style={styles.statLabel}>Tổng giờ</Text>
-          </View>
-          <View style={[styles.statCardBasic, styles.cardPurple]}>
-            <View style={[styles.accentBar, styles.accentPurple]} />
-            <Text style={styles.statValue}>{statistics.averageHoursPerDay.toFixed(1)}h</Text>
-            <Text style={styles.statLabel}>TB giờ/ngày</Text>
-          </View>
         </View>
       </View>
 
@@ -375,7 +424,7 @@ const AttendanceStatistics: React.FC<AttendanceStatisticsProps> = ({ records }) 
           {getCalendarDays().map((day, index) => (
             <View key={index} style={styles.calendarDayContainer}>
               {day ? (
-                <View style={[
+                <TouchableOpacity onPress={() => onPressDay(day)} activeOpacity={0.7} style={[
                   styles.calendarDay,
                   day.isToday && styles.todayCalendarDay,
                   day.isFullyApproved && styles.fullyApprovedDay,
@@ -410,7 +459,7 @@ const AttendanceStatistics: React.FC<AttendanceStatisticsProps> = ({ records }) 
                       ]} />
                     </View>
                   )}
-                </View>
+                </TouchableOpacity>
               ) : (
                 <View style={styles.emptyDay} />
               )}
@@ -439,6 +488,62 @@ const AttendanceStatistics: React.FC<AttendanceStatisticsProps> = ({ records }) 
 
         </View>
       </View>
+
+      {/* Popup hiển thị cặp vào/ra */}
+      <Modal
+        visible={isModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIsModalVisible(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitle}>
+              {selectedDateKey
+                ? new Date(selectedDateKey + 'T00:00:00').toLocaleDateString('vi-VN', {
+                    weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric'
+                  })
+                : 'Chi tiết chấm công'}
+            </Text>
+            {selectedPairs.length > 0 && (
+              <Text style={styles.modalSubTitle}>
+                Tổng giờ trong ngày: {(selectedTotalMinutes / 60).toFixed(2).replace(/\.00$/, '')} giờ
+              </Text>
+            )}
+            {selectedPairs.length === 0 ? (
+              <Text style={styles.modalEmptyText}>Không có dữ liệu</Text>
+            ) : (
+              <View style={styles.pairList}>
+                {selectedPairs.map((p, idx) => (
+                  <View key={idx} style={styles.pairRow}>
+                    <View style={styles.pairCol}>
+                      <Text style={styles.pairLabel}>Vào</Text>
+                      <View style={styles.valueRow}>
+                        <View style={[styles.badge, p.inTime ? (p.inDraft ? styles.badgeDraft : styles.badgeApproved) : styles.badgeMissed]} />
+                        <Text style={styles.pairValue}>
+                          {p.inTime ? p.inTime : '-'}{p.inDraft ? ' (Nháp)' : ''}
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={styles.pairCol}>
+                      <Text style={styles.pairLabel}>Ra</Text>
+                      <View style={styles.valueRow}>
+                        <View style={[styles.badge, p.outTime ? (p.outDraft ? styles.badgeDraft : styles.badgeApproved) : styles.badgeMissed]} />
+                        <Text style={styles.pairValue}>
+                          {p.outTime ? p.outTime : '-'}{p.outDraft ? ' (Nháp)' : ''}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
+            <TouchableOpacity style={styles.closeButton} onPress={() => setIsModalVisible(false)}>
+              <Text style={styles.closeButtonText}>Đóng</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 };
@@ -687,6 +792,91 @@ const styles = StyleSheet.create({
     color: '#999',
     marginTop: 20,
     fontSize: 16,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: ss(16),
+  },
+  modalContainer: {
+    width: '100%',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: ss(16),
+  },
+  modalTitle: {
+    fontSize: fs(18),
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: ss(12),
+    textAlign: 'center',
+  },
+  modalSubTitle: {
+    fontSize: fs(14),
+    color: '#555',
+    marginBottom: ss(8),
+    textAlign: 'center',
+  },
+  modalEmptyText: {
+    textAlign: 'center',
+    color: '#666',
+    marginVertical: ss(12),
+  },
+  pairList: {
+    gap: ss(8),
+  },
+  pairRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: ss(8),
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  pairCol: {
+    width: '48%',
+  },
+  pairLabel: {
+    fontSize: fs(12),
+    color: '#666',
+    marginBottom: ss(4),
+  },
+  valueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: ss(6),
+  },
+  pairValue: {
+    fontSize: fs(16),
+    fontWeight: '600',
+    color: '#333',
+  },
+  badge: {
+    width: ss(10),
+    height: ss(10),
+    borderRadius: ss(5),
+    backgroundColor: '#bdbdbd',
+  },
+  badgeApproved: {
+    backgroundColor: '#A5D6A7',
+  },
+  badgeMissed: {
+    backgroundColor: '#EF9A9A',
+  },
+  badgeDraft: {
+    backgroundColor: '#FFD9B0',
+  },
+  closeButton: {
+    marginTop: ss(16),
+    backgroundColor: '#2196F3',
+    borderRadius: 8,
+    paddingVertical: ss(10),
+  },
+  closeButtonText: {
+    textAlign: 'center',
+    color: '#fff',
+    fontWeight: 'bold',
   },
 });
 

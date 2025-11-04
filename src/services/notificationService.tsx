@@ -2,6 +2,20 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { NotificationTimeHelper } from '../enum';
 
+/**
+ * Notification Service
+ * 
+ * Privacy Note: This service uses expo-notifications which collects Device IDs
+ * (Expo Push Token) for push notification functionality. This is required for
+ * the app's notification feature and must be declared in Google Play Data Safety form.
+ * 
+ * Data Collection:
+ * - Device ID (via Expo Push Token) - Required for push notifications
+ * - Collection Purpose: App functionality (notification delivery)
+ * - Data Sharing: Not shared with third parties (only with Expo's notification service)
+ * - Data Retention: As long as app is installed
+ */
+
 // Cấu hình notification behavior
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -35,16 +49,20 @@ class NotificationService {
 
     try {
       // Yêu cầu quyền notification
+      // Note: Requesting notification permission may trigger Device ID collection
+      // (Expo Push Token generation). This is required for push notifications.
       const { status: existingStatus } = await Notifications.getPermissionsAsync();
       let finalStatus = existingStatus;
 
       if (existingStatus !== 'granted') {
+        // Only request permission when actually needed (user-initiated action)
         const { status } = await Notifications.requestPermissionsAsync();
         finalStatus = status;
       }
 
       if (finalStatus !== 'granted') {
         console.warn('⚠️ Notification permission not granted');
+        // Device ID will not be collected if permission is denied
         return;
       }
 

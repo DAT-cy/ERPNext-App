@@ -7,14 +7,6 @@ import { hasSubItemAccess } from '../utils/menuPermissions';
  * Xử lý việc kiểm tra quyền truy cập và điều hướng
  */
 class MenuRouterController {
-  /**
-   * Xử lý sự kiện click vào menu và điều hướng tới màn hình tương ứng
-   * @param menuId ID của menu chính
-   * @param subMenuId ID của submenu
-   * @param userRoles Roles của người dùng hiện tại
-   * @param params Tham số tùy chỉnh truyền vào route
-   * @returns boolean - true nếu điều hướng thành công, false nếu không
-   */
   handleMenuNavigation(
     menuId: string,
     subMenuId: string,

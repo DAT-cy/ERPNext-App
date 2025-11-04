@@ -1,8 +1,8 @@
 // Enum quản lý thời gian thông báo chấm công
 export enum NotificationTime {
   // Thời gian check-in (vào ca)
-  CHECKIN_HOUR = 8,
-  CHECKIN_MINUTE = 0,
+  CHECKIN_HOUR = 7,
+  CHECKIN_MINUTE = 55,
   CHECKIN_SECOND = 0,
   
   // Thời gian check-out (ra ca) 

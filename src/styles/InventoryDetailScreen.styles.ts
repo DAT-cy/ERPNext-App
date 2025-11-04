@@ -802,6 +802,11 @@ export const insertInventoryStyles = StyleSheet.create({
         fontWeight: '600',
         color: '#FFFFFF',
     },
+    changeStatusButtonText: {
+        fontSize: fs(14),
+        fontWeight: '600',
+        color: '#FFFFFF',
+    },
 });
 
 export const inventoryDetailStyles = insertInventoryStyles;

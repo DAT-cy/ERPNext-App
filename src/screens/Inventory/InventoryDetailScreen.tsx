@@ -302,6 +302,54 @@ export default function InventoryDetailScreen() {
       ]
     );
   };
+
+  const handleChangeStatus = async (nextStatus: string) => {
+    if (isSubmitting) return;
+    
+    // Show confirmation dialog
+    Alert.alert(
+      'Xác nhận thay đổi trạng thái',
+      `Bạn có chắc chắn muốn chuyển trạng thái từ "${currentStatus}" sang "${nextStatus}" không?`,
+      [
+        {
+          text: 'Hủy',
+          style: 'cancel',
+        },
+        {
+          text: 'Xác nhận',
+          onPress: async () => {
+            setIsSubmitting(true);
+            try {
+              console.log('🔄 [InventoryDetail] Changing status to:', nextStatus);
+              
+              // Call update API to change status
+              const result = await updateStockEntry(currentData.name, currentData, {
+                workflow_state: nextStatus
+              });
+
+              if (result.success) {
+                console.log('✅ [InventoryDetail] Status change successful');
+                // Update local status
+                setCurrentStatus(nextStatus);
+                setOriginalStatus(nextStatus);
+                
+                // Show success message
+                Alert.alert('Thành công', `Trạng thái đã được chuyển sang "${nextStatus}"`);
+              } else {
+                console.error('❌ [InventoryDetail] Status change failed:', result.error);
+                Alert.alert('Lỗi', result.error || 'Không thể thay đổi trạng thái. Vui lòng thử lại.');
+              }
+            } catch (error) {
+              console.error('💥 [InventoryDetail] Status change error:', error);
+              Alert.alert('Lỗi', 'Có lỗi xảy ra khi thay đổi trạng thái. Vui lòng thử lại.');
+            } finally {
+              setIsSubmitting(false);
+            }
+          }
+        }
+      ]
+    );
+  };
   
   // Handle comment input focus - do not auto scroll
   const handleCommentFocus = () => {};
@@ -374,24 +422,9 @@ export default function InventoryDetailScreen() {
                 opacity: 1,
               }}
             >
-              <TouchableOpacity
-                onPress={() => allowedNextStatuses.length > 0 && setIsStatusPickerOpen(prev => !prev)}
-                activeOpacity={0.7}
-                disabled={allowedNextStatuses.length === 0}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Text style={{ fontSize: 12, lineHeight: 14, fontWeight: '700', color: statusResolved.color }}>
-                    {statusResolved.text}
-                  </Text>
-                  {allowedNextStatuses.length > 0 && (
-                    <Image
-                      source={require('../../assets/dropdown.png')}
-                      style={{ width: 17, height: 17, tintColor: statusResolved.color, marginLeft: 4 }}
-                      resizeMode="contain"
-                    />
-                  )}
-                </View>
-              </TouchableOpacity>
+              <Text style={{ fontSize: 12, lineHeight: 14, fontWeight: '700', color: statusResolved.color }}>
+                {statusResolved.text}
+              </Text>
             </View>
           )}
         </View>
@@ -728,40 +761,48 @@ export default function InventoryDetailScreen() {
           </View> */}
       </ScrollView>
 
-      {/* Footer with Save and Delete buttons */}
+      {/* Footer with Save or Status Change Buttons */}
       <View style={styles.footer}>
         <View style={styles.footerButtonsContainer}>
-          {/* Save Button - Left side */}
-          <TouchableOpacity
-            style={[
-              styles.footerButton,
-              styles.saveButton,
-              (!hasAnyChanges || isSubmitting) && { opacity: 0.6 }
-            ]}
-            onPress={handleSave}
-            activeOpacity={0.8}
-            disabled={!hasAnyChanges || isSubmitting}
-          >
-            <Text style={styles.saveButtonText}>
-              {isSubmitting ? 'Đang lưu...' : 'Lưu'}
-            </Text>
-          </TouchableOpacity>
-
-          {/* Delete Button - Right side */}
-          <TouchableOpacity
-            style={[
-              styles.footerButton,
-              styles.deleteButton,
-              isDeleting && { opacity: 0.6 }
-            ]}
-            onPress={handleDelete}
-            activeOpacity={0.8}
-            disabled={isDeleting}
-          >
-            <Text style={styles.deleteButtonText}>
-              {isDeleting ? 'Đang xóa...' : 'Xóa'}
-            </Text>
-          </TouchableOpacity>
+          {hasAnyChanges ? (
+            /* Save Button - Show when there are changes */
+            <TouchableOpacity
+              style={[
+                styles.footerButton,
+                styles.saveButton,
+                isSubmitting && { opacity: 0.6 }
+              ]}
+              onPress={handleSave}
+              activeOpacity={0.8}
+              disabled={isSubmitting}
+            >
+              <Text style={styles.saveButtonText}>
+                {isSubmitting ? 'Đang lưu...' : 'Lưu'}
+              </Text>
+            </TouchableOpacity>
+          ) : (
+            /* Status Change Buttons - Show when no changes */
+            allowedNextStatuses.map((status, index) => {
+              const statusResolved = statusMap[status] || { text: status, color: '#3B82F6', bgColor: '#EFF6FF' };
+              return (
+                <TouchableOpacity
+                  key={index}
+                  style={[
+                    styles.footerButton,
+                    { backgroundColor: statusResolved.color },
+                    isSubmitting && { opacity: 0.6 }
+                  ]}
+                  onPress={() => handleChangeStatus(status)}
+                  activeOpacity={0.8}
+                  disabled={isSubmitting}
+                >
+                  <Text style={styles.changeStatusButtonText}>
+                    {isSubmitting ? 'Đang cập nhật...' : status}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })
+          )}
         </View>
       </View>
     </KeyboardAvoidingView>

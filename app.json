@@ -2,7 +2,7 @@
   "expo": {
     "name": "Remak",
     "slug": "erpnext-rn-base",
-    "version": "1.0.9",
+    "version": "1.1.2",
     "orientation": "portrait",
     "icon": "./assets/remak-logo.jpg",
     "userInterfaceStyle": "light",
@@ -15,7 +15,6 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.remak.app",
-    
       "config": {
         "googleMapsApiKey": "AIzaSyDSVAQs5a-iN5ZE6XlnMP9PUmIa_1qHchA"
       },
@@ -45,7 +44,8 @@
         "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.RECEIVE_BOOT_COMPLETED",
         "android.permission.VIBRATE",
-        "android.permission.WAKE_LOCK"
+        "android.permission.WAKE_LOCK",
+        "android.permission.RECORD_AUDIO"
       ],
       "config": {
         "googleMaps": {
@@ -56,20 +56,29 @@
     "web": {
       "favicon": "./assets/remak-logo.jpg"
     },
+    "owner": "tiktik2202",
     "extra": {
       "eas": {
         "projectId": "d4e5a1ca-6d6c-4519-b444-a682668d795f"
       }
     },
-    "owner": "tiktik2202",
     "plugins": [
-      "expo-camera",  
+      "expo-camera",
       [
         "expo-notifications",
         {
           "icon": "./assets/remak-logo.jpg",
           "color": "#ffffff",
           "defaultChannel": "default"
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "deploymentTarget": "15.1",
+            "cocoapodsVersion": "1.15.2"
+          }
         }
       ]
     ]

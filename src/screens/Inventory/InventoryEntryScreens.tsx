@@ -92,9 +92,6 @@ export default function InventoryEntryScreens() {
             { value: 'Draft', label: 'Nháp', category: 'workflow_state' },
             { value: 'Hủy', label: 'Hủy', category: 'workflow_state' },
             { value: 'Đóng', label: 'Đóng', category: 'workflow_state' },
-
-
-
         ],
         stock_entry_type: [
             // default value is English canonical for filtering, label stays Vietnamese for display
@@ -289,6 +286,8 @@ export default function InventoryEntryScreens() {
             'Hủy': { text: 'Hủy', color: '#EF4444', bgColor: '#FEF2F2' }, // Red
             'Cancelled': { text: 'Hủy', color: '#EF4444', bgColor: '#FEF2F2' }, // Red
             'Yêu cầu': { text: 'Yêu cầu', color: colors.warning, bgColor: '#FFFBEB' },
+            'Đóng': { text: 'Đóng', color: '#6B7280', bgColor: '#F3F4F6' }, // Gray
+            'Closed': { text: 'Đóng', color: '#6B7280', bgColor: '#F3F4F6' }, // Gray
         };
 
         // Check docstatus if state not found

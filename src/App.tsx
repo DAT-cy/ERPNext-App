@@ -9,7 +9,7 @@ export default function App() {
   return (
     <AuthProvider>
       <NavigationContainer ref={navigationRef}>
-        <AppNavigator />
+          <AppNavigator />
       </NavigationContainer>
     </AuthProvider>
   );

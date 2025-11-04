@@ -10,7 +10,8 @@
       },
       "ios": {
         "simulator": true,
-        "distribution": "internal"
+        "distribution": "internal",
+        "cocoapods": "1.15.2"
       }
     },
     "preview2": {
@@ -28,32 +29,40 @@
       "autoIncrement": true,
       "ios": {
         "simulator": true,
-        "distribution": "internal"
+        "distribution": "internal",
+        "cocoapods": "1.15.2"
       }
     },
     "ios-production": {
       "autoIncrement": true,
+      "channel": "production",
       "ios": {
-        "distribution": "store"
+        "distribution": "store",
+        "cocoapods": "1.15.2"
       }
     },
     "ios-device": {
       "ios": {
         "simulator": false,
-        "distribution": "internal"
+        "distribution": "internal",
+        "cocoapods": "1.15.2"
       }
     },
     "ios-testflight": {
       "autoIncrement": true,
+      "channel": "production",
       "ios": {
         "simulator": false,
-        "distribution": "store"
+        "distribution": "store",
+        "cocoapods": "1.15.2"
       }
     },
     "production": {
       "autoIncrement": true,
+      "channel": "production",
       "ios": {
-        "distribution": "store"
+        "distribution": "store",
+        "cocoapods": "1.15.2"
       }
     }
   },

@@ -46,6 +46,8 @@ export const ROLE_GROUPS = {
   // Remak Specific
   REMAK_ROLES: ['Remak User', 'Remak'],
 
+  SHIPMENT_ROLES: ['Driver User', 'Delivery User','Driver Managers'],
+
 
 } as const;
 
@@ -135,7 +137,7 @@ export const MENU_DEFINITIONS: MenuItemDef[] = [
       {
         id: 'overview-hr',
         title: 'Tổng quan',
-        icon: require('../assets/overview.png'),
+        icon: require('../assets/hr/hr.png'), // Using existing icon as example
         allowedRoles: [
           ...ROLE_GROUPS.HR_ROLES,
           ...ROLE_GROUPS.ADMIN_ROLES,
@@ -144,7 +146,7 @@ export const MENU_DEFINITIONS: MenuItemDef[] = [
       {
         id: 'recruitment-hr',
         title: 'Tuyển dụng',
-        icon: require('../assets/hr/recruitment.png'),
+        icon: require('../assets/hr/hr.png'), // Using existing icon as example
         allowedRoles: [
           ...ROLE_GROUPS.HR_ROLES,
           ...ROLE_GROUPS.ADMIN_ROLES,
@@ -266,65 +268,31 @@ export const MENU_DEFINITIONS: MenuItemDef[] = [
       }
     ]
   },
-  // === EMPLOYEE MENU ===
-  // {
-  //   id: 'employee',
-  //   title: 'Nhân viên',
-  //   icon: require('../assets/employee/foulder.png'), // Using existing icon as example
-  //   hasSubItems: true,
-  //   allowedRoles: [
-  //     ...ROLE_GROUPS.EMPLOYEE,
-  //     ...ROLE_GROUPS.REMAK_ROLES,
-  //     ...ROLE_GROUPS.ADMIN_ROLES,
-  //     ...ROLE_GROUPS.BASIC_USER
-  //   ],
-  //   subItems: [
-  //     {
-  //       id: 'overview-employee',
-  //       title: 'Tổng quan',
-  //       icon: require('../assets/overview.png'),
-  //       allowedRoles: [
-  //         ...ROLE_GROUPS.EMPLOYEE,
-  //         ...ROLE_GROUPS.REMAK_ROLES,
-  //         ...ROLE_GROUPS.ADMIN_ROLES,
-  //         ...ROLE_GROUPS.BASIC_USER
-  //       ]
-  //     },
-  //     {
-  //       id: 'issue-employee',
-  //       title: 'Vấn đề cần xử lý',
-  //       icon: require("../assets/employee/issue.png"),
-  //       allowedRoles: [
-  //         ...ROLE_GROUPS.EMPLOYEE,
-  //         ...ROLE_GROUPS.REMAK_ROLES,
-  //         ...ROLE_GROUPS.ADMIN_ROLES,
-  //         ...ROLE_GROUPS.BASIC_USER
-  //       ]
-  //     },
-  //     {
-  //       id: 'tasks-employee',
-  //       title: 'Công việc',
-  //       icon: require('../assets/employee/tasks.png'),
-  //       allowedRoles: [
-  //         ...ROLE_GROUPS.EMPLOYEE,
-  //         ...ROLE_GROUPS.REMAK_ROLES,
-  //         ...ROLE_GROUPS.ADMIN_ROLES
-  //       ]
-  //     },
-  //     {
-  //       id: 'tasks-manager-employee',
-  //       title: 'Quản lý công việc',
-  //       icon: require('../assets/employee/tasks-manager.png'),
-  //       allowedRoles: [
-  //         ...ROLE_GROUPS.EMPLOYEE,
-  //         ...ROLE_GROUPS.HR_ROLES,
-  //         ...ROLE_GROUPS.ADMIN_ROLES
-  //       ]
-  //     }
-  //   ]
-  // },
-  // === SALES MENU (Nhân viên kinh doanh) ===
 
+  {
+    id: 'shipment',
+    title: 'VNShipment',
+    icon: require('../assets/hr/hr.png'), // Using existing icon as example
+    hasSubItems: true,
+    allowedRoles: [
+      ...ROLE_GROUPS.ADMIN_ROLES,
+      ...ROLE_GROUPS.SHIPMENT_ROLES,
+      ...ROLE_GROUPS.STOCK_ROLES,
+    ],
+    subItems: [
+      {
+        id: 'delivery-trip',
+        title: 'Vận chuyển',
+        icon: require('../assets/hr/hr.png'), // Using existing icon as example
+        allowedRoles: [
+          ...ROLE_GROUPS.ADMIN_ROLES,
+          ...ROLE_GROUPS.SHIPMENT_ROLES,
+          ...ROLE_GROUPS.STOCK_ROLES,
+
+        ]
+      }
+    ]
+  }
 
 ];
 

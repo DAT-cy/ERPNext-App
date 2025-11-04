@@ -17,7 +17,8 @@ export enum RouteNames {
   INVENTORY_MANAGEMENT = 'InventoryManagement',
   INVENTORY_ENTRY = 'InventoryEntry',
   PURCHASE_RECEIPT = 'PurchaseReceiptList',
-  CHECK_LIST_INVENTORY = 'CheckListInventoryScreen'
+  CHECK_LIST_INVENTORY = 'CheckListInventoryScreen',
+  SHIPMENT_MANAGEMENT = 'ShipmentManagement',
 }
 
 /**
@@ -37,6 +38,7 @@ export type RouteParams = {
   [RouteNames.INVENTORY_ENTRY]: undefined;
   [RouteNames.PURCHASE_RECEIPT]: undefined;
   [RouteNames.CHECK_LIST_INVENTORY]: undefined;
+  [RouteNames.SHIPMENT_MANAGEMENT]: undefined;
 };
 
 /**
@@ -61,6 +63,7 @@ export const MENU_ROUTE_MAP: Record<string, {
   'inventory-operations:stock-entry': { routeName: RouteNames.INVENTORY_ENTRY },
   'inventory-operations:purchase-receipt': { routeName: RouteNames.PURCHASE_RECEIPT },
   'inventory-operations:check-quantity-inventory': { routeName: RouteNames.CHECK_LIST_INVENTORY },
+  'shipment:delivery-trip': { routeName: RouteNames.SHIPMENT_MANAGEMENT },
 };
 
 class MenuRouter {
@@ -132,6 +135,9 @@ class MenuRouter {
   
   navigateToLeaveApplication(leaveId: string): void {
     this.navigate(RouteNames.APPLICATION_LEAVE, { leaveId });
+  }
+  navigateToShipmentManagement(params?: RouteParams[RouteNames.SHIPMENT_MANAGEMENT]): void {
+    this.navigate(RouteNames.SHIPMENT_MANAGEMENT, params);
   }
   /**
    * Điều hướng đến màn hình nghỉ phép đã duyệt

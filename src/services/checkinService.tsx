@@ -59,6 +59,8 @@ import { handleServiceError, handleServiceThrow } from "../utils/error/ErrorHand
 
 
 
+let lastTimeoutLogMs = 0;
+
 export async function fetchCheckinRecords(limit: number = 100): Promise<CheckinRecord[]> {
     console.log('🔍 [fetchCheckinRecords] Starting function...');
     
@@ -68,16 +70,16 @@ export async function fetchCheckinRecords(limit: number = 100): Promise<CheckinR
         loggedUser = await getLoggedUser();
         console.log('✅ [fetchCheckinRecords] Got logged user:', loggedUser.message);
     } catch (error: any) {
-        console.error('❌ [fetchCheckinRecords] Error getting logged user:', {
-            message: error?.message,
-            code: error?.code,
-            timeout: error?.code === 'ECONNABORTED' || error?.message?.includes('timeout')
-        });
-        
-        // Return empty array for timeout or network errors
-        if (error?.code === 'ECONNABORTED' || error?.message?.includes('timeout')) {
-            console.log('⏰ [fetchCheckinRecords] Request timeout - returning empty array');
+        const isTimeout = error?.code === 'ECONNABORTED' || error?.message?.includes('timeout');
+        if (isTimeout) {
+            const now = Date.now();
+            if (now - lastTimeoutLogMs > 60000) {
+                console.warn('⏰ [fetchCheckinRecords] Request timeout - returning empty array');
+                lastTimeoutLogMs = now;
+            }
+            return [];
         }
+        console.error('❌ [fetchCheckinRecords] Error getting logged user:', error?.message || error);
         return [];
     }
     
@@ -128,21 +130,15 @@ export async function fetchCheckinRecords(limit: number = 100): Promise<CheckinR
         console.log('✅ [fetchCheckinRecords] Successfully fetched records');
         return res.data.message || [];
     } catch (error: any) {
-        console.error('❌ [fetchCheckinRecords] Error details:', {
-            message: error?.message,
-            code: error?.code,
-            status: error?.response?.status,
-            timeout: error?.code === 'ECONNABORTED' || error?.message?.includes('timeout'),
-            network: !error?.response
-        });
-        
-        // Specific handling for timeout errors
-        if (error?.code === 'ECONNABORTED' || error?.message?.includes('timeout')) {
-            console.error('⏰ [fetchCheckinRecords] Request timeout exceeded - returning empty array');
+        const isTimeout = error?.code === 'ECONNABORTED' || error?.message?.includes('timeout');
+        if (isTimeout) {
+            const now = Date.now();
+            if (now - lastTimeoutLogMs > 60000) {
+                console.warn('⏰ [fetchCheckinRecords] Request timeout exceeded - returning empty array');
+                lastTimeoutLogMs = now;
+            }
             return [];
         }
-        
-        // For other errors, still return empty array instead of throwing
         console.warn('🔄 [fetchCheckinRecords] Returning empty array due to error');
         return [];
     }

@@ -89,6 +89,8 @@ export default function PurchaseReceiptDetailScreen() {
     'Hủy': { text: 'Hủy', color: '#EF4444', bgColor: '#FEF2F2' },
     'Cancelled': { text: 'Hủy', color: '#EF4444', bgColor: '#FEF2F2' },
     'Yêu cầu': { text: 'Yêu cầu', color: colors.warning, bgColor: '#FFFBEB' },
+    'Đóng': { text: 'Đóng', color: '#6B7280', bgColor: '#F3F4F6' },
+    'Closed': { text: 'Đóng', color: '#6B7280', bgColor: '#F3F4F6' },
   };
 
   const resolveStatus = (status?: string) => {
@@ -100,6 +102,7 @@ export default function PurchaseReceiptDetailScreen() {
     if (s.includes('cancel')) return statusMap['Hủy'];
     if (s.includes('process') || s.includes('xử lý')) return statusMap['Đang xử lý'];
     if (s.includes('done') || s.includes('xử lý xong') || s.includes('đã xử lý')) return statusMap['Đã xử lý'];
+    if (s.includes('close') || s.includes('đóng')) return statusMap['Đóng'];
     return { text: status, color: colors.gray700, bgColor: '#F3F4F6' };
   };
   const statusResolved = resolveStatus(currentStatus);
@@ -114,6 +117,35 @@ export default function PurchaseReceiptDetailScreen() {
   };
 
   const allowedNextStatuses = transitionMap[statusResolved.text] || [];
+
+  const handleChangeStatus = async (nextStatus: string) => {
+    if (!currentData.name) return;
+    Alert.alert(
+      'Xác nhận thay đổi trạng thái',
+      `Bạn có chắc chắn muốn chuyển trạng thái từ "${currentStatus}" sang "${nextStatus}" không?`,
+      [
+        { text: 'Hủy', style: 'cancel' },
+        {
+          text: 'Xác nhận',
+          onPress: async () => {
+            try {
+              const payload: any = { workflow_state: nextStatus };
+              const res = await updatePurchaseReceipt(currentData.name, payload);
+              if (res.success) {
+                setCurrentStatus(nextStatus);
+                setOriginalStatus(nextStatus);
+                Alert.alert('Thành công', `Trạng thái đã được chuyển sang "${nextStatus}"`);
+              } else {
+                Alert.alert('Lỗi', res.error || 'Không thể thay đổi trạng thái. Vui lòng thử lại.');
+              }
+            } catch (e: any) {
+              Alert.alert('Lỗi', e?.message || 'Không thể thay đổi trạng thái. Vui lòng thử lại.');
+            }
+          }
+        }
+      ]
+    );
+  };
 
   const handleRefresh = async () => {
     if (!currentData.name || currentData.name === 'N/A') return;
@@ -141,9 +173,8 @@ export default function PurchaseReceiptDetailScreen() {
     return date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
   };
 
-  // Change detection: status or any qty change
+  // Change detection: only qty changes trigger Save button
   const hasChanges = () => {
-    if (currentStatus !== originalStatus) return true;
     if (itemsState.length !== originalItems.length) return true;
     for (let i = 0; i < itemsState.length; i++) {
       const a = itemsState[i];
@@ -183,54 +214,15 @@ export default function PurchaseReceiptDetailScreen() {
                 opacity: 1,
               }}
             >
-              <TouchableOpacity 
-                onPress={() => allowedNextStatuses.length > 0 && setIsStatusPickerOpen((prev) => !prev)} 
-                activeOpacity={0.7}
-                disabled={allowedNextStatuses.length === 0}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Text style={{ fontSize: 12, lineHeight: 14, fontWeight: '700', color: statusResolved.color }}>
-                    {statusResolved.text}
-                  </Text>
-                  {allowedNextStatuses.length > 0 && (
-                    <Image
-                      source={require('../../assets/dropdown.png')}
-                      style={{ width: 17, height: 17, tintColor: statusResolved.color, marginLeft: 4 }}
-                      resizeMode="contain"
-                    />
-                  )}
-                </View>
-              </TouchableOpacity>
+              <Text style={{ fontSize: 12, lineHeight: 14, fontWeight: '700', color: statusResolved.color }}>
+                {statusResolved.text}
+              </Text>
             </View>
           )}
         </View>
       </View>
 
-      {/* Status picker */}
-      {isStatusPickerOpen && allowedNextStatuses.length > 0 && (
-        <View style={styles.shopSection}>
-          <View style={styles.productItem}>
-            {allowedNextStatuses.map((opt) => {
-              const r = resolveStatus(opt);
-              const isSelected = opt === statusResolved.text;
-              return (
-                <TouchableOpacity
-                  key={opt}
-                  onPress={() => {
-                    setIsStatusPickerOpen(false);
-                    setCurrentStatus(opt);
-                  }}
-                  style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10 }}
-                  activeOpacity={0.7}
-                >
-                  <Text style={{ fontSize: 14, color: '#111827', fontWeight: (isSelected ? '700' : '500') as any }}>{r.text}</Text>
-                  <Text style={{ fontSize: 14, fontWeight: '600', color: r.color }}>{r.text}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </View>
-      )}
+      
 
       <ScrollView
         ref={scrollViewRef}
@@ -338,75 +330,61 @@ export default function PurchaseReceiptDetailScreen() {
         </View>
       </ScrollView>
 
-      {/* Footer Save and Delete buttons */}
+      {/* Footer with Save or Status Change Buttons */}
       <View style={styles.footer}>
         <View style={styles.footerButtonsContainer}>
-          <TouchableOpacity
-            style={[styles.footerButton, styles.saveButton, !hasAnyChanges && { opacity: 0.6 }]}
-            activeOpacity={0.8}
-            disabled={!hasAnyChanges}
-            onPress={async () => {
-              if (!currentData.name) return;
-              try {
-                const itemsToUpdate = itemsState.map((it: any) => ({
-                  name: it.name,
-                  item_code: it.item_code,
-                  item_name: it.item_name,
-                  qty: parseFloat(String(it.qty)) || 0,
-                  uom: it.uom,
-                }));
-                const payload: any = { items: itemsToUpdate };
-                if (currentStatus !== originalStatus) {
-                  payload.workflow_state = currentStatus;
-                }
-                const res = await updatePurchaseReceipt(currentData.name, payload);
-                if (res.success) {
-                  Alert.alert('Thành công', 'Đã cập nhật Purchase Receipt');
-                  setOriginalStatus(currentStatus);
-                  const fresh = (res.data?.items as any[])?.map((x: any) => ({ ...x })) || itemsToUpdate;
-                  setItemsState(fresh);
-                  setOriginalItems(fresh);
-                } else {
-                  Alert.alert('Lỗi', res.error || 'Cập nhật thất bại');
-                }
-              } catch (e: any) {
-                Alert.alert('Lỗi', e?.message || 'Cập nhật thất bại');
-              }
-            }}
-          >
-            <Text style={styles.saveButtonText}>Lưu</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.footerButton, styles.deleteButton]}
-            activeOpacity={0.8}
-            onPress={() => {
-              if (!currentData.name) return;
-              Alert.alert(
-                'Xác nhận xóa',
-                `Bạn có chắc chắn muốn xóa "${currentData.name}"?`,
-                [
-                  { text: 'Hủy', style: 'cancel' },
-                  {
-                    text: 'Xóa',
-                    style: 'destructive',
-                    onPress: async () => {
-                      const res = await deletePurchaseReceipt(currentData.name);
-                      if (res.success) {
-                        Alert.alert('Thành công', 'Đã xóa Purchase Receipt', [
-                          { text: 'OK', onPress: () => navigation.goBack() }
-                        ]);
-                      } else {
-                        Alert.alert('Lỗi', res.error || 'Xóa thất bại');
-                      }
-                    }
+          {hasAnyChanges ? (
+            /* Save Button - Show when there are changes */
+            <TouchableOpacity
+              style={[styles.footerButton, styles.saveButton]}
+              activeOpacity={0.8}
+              onPress={async () => {
+                if (!currentData.name) return;
+                try {
+                  const itemsToUpdate = itemsState.map((it: any) => ({
+                    name: it.name,
+                    item_code: it.item_code,
+                    item_name: it.item_name,
+                    qty: parseFloat(String(it.qty)) || 0,
+                    uom: it.uom,
+                  }));
+                  const payload: any = { items: itemsToUpdate };
+                  if (currentStatus !== originalStatus) {
+                    payload.workflow_state = currentStatus;
                   }
-                ]
+                  const res = await updatePurchaseReceipt(currentData.name, payload);
+                  if (res.success) {
+                    Alert.alert('Thành công', 'Đã cập nhật Purchase Receipt');
+                    setOriginalStatus(currentStatus);
+                    const fresh = (res.data?.items as any[])?.map((x: any) => ({ ...x })) || itemsToUpdate;
+                    setItemsState(fresh);
+                    setOriginalItems(fresh);
+                  } else {
+                    Alert.alert('Lỗi', res.error || 'Cập nhật thất bại');
+                  }
+                } catch (e: any) {
+                  Alert.alert('Lỗi', e?.message || 'Cập nhật thất bại');
+                }
+              }}
+            >
+              <Text style={styles.saveButtonText}>Lưu</Text>
+            </TouchableOpacity>
+          ) : (
+            /* Status Change Buttons - Show when no changes */
+            allowedNextStatuses.map((status, index) => {
+              const statusResolvedBtn = statusMap[status] || { text: status, color: '#3B82F6', bgColor: '#EFF6FF' };
+              return (
+                <TouchableOpacity
+                  key={index}
+                  style={[styles.footerButton, { backgroundColor: statusResolvedBtn.color }]}
+                  onPress={() => handleChangeStatus(status)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.changeStatusButtonText}>{status}</Text>
+                </TouchableOpacity>
               );
-            }}
-          >
-            <Text style={styles.deleteButtonText}>Xóa</Text>
-          </TouchableOpacity>
+            })
+          )}
         </View>
       </View>
     </KeyboardAvoidingView>
