@@ -24,4 +24,8 @@ export type RootStackParamList = {
     purchaseReceiptDetail?: any;
     name?: string;
   };
+  ShipmentScreenDetail: {
+    shipmentDetail?: any;
+    name?: string;
+  };
 };

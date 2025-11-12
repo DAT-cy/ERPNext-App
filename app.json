@@ -2,7 +2,7 @@
   "expo": {
     "name": "Remak",
     "slug": "erpnext-rn-base",
-    "version": "1.1.2",
+    "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/remak-logo.jpg",
     "userInterfaceStyle": "light",
@@ -14,7 +14,10 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.remak.app",
+      "bundleIdentifier": "com.remak.erpremak",
+      "entitlements": {
+        "aps-environment": "production"
+      },
       "config": {
         "googleMapsApiKey": "AIzaSyDSVAQs5a-iN5ZE6XlnMP9PUmIa_1qHchA"
       },
@@ -32,7 +35,7 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.remak.app",
+      "package": "com.remak.erpremak",
       "permissions": [
         "android.permission.INTERNET",
         "android.permission.ACCESS_NETWORK_STATE",

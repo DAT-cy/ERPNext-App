@@ -61,7 +61,7 @@ import { handleServiceError, handleServiceThrow } from "../utils/error/ErrorHand
 
 let lastTimeoutLogMs = 0;
 
-export async function fetchCheckinRecords(limit: number = 100): Promise<CheckinRecord[]> {
+export async function fetchCheckinRecords(limit: number = 100, month?: number, year?: number): Promise<CheckinRecord[]> {
     console.log('🔍 [fetchCheckinRecords] Starting function...');
     
     let loggedUser;
@@ -89,9 +89,43 @@ export async function fetchCheckinRecords(limit: number = 100): Promise<CheckinR
         return [];
     }
 
-    console.log('👤 [fetchCheckinRecords] Using employee code:', employeeCode);
+  console.log('👤 [fetchCheckinRecords] Using employee code:', employeeCode);
 
-    const filters = JSON.stringify([["employee", "=", employeeCode]]);
+  const filterArray: any[] = [["employee", "=", employeeCode]];
+
+  if (month !== undefined || year !== undefined) {
+    const now = new Date();
+    const targetYear = year ?? now.getFullYear();
+    const targetMonthIndex = (month ?? (now.getMonth() + 1)) - 1; // JS Date month is 0-based
+
+    const startDate = new Date(Date.UTC(targetYear, targetMonthIndex, 1, 0, 0, 0));
+    const endDate = new Date(Date.UTC(targetYear, targetMonthIndex + 1, 1, 0, 0, 0)); // first day of next month
+
+    const toDateTimeString = (d: Date) => {
+      const y = d.getUTCFullYear();
+      const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+      const day = String(d.getUTCDate()).padStart(2, '0');
+      const hh = String(d.getUTCHours()).padStart(2, '0');
+      const mm = String(d.getUTCMinutes()).padStart(2, '0');
+      const ss = String(d.getUTCSeconds()).padStart(2, '0');
+      return `${y}-${m}-${day} ${hh}:${mm}:${ss}`;
+    };
+
+    const startStr = toDateTimeString(startDate);
+    const endStr = toDateTimeString(endDate);
+
+    filterArray.push(["checkin_time", ">=", startStr]);
+    filterArray.push(["checkin_time", "<", endStr]);
+
+    console.log('🗓️ [fetchCheckinRecords] Month filter applied:', {
+      month: targetMonthIndex + 1,
+      year: targetYear,
+      startStr,
+      endStr
+    });
+  }
+
+  const filters = JSON.stringify(filterArray);
     const fields = JSON.stringify([
         "name",
         "employee_name",

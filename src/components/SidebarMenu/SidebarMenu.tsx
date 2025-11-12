@@ -474,7 +474,7 @@ export default function SidebarMenu({
 
         {/* Bottom Actions */}
         <View style={styles.bottomSection}>
-          <TouchableOpacity 
+          {/* <TouchableOpacity 
             style={styles.bottomMenuItem}
             activeOpacity={0.7}
           >
@@ -482,7 +482,7 @@ export default function SidebarMenu({
               <Image source={require('../../assets/settings.png')} />
             </Text>
             <Text style={styles.bottomMenuItemText}>Cài đặt</Text>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
 
           <TouchableOpacity 
             style={[styles.bottomMenuItem, styles.logoutButton]} 

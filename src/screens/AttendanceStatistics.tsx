@@ -24,21 +24,76 @@ interface DayStatus {
   checkoutTime?: string;
 }
 
+const VIETNAM_OFFSET = 7 * 60 * 60 * 1000;
+
 const AttendanceStatistics: React.FC<AttendanceStatisticsProps> = ({ records }) => {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);
   const [selectedPairs, setSelectedPairs] = useState<Array<{ inTime?: string; outTime?: string; inDraft?: boolean; outDraft?: boolean }>>([]);
   const [selectedTotalMinutes, setSelectedTotalMinutes] = useState<number>(0);
+  const [monthOffset, setMonthOffset] = useState(0);
 
-  const monthYearText = useMemo(() => {
+  const displayedMonthInfo = useMemo(() => {
     const now = new Date();
-    const vietnamTime = new Date(now.getTime() + (7 * 60 * 60 * 1000));
-    return vietnamTime.toLocaleDateString('vi-VN', {
-      month: 'long',
-      year: 'numeric',
-      timeZone: 'Asia/Ho_Chi_Minh',
-    });
+    const vietnamTime = new Date(now.getTime() + VIETNAM_OFFSET);
+    vietnamTime.setUTCHours(0, 0, 0, 0);
+    vietnamTime.setUTCDate(1);
+    vietnamTime.setUTCMonth(vietnamTime.getUTCMonth() + monthOffset);
+
+    return {
+      year: vietnamTime.getUTCFullYear(),
+      month: vietnamTime.getUTCMonth(),
+      monthYearText: vietnamTime.toLocaleDateString('vi-VN', {
+        month: 'long',
+        year: 'numeric',
+        timeZone: 'Asia/Ho_Chi_Minh',
+      }),
+    };
+  }, [monthOffset]);
+
+  const { year: displayedYear, month: displayedMonth, monthYearText } = displayedMonthInfo;
+
+  const currentVietnamDateKey = useMemo(() => {
+    const now = new Date();
+    const vietnamTime = new Date(now.getTime() + VIETNAM_OFFSET);
+    vietnamTime.setUTCHours(0, 0, 0, 0);
+    return vietnamTime.toISOString().split('T')[0];
   }, []);
+
+  const filteredRecordsForMonth = useMemo(() => {
+    if (!records || records.length === 0) {
+      return [];
+    }
+
+    return records.filter(record => {
+      const recordDate = new Date(record.time);
+      const recordVietnamTime = new Date(recordDate.getTime() + VIETNAM_OFFSET);
+      return (
+        recordVietnamTime.getUTCFullYear() === displayedYear &&
+        recordVietnamTime.getUTCMonth() === displayedMonth
+      );
+    });
+  }, [records, displayedYear, displayedMonth]);
+
+  const resetSelection = () => {
+    setIsModalVisible(false);
+    setSelectedDateKey(null);
+    setSelectedPairs([]);
+    setSelectedTotalMinutes(0);
+  };
+
+  const handlePrevMonth = () => {
+    resetSelection();
+    setMonthOffset(prev => prev - 1);
+  };
+
+  const handleNextMonth = () => {
+    if (monthOffset >= 0) {
+      return;
+    }
+    resetSelection();
+    setMonthOffset(prev => Math.min(prev + 1, 0));
+  };
 
   const formatTime = (isoString: string) => new Date(isoString).toLocaleTimeString('vi-VN', {
     hour: '2-digit',
@@ -46,13 +101,17 @@ const AttendanceStatistics: React.FC<AttendanceStatisticsProps> = ({ records }) 
   });
   // Tính toán thống kê cho tháng
   const statistics = useMemo(() => {
-    if (!records || records.length === 0) {
-      return null;
+    if (!filteredRecordsForMonth || filteredRecordsForMonth.length === 0) {
+      return {
+        checkedInDays: 0,
+        totalHours: 0,
+        averageHoursPerDay: 0,
+      };
     }
 
     // Nhóm records theo ngày
     const groupedByDate: { [key: string]: CheckinRecord[] } = {};
-    records.forEach(record => {
+    filteredRecordsForMonth.forEach(record => {
       const dateKey = record.time.split(' ')[0]; // YYYY-MM-DD
       if (!groupedByDate[dateKey]) {
         groupedByDate[dateKey] = [];
@@ -116,49 +175,30 @@ const AttendanceStatistics: React.FC<AttendanceStatisticsProps> = ({ records }) 
       totalHours,
       averageHoursPerDay,
     };
-  }, [records]);
+  }, [filteredRecordsForMonth]);
 
   // Tính toán trạng thái các ngày trong tháng theo múi giờ Việt Nam
   const dayStatuses = useMemo(() => {
-    // Lấy thời gian hiện tại theo múi giờ Việt Nam (UTC+7)
-    const now = new Date();
-    const vietnamTime = new Date(now.getTime() + (7 * 60 * 60 * 1000)); // UTC+7
-    
-    const year = vietnamTime.getUTCFullYear();
-    const month = vietnamTime.getUTCMonth();
-    
-    // Lấy ngày hôm nay theo múi giờ Việt Nam
-    const todayVietnam = new Date(vietnamTime.getTime());
-    todayVietnam.setUTCHours(0, 0, 0, 0);
-    const today = todayVietnam.toISOString().split('T')[0];
-    
-    // Số ngày trong tháng hiện tại
-    const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
-    
-    // Nhóm records theo ngày
+    const daysInMonth = new Date(Date.UTC(displayedYear, displayedMonth + 1, 0)).getUTCDate();
+
     const groupedByDate: { [key: string]: CheckinRecord[] } = {};
-    records.forEach(record => {
-      const recordDate = new Date(record.time);
-      const recordVietnamTime = new Date(recordDate.getTime() + (7 * 60 * 60 * 1000));
-      if (recordVietnamTime.getUTCMonth() === month && recordVietnamTime.getUTCFullYear() === year) {
-        const dateKey = record.time.split(' ')[0];
-        if (!groupedByDate[dateKey]) {
-          groupedByDate[dateKey] = [];
-        }
-        groupedByDate[dateKey].push(record);
+    filteredRecordsForMonth.forEach(record => {
+      const dateKey = record.time.split(' ')[0];
+      if (!groupedByDate[dateKey]) {
+        groupedByDate[dateKey] = [];
       }
+      groupedByDate[dateKey].push(record);
     });
-    
-    const dayStatuses: DayStatus[] = [];
-    
-    // Tạo tất cả các ngày trong tháng theo múi giờ Việt Nam
+
+    const statuses: DayStatus[] = [];
+
     for (let day = 1; day <= daysInMonth; day++) {
-      const date = new Date(Date.UTC(year, month, day));
+      const date = new Date(Date.UTC(displayedYear, displayedMonth, day));
       const dateKey = date.toISOString().split('T')[0];
-      const isToday = dateKey === today;
-      const isPast = dateKey < today;
-      const isFuture = dateKey > today;
-      
+      const isToday = dateKey === currentVietnamDateKey;
+      const isPast = dateKey < currentVietnamDateKey;
+      const isFuture = dateKey > currentVietnamDateKey;
+
       let hasCheckin = false;
       let hasCheckout = false;
       let isFullyApproved = false;
@@ -167,19 +207,17 @@ const AttendanceStatistics: React.FC<AttendanceStatisticsProps> = ({ records }) 
       let checkoutTime = '';
       let isCheckinDraft = false;
       let isCheckoutDraft = false;
-      
+
       const dayRecords = groupedByDate[dateKey];
-      
+
       if (dayRecords && dayRecords.length > 0) {
-        // Sắp xếp records theo thời gian
         const sortedRecords = dayRecords.sort(
           (a, b) => new Date(a.time).getTime() - new Date(b.time).getTime()
         );
-        
-        // Tạo cặp IN/OUT
+
         const pairs: Array<{ inRecord?: CheckinRecord; outRecord?: CheckinRecord }> = [];
         let currentPair: { inRecord?: CheckinRecord; outRecord?: CheckinRecord } = {};
-        
+
         sortedRecords.forEach(record => {
           if (record.log_type === 'IN') {
             if (currentPair.inRecord && !currentPair.outRecord) {
@@ -194,37 +232,33 @@ const AttendanceStatistics: React.FC<AttendanceStatisticsProps> = ({ records }) 
             currentPair = {};
           }
         });
-        
+
         if (currentPair.inRecord || currentPair.outRecord) {
           pairs.push(currentPair);
         }
-        
-        // Lấy cặp mới nhất
+
         const latestPair = pairs[pairs.length - 1];
-        
+
         if (latestPair) {
           hasCheckin = !!latestPair.inRecord;
           hasCheckout = !!latestPair.outRecord;
-          
+
           if (latestPair.inRecord) {
             checkinTime = formatTime(latestPair.inRecord.time);
           }
-          
+
           if (latestPair.outRecord) {
             checkoutTime = formatTime(latestPair.outRecord.time);
           }
-          
-          // Kiểm tra trạng thái duyệt
+
           isFullyApproved = hasCheckin && hasCheckout;
           isPartiallyApproved = (hasCheckin && !hasCheckout) || (!hasCheckin && hasCheckout);
-
-          // Kiểm tra trạng thái nháp theo cặp mới nhất
           isCheckinDraft = !!latestPair.inRecord && (latestPair.inRecord as any).custom_status === 'Draft';
           isCheckoutDraft = !!latestPair.outRecord && (latestPair.outRecord as any).custom_status === 'Draft';
         }
       }
-      
-      dayStatuses.push({
+
+      statuses.push({
         date: dateKey,
         dayNumber: day,
         isToday,
@@ -240,57 +274,37 @@ const AttendanceStatistics: React.FC<AttendanceStatisticsProps> = ({ records }) 
         checkoutTime
       });
     }
-    
-    return dayStatuses;
-  }, [records]);
+
+    return statuses;
+  }, [filteredRecordsForMonth, displayedYear, displayedMonth, currentVietnamDateKey]);
 
   // Tạo lịch tháng với các ngày được sắp xếp đúng vị trí theo múi giờ Việt Nam
   const getCalendarDays = () => {
-    // Lấy thời gian hiện tại theo múi giờ Việt Nam (UTC+7)
-    const now = new Date();
-    const vietnamTime = new Date(now.getTime() + (7 * 60 * 60 * 1000)); // UTC+7
-    
-    const year = vietnamTime.getUTCFullYear();
-    const month = vietnamTime.getUTCMonth();
-    
-    // Ngày đầu tiên của tháng theo múi giờ Việt Nam
-    const firstDay = new Date(Date.UTC(year, month, 1));
-    const lastDay = new Date(Date.UTC(year, month + 1, 0));
-    
-    // Ngày trong tuần của ngày đầu tiên (0 = CN, 1 = T2, ...)
+    const firstDay = new Date(Date.UTC(displayedYear, displayedMonth, 1));
+    const lastDay = new Date(Date.UTC(displayedYear, displayedMonth + 1, 0));
+
     const firstDayOfWeek = firstDay.getUTCDay();
-    
-    // Số ngày trong tháng
     const daysInMonth = lastDay.getUTCDate();
-    
+
     const calendarDays = [];
-    
-    // Thêm các ngày trống ở đầu tháng
+
     for (let i = 0; i < firstDayOfWeek; i++) {
       calendarDays.push(null);
     }
-    
-    // Thêm các ngày trong tháng
+
     for (let day = 1; day <= daysInMonth; day++) {
-      const date = new Date(Date.UTC(year, month, day));
+      const date = new Date(Date.UTC(displayedYear, displayedMonth, day));
       const dateKey = date.toISOString().split('T')[0];
-      
-      // Lấy ngày hôm nay theo múi giờ Việt Nam
-      const todayVietnam = new Date(vietnamTime.getTime());
-      todayVietnam.setUTCHours(0, 0, 0, 0);
-      const todayKey = todayVietnam.toISOString().split('T')[0];
-      
-      const isToday = dateKey === todayKey;
-      const isPast = dateKey < todayKey;
-      const isFuture = dateKey > todayKey;
-      
-      // Tìm dữ liệu chấm công cho ngày này
+
+      const isToday = dateKey === currentVietnamDateKey;
+      const isPast = dateKey < currentVietnamDateKey;
+      const isFuture = dateKey > currentVietnamDateKey;
+
       const dayData = dayStatuses.find(d => d.date === dateKey);
-      
+
       if (dayData) {
         calendarDays.push(dayData);
       } else {
-        // Tạo dữ liệu mặc định cho ngày không có chấm công
         calendarDays.push({
           date: dateKey,
           dayNumber: day,
@@ -308,7 +322,7 @@ const AttendanceStatistics: React.FC<AttendanceStatisticsProps> = ({ records }) 
         });
       }
     }
-    
+
     return calendarDays;
   };
 
@@ -366,14 +380,6 @@ const AttendanceStatistics: React.FC<AttendanceStatisticsProps> = ({ records }) 
     setIsModalVisible(true);
   };
 
-  if (!statistics) {
-    return (
-      <View style={styles.container}>
-        <Text style={styles.noDataText}>Chưa có dữ liệu để thống kê</Text>
-      </View>
-    );
-  }
-
   const displayTotalHours = useMemo(() => {
     const hours = statistics.totalHours;
     if (hours >= 100) return Math.round(hours).toString();
@@ -409,7 +415,24 @@ const AttendanceStatistics: React.FC<AttendanceStatisticsProps> = ({ records }) 
         
         {/* Header lịch với tên tháng */}
         <View style={styles.calendarHeader}>
+          <TouchableOpacity style={styles.monthNavButton} onPress={handlePrevMonth}>
+            <Text style={styles.monthNavButtonText}>{'<'}</Text>
+          </TouchableOpacity>
           <Text style={styles.monthYearText}>{monthYearText}</Text>
+          <TouchableOpacity
+            style={[styles.monthNavButton, monthOffset === 0 && styles.monthNavButtonDisabled]}
+            onPress={handleNextMonth}
+            disabled={monthOffset === 0}
+          >
+            <Text
+              style={[
+                styles.monthNavButtonText,
+                monthOffset === 0 && styles.monthNavButtonTextDisabled
+              ]}
+            >
+              {'>'}
+            </Text>
+          </TouchableOpacity>
         </View>
         
         {/* Header các ngày trong tuần */}
@@ -648,13 +671,17 @@ const styles = StyleSheet.create({
     opacity: 1,
   },
   calendarHeader: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: ss(16),
   },
   monthYearText: {
+    flex: 1,
     fontSize: fs(24),
     fontWeight: 'bold',
     color: '#333',
+    textAlign: 'center',
   },
   weekdayHeader: {
     flexDirection: 'row',
@@ -792,6 +819,25 @@ const styles = StyleSheet.create({
     color: '#999',
     marginTop: 20,
     fontSize: 16,
+  },
+  monthNavButton: {
+    paddingHorizontal: ss(10),
+    paddingVertical: ss(6),
+    borderRadius: 8,
+    backgroundColor: '#e0e7ff',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  monthNavButtonDisabled: {
+    backgroundColor: '#f1f5f9',
+  },
+  monthNavButtonText: {
+    fontSize: fs(18),
+    fontWeight: 'bold',
+    color: '#1d4ed8',
+  },
+  monthNavButtonTextDisabled: {
+    color: '#94a3b8',
   },
   modalBackdrop: {
     flex: 1,

@@ -17,6 +17,7 @@ import PurchaseReceiptListScreens from "../screens/PurchaseReceipt/PurchaseRecei
 import PurchaseReceiptDetailScreen from "../screens/PurchaseReceipt/PurchaseReceiptDetailScreen";
 import CheckListInventoryScreen from "../screens/CheckListInventoryScreen";
 import ShipmentScreen from "../screens/ship/ShipmentScreen";
+import ShipmentDetailScreen from "../screens/ship/ShipmentDetailScreen";
 
 const Stack = createStackNavigator();
 
@@ -44,6 +45,7 @@ export default function AppNavigator() {
       <Stack.Screen name="PurchaseReceiptDetailScreen" component={PurchaseReceiptDetailScreen} />
       <Stack.Screen name="CheckListInventoryScreen" component={CheckListInventoryScreen} />
       <Stack.Screen name="ShipmentManagement" component={ShipmentScreen} />
+      <Stack.Screen name="ShipmentScreenDetail" component={ShipmentDetailScreen} />
     </Stack.Navigator>
   );
 }

@@ -326,14 +326,14 @@ export default function HomeScreen() {
     initializeNotifications();
   }, []); 
 
-  // Auto refresh vị trí mỗi 30 giây để cập nhật theo thời gian thực
+  // Auto refresh vị trí mỗi 15 giây để cập nhật theo thời gian thực
   useEffect(() => {
     const locationInterval = setInterval(() => {
       if (!locationLoading) {
         console.log('🔄 Auto refreshing location for real-time update...');
         getCurrentLocation();
       }
-    }, 30000); // 30 giây để cập nhật thường xuyên hơn
+    }, 15000); // 15 giây để cập nhật thường xuyên hơn
 
     return () => clearInterval(locationInterval);
   }, [locationLoading, getCurrentLocation]);
@@ -411,56 +411,55 @@ export default function HomeScreen() {
     if (activeContentTab === "today") {
       const today = new Date().toISOString().split('T')[0];
       return records.filter(record => record.time.startsWith(today));
-    } else {
-      const now = new Date();
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-      startOfMonth.setHours(0, 0, 0, 0);
-      
-      // Sửa cách tính ngày cuối tháng
-      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-      endOfMonth.setHours(23, 59, 59, 999);
-      
-      console.log('📅 Lọc theo tháng:', {
-        currentDate: now.toISOString(),
-        startOfMonth: startOfMonth.toISOString(),
-        endOfMonth: endOfMonth.toISOString(),
-        totalRecords: records.length,
-        month: now.getMonth() + 1,
-        year: now.getFullYear()
-      });
-      
-      // Lọc records trong tháng này - sử dụng cách tiếp cận đơn giản hơn
-      const monthRecords = records.filter(record => {
-        // Lấy ngày từ record.time (format: YYYY-MM-DD HH:mm:ss)
-        const recordDateStr = record.time.split(' ')[0]; // Lấy phần YYYY-MM-DD
-        const recordYear = parseInt(recordDateStr.split('-')[0]);
-        const recordMonth = parseInt(recordDateStr.split('-')[1]);
-        
-        const currentYear = now.getFullYear();
-        const currentMonth = now.getMonth() + 1; // getMonth() trả về 0-11
-        
-        const isInCurrentMonth = recordYear === currentYear && recordMonth === currentMonth;
-        
-        // Debug từng record để xem tại sao không match
-        if (records.indexOf(record) < 5) { // Chỉ log 5 records đầu tiên
-          console.log('📅 Record check (simple):', {
-            recordTime: record.time,
-            recordDateStr: recordDateStr,
-            recordYear: recordYear,
-            recordMonth: recordMonth,
-            currentYear: currentYear,
-            currentMonth: currentMonth,
-            isInCurrentMonth: isInCurrentMonth
-          });
-        }
-        
-        return isInCurrentMonth;
-      });
-      
-      console.log('📅 Records trong tháng:', monthRecords.length);
-      
-      return monthRecords;
     }
+
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1; // getMonth() trả về 0-11
+
+    const previousMonthDate = new Date(currentYear, now.getMonth() - 1, 1);
+    const previousYear = previousMonthDate.getFullYear();
+    const previousMonth = previousMonthDate.getMonth() + 1;
+
+    console.log('📅 Lọc theo 2 tháng gần nhất:', {
+      currentDate: now.toISOString(),
+      totalRecords: records.length,
+      currentMonth,
+      currentYear,
+      previousMonth,
+      previousYear
+    });
+
+    const monthRecords = records.filter((record, index) => {
+      const recordDateStr = record.time.split(' ')[0]; // Lấy phần YYYY-MM-DD
+      const [yearStr, monthStr] = recordDateStr.split('-');
+      const recordYear = parseInt(yearStr, 10);
+      const recordMonth = parseInt(monthStr, 10);
+
+      const isInCurrentMonth = recordYear === currentYear && recordMonth === currentMonth;
+      const isInPreviousMonth = recordYear === previousYear && recordMonth === previousMonth;
+
+      if (index < 5) { // Chỉ log 5 records đầu tiên
+        console.log('📅 Record check (2-month):', {
+          recordTime: record.time,
+          recordDateStr,
+          recordYear,
+          recordMonth,
+          currentYear,
+          currentMonth,
+          previousYear,
+          previousMonth,
+          isInCurrentMonth,
+          isInPreviousMonth
+        });
+      }
+
+      return isInCurrentMonth || isInPreviousMonth;
+    });
+
+    console.log('📅 Records trong 2 tháng gần nhất:', monthRecords.length);
+
+    return monthRecords;
   }, [activeContentTab, records]);
 
   // Tạo cặp check-in/check-out mới nhất cho tab "Hôm nay"
@@ -514,6 +513,191 @@ export default function HomeScreen() {
   
   // Các hàm xử lý events từ hooks
 
+  // Helper function: Kiểm tra và tạo bản ghi OUT cho ngày hôm trước nếu thiếu
+  const checkAndCreatePreviousDayCheckout = useCallback(async (currentTime: string, location?: { latitude: number; longitude: number }): Promise<boolean> => {
+    try {
+      // Lấy ngày hôm trước
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayDateStr = yesterday.toISOString().split('T')[0]; // format YYYY-MM-DD
+      
+      // Lọc records của ngày hôm trước
+      const yesterdayRecords = records.filter(record => record.time.startsWith(yesterdayDateStr));
+      
+      if (yesterdayRecords.length === 0) {
+        console.log('📅 Không có bản ghi chấm công ngày hôm trước');
+        return false;
+      }
+      
+      // Sắp xếp theo thời gian tăng dần (cũ nhất trước)
+      const sortedRecords = yesterdayRecords.sort((a, b) => 
+        new Date(a.time).getTime() - new Date(b.time).getTime()
+      );
+      
+      // Tạo các cặp từ records
+      const pairs: Array<{ inRecord?: CheckinRecord; outRecord?: CheckinRecord }> = [];
+      let currentPair: { inRecord?: CheckinRecord; outRecord?: CheckinRecord } = {};
+      
+      sortedRecords.forEach(record => {
+        if (record.log_type === 'IN') {
+          // Nếu đã có IN record trong pair hiện tại, lưu pair cũ và bắt đầu pair mới
+          if (currentPair.inRecord) {
+            pairs.push(currentPair);
+            currentPair = { inRecord: record };
+          } else {
+            currentPair.inRecord = record;
+          }
+        } else if (record.log_type === 'OUT') {
+          // Hoàn thành pair hiện tại
+          currentPair.outRecord = record;
+          pairs.push(currentPair);
+          currentPair = {}; // Reset cho pair tiếp theo
+        }
+      });
+      
+      // Thêm pair cuối cùng nếu chưa hoàn thành
+      if (currentPair.inRecord || currentPair.outRecord) {
+        pairs.push(currentPair);
+      }
+      
+      // Lấy cặp mới nhất (cuối cùng trong mảng)
+      const latestPair = pairs.length > 0 ? pairs[pairs.length - 1] : null;
+      
+      // Kiểm tra nếu cặp mới nhất có IN nhưng chưa có OUT
+      if (latestPair && latestPair.inRecord && !latestPair.outRecord) {
+        console.log('⚠️ Phát hiện ngày hôm trước có vào ca nhưng chưa có ra ca. Tạo bản ghi ra ca tự động...');
+        
+        // Tạo thời gian OUT với ngày hôm nay và giờ hôm nay
+        // Ví dụ: Nếu hôm nay là 15/01/2024 08:00:00, thì OUT sẽ là 15/01/2024 08:00:00 (ngày hôm nay, giờ hôm nay)
+        const checkoutTimeStr = currentTime;
+        
+        console.log('📅 Tạo OUT với thời gian:', {
+          yesterdayDate: yesterdayDateStr,
+          currentTime: currentTime,
+          checkoutTime: checkoutTimeStr,
+          note: 'OUT có ngày hôm nay và giờ hôm nay'
+        });
+        
+        // Sử dụng vị trí được truyền vào hoặc fallback về userLocation từ state
+        const locationToUse = location || userLocation;
+        if (!locationToUse) {
+          throw new Error('Không có vị trí để chấm công');
+        }
+        
+        const checkoutData: Checkin = {
+          log_type: 'OUT',
+          custom_checkin: checkoutTimeStr,
+          latitude: locationToUse.latitude,
+          longitude: locationToUse.longitude,
+          custom_auto_load_location: 1,
+          doctype: "Employee Checkin",
+          web_form_name: "checkin"
+        };
+        
+        await handleSubmitCheckin(checkoutData);
+        console.log('✅ Đã tạo bản ghi ra ca cho ngày hôm trước:', checkoutTimeStr);
+        return true;
+      }
+      
+      return false;
+    } catch (error: any) {
+      console.error('❌ Lỗi khi kiểm tra và tạo bản ghi OUT cho ngày hôm trước:', error);
+      // Không throw error ở đây để không chặn việc chấm công vào ca hôm nay
+      return false;
+    }
+  }, [records, userLocation, handleSubmitCheckin]);
+
+  // Hàm lấy vị trí mới nhất không dùng cache (dùng khi chấm công)
+  const getFreshLocation = useCallback(async (): Promise<{ latitude: number; longitude: number } | null> => {
+    try {
+      console.log('📍 Lấy vị trí mới nhất (không dùng cache) để chấm công...');
+      
+      // Kiểm tra GPS service
+      const servicesEnabled = await checkLocationServices();
+      if (!servicesEnabled) {
+        return null;
+      }
+      
+      // Yêu cầu quyền truy cập vị trí
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        return null;
+      }
+      
+      // Lấy vị trí mới nhất với timeout
+      const preciseWithTimeout = async (ms: number) => {
+        return await Promise.race<Promise<Location.LocationObject>>([
+          Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High }),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('LOCATION_TIMEOUT')), ms)) as Promise<Location.LocationObject>
+        ]);
+      };
+      
+      try {
+        const precise = await preciseWithTimeout(5000); // Tăng timeout lên 5 giây để đảm bảo lấy được vị trí
+        if (precise && precise.coords) {
+          const freshLocation = {
+            latitude: precise.coords.latitude,
+            longitude: precise.coords.longitude
+          };
+          
+          // Cập nhật state và cache
+          setUserLocation({
+            latitude: freshLocation.latitude,
+            longitude: freshLocation.longitude,
+            latitudeDelta: 0.005,
+            longitudeDelta: 0.005
+          });
+          saveLocationToCache({
+            latitude: freshLocation.latitude,
+            longitude: freshLocation.longitude,
+            accuracy: precise.coords.accuracy ?? null,
+          });
+          setLocationUpdateKey(prev => {
+            const newKey = prev + 1;
+            console.log('🔄 Refresh map với key mới:', newKey, '- Map sẽ được refresh 1 lần');
+            return newKey;
+          }); // Force map re-render - refresh map 1 lần
+          
+          console.log('✅ Đã lấy vị trí mới nhất và refresh map:', {
+            lat: freshLocation.latitude.toFixed(6),
+            lng: freshLocation.longitude.toFixed(6),
+            accuracy: precise.coords.accuracy,
+            note: 'Map sẽ được refresh 1 lần với vị trí mới'
+          });
+          
+          return freshLocation;
+        }
+      } catch (err) {
+        if ((err as Error).message !== 'LOCATION_TIMEOUT') {
+          console.error('❌ Lỗi lấy vị trí mới:', err);
+        } else {
+          console.log('⏱️ Lấy vị trí mới quá lâu, dùng vị trí hiện tại');
+        }
+      }
+      
+      // Fallback: dùng vị trí hiện tại nếu không lấy được vị trí mới
+      if (userLocation) {
+        console.log('⚠️ Dùng vị trí hiện tại vì không lấy được vị trí mới');
+        return {
+          latitude: userLocation.latitude,
+          longitude: userLocation.longitude
+        };
+      }
+      
+      return null;
+    } catch (error: any) {
+      console.error('❌ Lỗi khi lấy vị trí mới:', error);
+      // Fallback: dùng vị trí hiện tại
+      if (userLocation) {
+        return {
+          latitude: userLocation.latitude,
+          longitude: userLocation.longitude
+        };
+      }
+      return null;
+    }
+  }, [userLocation, checkLocationServices]);
+
   // 🚀 Hàm chấm công - chỉ hoạt động khi có GPS
   const handleCheckin = useCallback(async (type: 'IN' | 'OUT') => {
     // Chỉ cho phép chấm công khi có GPS hợp lệ
@@ -521,6 +705,21 @@ export default function HomeScreen() {
       showErrorAlert(new Error('GPS không được bật'), 'Vui lòng bật GPS để chấm công');
       return;
     }
+  
+    // BƯớc 0: Lấy vị trí mới nhất trước khi chấm công (không dùng cache)
+    // Khi nhấn chấm công, map sẽ được refresh 1 lần để cập nhật vị trí mới
+    console.log('🔄 Lấy vị trí mới nhất trước khi chấm công (sẽ refresh map 1 lần)...');
+    const freshLocation = await getFreshLocation();
+    
+    if (!freshLocation) {
+      showErrorAlert(new Error('Không thể lấy vị trí hiện tại'), 'Vui lòng thử lại hoặc kiểm tra GPS');
+      return;
+    }
+    
+    console.log('✅ Map đã được refresh với vị trí mới:', {
+      lat: freshLocation.latitude.toFixed(6),
+      lng: freshLocation.longitude.toFixed(6)
+    });
   
     // BƯớc 1: Cập nhật UI ngay lập tức
     setCheckinType(type === 'IN' ? 'OUT' : 'IN');
@@ -541,15 +740,21 @@ export default function HomeScreen() {
     setDisplayRecords(prev => [tempRecord, ...prev]);
     
     try {
-      if (!userLocation) {
-        throw new Error('Không có vị trí để chấm công');
+      // BƯớc 3: Nếu là chấm công vào ca (IN), kiểm tra và tạo OUT cho ngày hôm trước nếu thiếu
+      if (type === 'IN') {
+        const createdPreviousCheckout = await checkAndCreatePreviousDayCheckout(now, freshLocation);
+        if (createdPreviousCheckout) {
+          // Reload dữ liệu sau khi tạo OUT cho ngày hôm trước
+          await loadCheckinData();
+        }
       }
 
+      // BƯớc 4: Tạo bản ghi chấm công cho ngày hôm nay với vị trí mới nhất
       const checkinData: Checkin = {
         log_type: type,
         custom_checkin: now,
-        latitude: userLocation.latitude,
-        longitude: userLocation.longitude,
+        latitude: freshLocation.latitude,
+        longitude: freshLocation.longitude,
         custom_auto_load_location: 1,
         doctype: "Employee Checkin",
         web_form_name: "checkin"
@@ -580,7 +785,7 @@ export default function HomeScreen() {
       
       showErrorAlert(error, 'Lỗi chấm công. Vui lòng thử lại.');
     }
-  }, [userLocation, loadCheckinData, handleSubmitCheckin, user, hasValidLocation, locationError, getCurrentLocation]);
+  }, [loadCheckinData, handleSubmitCheckin, user, hasValidLocation, getFreshLocation, checkAndCreatePreviousDayCheckout]);
   
   // Group records by date and create pairs for monthly view
   const groupedRecords = useMemo(() => {
@@ -1025,7 +1230,7 @@ export default function HomeScreen() {
                 onRefresh={loadCheckinData}
                 ListHeaderComponent={
                   <View style={homeScreenStyles.headerContainer}>
-                    <Text style={homeScreenStyles.headerTitle}>Chấm công tháng này</Text>
+                    <Text style={homeScreenStyles.headerTitle}>Chấm công tháng này & tháng trước</Text>
                     <View style={homeScreenStyles.checkinStatusBadge}>
                       <Text style={[
                         homeScreenStyles.checkinStatusText,
@@ -1038,12 +1243,12 @@ export default function HomeScreen() {
                 }
                 ListEmptyComponent={
                   <View style={homeScreenStyles.centerContainer}>
-                    <Text style={homeScreenStyles.noDataText}>Chưa có dữ liệu chấm công tháng này</Text>
+                    <Text style={homeScreenStyles.noDataText}>Chưa có dữ liệu chấm công trong 2 tháng gần nhất</Text>
                   </View>
                 }
               />
             ) : activeContentTab === "statistics" ? (
-              <AttendanceStatistics records={filteredRecords} />
+              <AttendanceStatistics records={records} />
             ) : (
               <FlatList
                 data={displayRecords}

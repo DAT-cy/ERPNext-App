@@ -23,15 +23,9 @@ import { wp } from '../../utils/responsive';
 import { inventoryEntryStyles } from '../../styles/InventoryEntryScreens.styles';
 import { InventoryFilterModal } from '../../components/InventoryFilter';
 import { RealtimePollingManager } from '../../utils/RealtimePollingManager';
+import { getAllShipments, Shipment, ShipmentFilters } from '../../services/shipmentService';
 
-type ShipmentItem = {
-  name: string;
-  creation?: string;
-  customer_name?: string;
-  workflow_state?: string;
-  docstatus?: number | string;
-  description?: string;
-};
+type ShipmentItem = Shipment;
 
 interface FilterCategory {
   key: string;
@@ -76,74 +70,70 @@ export default function ShipmentScreen() {
 
   const staticFilterOptions: Record<string, FilterOption[]> = {
     workflow_state: [
-      { value: 'Yêu cầu', label: 'Yêu cầu', category: 'workflow_state' },
-      { value: 'Đang xử lý', label: 'Đang xử lý', category: 'workflow_state' },
-      { value: 'Đã xử lý', label: 'Đã xử lý', category: 'workflow_state' },
       { value: 'Draft', label: 'Nháp', category: 'workflow_state' },
+      { value: 'Yêu cầu vận chuyển', label: 'Yêu cầu vận chuyển', category: 'workflow_state' },
+      { value: 'Lái xe vào lấy hàng', label: 'Lái xe vào lấy hàng', category: 'workflow_state' },
+      { value: 'Đang vận chuyển', label: 'Đang vận chuyển', category: 'workflow_state' },
+      { value: 'Hoàn thành', label: 'Hoàn thành', category: 'workflow_state' },
       { value: 'Hủy', label: 'Hủy', category: 'workflow_state' },
-      { value: 'Đóng', label: 'Đóng', category: 'workflow_state' },
     ],
     creation: [
       { value: 'Một Ngày', label: 'Một Ngày', category: 'creation' },
       { value: 'Nhiều Ngày', label: 'Nhiều Ngày', category: 'creation' },
     ],
+    vehicle: [
+      { value: 'Nội bộ', label: 'Nội bộ', category: 'custom_service_provider_type' },
+      { value: 'Grab', label: 'Grab', category: 'custom_service_provider_type' },
+      { value: 'Xe ôm', label: 'Xe ôm', category: 'custom_service_provider_type' },
+      { value: 'Xe tải', label: 'Xe tải', category: 'custom_service_provider_type' },
+      { value: 'xe lôi', label: 'xe lôi', category: 'custom_service_provider_type' },
+    ],
   };
 
   useEffect(() => {
-    // Set default workflow_state on first load if not present
-    setActiveFilters(prev => {
-      let next = prev;
-      if (!next.some(f => f.category === 'workflow_state')) {
-        next = [
-          ...next,
-          { key: 'workflow_state', label: 'Yêu cầu', category: 'workflow_state', value: 'Yêu cầu' },
-        ];
-      }
-      return next;
-    });
     // initial load
     fetchData(0, false);
   }, []);
 
-  const formatDate = (dateString: string): string => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('vi-VN', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
-  };
 
   const getStatusInfo = (state?: string, docstatus?: string | number) => {
     const statusMap: Record<string, { text: string; color: string; bgColor: string }> = {
       'Nháp': { text: 'Nháp', color: '#3B82F6', bgColor: '#EFF6FF' },
-      'Draft': { text: 'Nháp', color: '#3B82F6', bgColor: '#EFF6FF' },
-      'Đang xử lý': { text: 'Đang xử lý', color: '#F59E0B', bgColor: '#FFFBEB' },
-      'Đã xử lý': { text: 'Đã xử lý', color: '#10B981', bgColor: '#F0FDF4' },
+      'Yêu cầu vận chuyển': { text: 'Yêu cầu vận chuyển', color: '#F59E0B', bgColor: '#FFFBEB' },
+      'Lái xe vào lấy hàng': { text: 'Lái xe vào lấy hàng', color: '#06B6D4', bgColor: '#ECFEFF' },
+      'Đang vận chuyển': { text: 'Đang vận chuyển', color: '#3B82F6', bgColor: '#EFF6FF' },
+      'Hoàn thành': { text: 'Hoàn thành', color: '#8B5CF6', bgColor: '#F5F3FF' },
       'Hủy': { text: 'Hủy', color: '#EF4444', bgColor: '#FEF2F2' },
-      'Cancelled': { text: 'Hủy', color: '#EF4444', bgColor: '#FEF2F2' },
-      'Yêu cầu': { text: 'Yêu cầu', color: colors.warning, bgColor: '#FFFBEB' },
-      'Đóng': { text: 'Đóng', color: '#6B7280', bgColor: '#F3F4F6' },
-      'Closed': { text: 'Đóng', color: '#6B7280', bgColor: '#F3F4F6' },
+      'Draft': { text: 'Nháp', color: '#3B82F6', bgColor: '#EFF6FF' },
     };
 
     if (!state && docstatus !== undefined) {
       const docstatusNumber = typeof docstatus === 'string' ? parseInt(docstatus) : docstatus;
       switch (docstatusNumber) {
         case 0: return { text: 'Nháp', color: '#3B82F6', bgColor: '#EFF6FF' };
-        case 1: return { text: 'Đã xử lý', color: '#10B981', bgColor: '#F0FDF4' };
-        case 2: return { text: 'Hủy', color: '#EF4444', bgColor: '#FEF2F2' };
+        case 1: return { text: 'Yêu cầu vận chuyển', color: '#F59E0B', bgColor: '#FFFBEB' };
+        case 2: return { text: 'Lái xe vào lấy hàng', color: '#06B6D4', bgColor: '#ECFEFF' };
+        case 3: return { text: 'Đang vận chuyển', color: '#3B82F6', bgColor: '#EFF6FF' };
+        case 4: return { text: 'Hoàn thành', color: '#8B5CF6', bgColor: '#F5F3FF' };
+        case 5: return { text: 'Hủy', color: '#EF4444', bgColor: '#FEF2F2' };
       }
     }
 
-    return statusMap[state || ''] || { text: state || '—', color: colors.gray500, bgColor: colors.gray100 };
+    // Nếu không tìm thấy trong statusMap, trả về giá trị mặc định
+    const statusInfo = statusMap[state || ''];
+    if (statusInfo) {
+      return statusInfo;
+    }
+
+    // Hiển thị giá trị gốc nếu không match
+    return { text: state || '—', color: colors.gray500, bgColor: colors.gray100 };
   };
 
-  const transformFilters = (filters: ActiveFilter[]): Record<string, string> => {
+  const transformFilters = (filters: ActiveFilter[]): ShipmentFilters => {
     return filters.reduce((acc, filter) => {
-      acc[filter.category] = filter.value;
+      acc[filter.category as keyof ShipmentFilters] = filter.value;
       return acc;
-    }, {} as Record<string, string>);
+    }, {} as ShipmentFilters);
   };
 
   const fetchData = async (page: number = 0, isLoadMore: boolean = false) => {
@@ -156,27 +146,40 @@ export default function ShipmentScreen() {
     }
 
     try {
-      // TODO: Replace with shipmentService API when available
-      // const filters = transformFilters(activeFilters);
-      // const offset = page * 10;
-      // const response = await getShipments({ filters, limit: 10, offset });
-      // if (response.success && response.data) {
-      //   ...
-      // }
-
-      const mock: ShipmentItem[] = [];
-      if (isLoadMore) {
-        setData(prev => [...prev, ...mock]);
+      const filters = transformFilters(activeFilters);
+      const offset = page * 10;
+      const response = await getAllShipments({ 
+        filters, 
+        limit: 10, 
+        offset,
+        fields: ["name", "workflow_state", "custom_posting_date", "custom_vehicle", "custom_service_provider_type"]
+      });
+      
+      if (response.success && response.data) {
+        if (isLoadMore) {
+          setData(prev => [...prev, ...response.data!]);
+        } else {
+          setData(response.data);
+        }
+        setHasMoreData(response.data.length >= 10);
+        setCurrentPage(page);
+        setLastUpdateTime(Date.now());
       } else {
-        setData(mock);
+        if (!isLoadMore) {
+          setData([]);
+        }
+        setHasMoreData(false);
+        if (response.error) {
+          Alert.alert('Lỗi', response.error);
+        }
       }
-      setHasMoreData(mock.length >= 10);
-      setCurrentPage(page);
-      setLastUpdateTime(Date.now());
     } catch (error) {
       console.error('❌ [ShipmentScreen] Fetch error:', error);
       Alert.alert('Lỗi', 'Không thể tải danh sách phiếu giao hàng');
       setHasMoreData(false);
+      if (!isLoadMore) {
+        setData([]);
+      }
     } finally {
       setLoading(false);
       setLoadingMore(false);
@@ -188,10 +191,28 @@ export default function ShipmentScreen() {
     setCurrentPage(0);
     setIsEndReachedCalled(false);
     try {
-      // TODO: connect search with shipment service
-      const filtered = data.filter(it => it.name?.toLowerCase().includes(query.toLowerCase()));
-      setData(filtered);
-      setHasMoreData(false);
+      const filters: ShipmentFilters = {
+        ...transformFilters(activeFilters),
+        name: `%${query.trim()}%`
+      };
+      
+      const response = await getAllShipments({ 
+        filters, 
+        limit: 10, 
+        offset: 0,
+        fields: ["name", "workflow_state", "custom_posting_date", "custom_vehicle", "custom_service_provider_type"]
+      });
+      
+      if (response.success && response.data) {
+        setData(response.data);
+        setHasMoreData(response.data.length >= 10);
+      } else {
+        setData([]);
+        setHasMoreData(false);
+        if (response.error) {
+          console.error('💥 [ShipmentScreen] Search error:', response.error);
+        }
+      }
     } catch (error) {
       console.error('💥 [ShipmentScreen] Search error:', error);
       setData([]);
@@ -277,11 +298,13 @@ export default function ShipmentScreen() {
   };
 
   const renderItem = ({ item }: { item: ShipmentItem }) => {
-    const statusInfo = getStatusInfo(item.workflow_state, item.docstatus);
+    const statusInfo = getStatusInfo(item.workflow_state);
     return (
       <TouchableOpacity style={inventoryEntryStyles.inventoryItem} activeOpacity={0.7}
         onPress={() => {
-          Alert.alert('Thông tin', `Mở chi tiết: ${item.name}`);
+          navigation.push('ShipmentScreenDetail', {
+            shipmentDetail: item
+          });
         }}
       >
         <View style={inventoryEntryStyles.itemHeader}>
@@ -292,25 +315,27 @@ export default function ShipmentScreen() {
             </Text>
           </View>
         </View>
-        {item.creation && (
+        {item.custom_posting_date && (
           <View style={inventoryEntryStyles.compactRow}>
-            <Text style={inventoryEntryStyles.compactLabel}>Ngày tạo:</Text>
-            <Text style={inventoryEntryStyles.compactValue}>{formatDate(item.creation)}</Text>
+            <Text style={inventoryEntryStyles.compactLabel}>Ngày đăng:</Text>
+            <Text style={inventoryEntryStyles.compactValue}>{item.custom_posting_date}</Text>
           </View>
         )}
         <View style={inventoryEntryStyles.itemContent}>
           <View style={inventoryEntryStyles.leftColumn}>
-            <View style={inventoryEntryStyles.compactRow}>
-              <Text style={inventoryEntryStyles.compactLabel}>Khách hàng:</Text>
-              <Text style={inventoryEntryStyles.compactValue} numberOfLines={1} ellipsizeMode="tail">
-                {item.customer_name || '—'}
-              </Text>
-            </View>
-            {!!item.description && (
+            {item.custom_vehicle && (
               <View style={inventoryEntryStyles.compactRow}>
-                <Text style={inventoryEntryStyles.compactLabel}>Mô tả:</Text>
-                <Text style={inventoryEntryStyles.compactValue} numberOfLines={2} ellipsizeMode="tail">
-                  {item.description}
+                <Text style={inventoryEntryStyles.compactLabel}>Xe:</Text>
+                <Text style={inventoryEntryStyles.compactValue} numberOfLines={1} ellipsizeMode="tail">
+                  {item.custom_vehicle}
+                </Text>
+              </View>
+            )}
+            {item.custom_service_provider_type && (
+              <View style={inventoryEntryStyles.compactRow}>
+                <Text style={inventoryEntryStyles.compactLabel}>Loại dịch vụ:</Text>
+                <Text style={inventoryEntryStyles.compactValue} numberOfLines={1} ellipsizeMode="tail">
+                  {item.custom_service_provider_type}
                 </Text>
               </View>
             )}
@@ -337,16 +362,21 @@ export default function ShipmentScreen() {
         {/* Enhanced Search Bar */}
         <View style={inventoryEntryStyles.searchContainer}>
           <View style={inventoryEntryStyles.enhancedSearchBar}>
+            {/* Search Icon */}
             <View style={inventoryEntryStyles.searchIconContainer}>
               <Feather name="search" size={wp(4.5)} color={colors.gray500} />
             </View>
+            
+            {/* Search Input */}
             <TextInput
               style={inventoryEntryStyles.enhancedSearchInput}
-              placeholder="Nhập mã phiếu giao hàng, khách hàng..."
+              placeholder="Nhập mã phiếu"
               value={searchQuery}
               onChangeText={setSearchQuery}
               placeholderTextColor={colors.gray500}
             />
+            
+            {/* Clear Search Button */}
             {searchQuery.length > 0 && (
               <TouchableOpacity
                 style={inventoryEntryStyles.clearSearchButton}
@@ -356,15 +386,24 @@ export default function ShipmentScreen() {
                 <Feather name="x" size={wp(4)} color={colors.gray500} />
               </TouchableOpacity>
             )}
+            
+            {/* Filter Button */}
             <TouchableOpacity
-              style={[inventoryEntryStyles.enhancedFilterButton, activeFilters.length > 0 && inventoryEntryStyles.filterButtonActive]}
+              style={[inventoryEntryStyles.enhancedFilterButton, 
+                activeFilters.length > 0 && inventoryEntryStyles.filterButtonActive]}
               onPress={() => setIsFilterModalVisible(true)}
               activeOpacity={0.7}
             >
-              <Feather name="filter" size={wp(4.5)} color={activeFilters.length > 0 ? colors.white : colors.gray600} />
+              <Feather 
+                name="filter" 
+                size={wp(4.5)} 
+                color={activeFilters.length > 0 ? colors.white : colors.gray600} 
+              />
               {activeFilters.length > 0 && (
                 <View style={inventoryEntryStyles.filterBadge}>
-                  <Text style={inventoryEntryStyles.filterBadgeText}>{activeFilters.length}</Text>
+                  <Text style={inventoryEntryStyles.filterBadgeText}>
+                    {activeFilters.length}
+                  </Text>
                 </View>
               )}
             </TouchableOpacity>
@@ -373,7 +412,11 @@ export default function ShipmentScreen() {
 
         {/* Active Filters */}
         {activeFilters.length > 0 && (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={inventoryEntryStyles.activeFiltersContainer}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={inventoryEntryStyles.activeFiltersContainer}
+          >
             {activeFilters.map((filter) => (
               <View key={filter.key} style={inventoryEntryStyles.activeFilterTag}>
                 <Text style={inventoryEntryStyles.activeFilterText}>{filter.label}</Text>
@@ -397,15 +440,18 @@ export default function ShipmentScreen() {
         renderItem={renderItem}
         style={inventoryEntryStyles.resultsList}
         showsVerticalScrollIndicator={false}
-        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: false })}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: false }
+        )}
         onEndReached={loadMoreData}
         onEndReachedThreshold={0.5}
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
             onRefresh={handleRefresh}
-            colors={['#3B82F6']}
-            tintColor="#3B82F6"
+            colors={['#3B82F6']} // Android
+            tintColor="#3B82F6" // iOS
             title="Đang tải lại..."
             titleColor="#6B7280"
           />
@@ -428,13 +474,6 @@ export default function ShipmentScreen() {
           }
           return null;
         }}
-        ListEmptyComponent={() => (
-          !loading ? (
-            <View style={{ paddingVertical: 24, alignItems: 'center' }}>
-              <Text style={{ color: colors.gray600 }}>Không có dữ liệu</Text>
-            </View>
-          ) : null
-        )}
       />
 
       {/* Filter Modal */}

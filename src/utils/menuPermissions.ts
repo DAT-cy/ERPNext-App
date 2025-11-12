@@ -48,7 +48,6 @@ export const ROLE_GROUPS = {
 
   SHIPMENT_ROLES: ['Driver User', 'Delivery User','Driver Managers'],
 
-
 } as const;
 
 // ========================= MENU CONFIGURATIONS =========================
