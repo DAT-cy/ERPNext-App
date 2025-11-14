@@ -148,13 +148,13 @@ export default function ShipmentScreen() {
     try {
       const filters = transformFilters(activeFilters);
       const offset = page * 10;
-      const response = await getAllShipments({ 
-        filters, 
-        limit: 10, 
+      const response = await getAllShipments({
+        filters,
+        limit: 10,
         offset,
         fields: ["name", "workflow_state", "custom_posting_date", "custom_vehicle", "custom_service_provider_type"]
       });
-      
+
       if (response.success && response.data) {
         if (isLoadMore) {
           setData(prev => [...prev, ...response.data!]);
@@ -195,14 +195,14 @@ export default function ShipmentScreen() {
         ...transformFilters(activeFilters),
         name: `%${query.trim()}%`
       };
-      
-      const response = await getAllShipments({ 
-        filters, 
-        limit: 10, 
+
+      const response = await getAllShipments({
+        filters,
+        limit: 10,
         offset: 0,
         fields: ["name", "workflow_state", "custom_posting_date", "custom_vehicle", "custom_service_provider_type"]
       });
-      
+
       if (response.success && response.data) {
         setData(response.data);
         setHasMoreData(response.data.length >= 10);
@@ -271,8 +271,8 @@ export default function ShipmentScreen() {
         onSuccess: () => {
           // no-op
         },
-        onActivityDetected: () => {},
-        onInactivityDetected: () => {},
+        onActivityDetected: () => { },
+        onInactivityDetected: () => { },
       });
 
       pollingManager.start();
@@ -366,7 +366,7 @@ export default function ShipmentScreen() {
             <View style={inventoryEntryStyles.searchIconContainer}>
               <Feather name="search" size={wp(4.5)} color={colors.gray500} />
             </View>
-            
+
             {/* Search Input */}
             <TextInput
               style={inventoryEntryStyles.enhancedSearchInput}
@@ -375,7 +375,7 @@ export default function ShipmentScreen() {
               onChangeText={setSearchQuery}
               placeholderTextColor={colors.gray500}
             />
-            
+
             {/* Clear Search Button */}
             {searchQuery.length > 0 && (
               <TouchableOpacity
@@ -386,18 +386,19 @@ export default function ShipmentScreen() {
                 <Feather name="x" size={wp(4)} color={colors.gray500} />
               </TouchableOpacity>
             )}
-            
+
+
             {/* Filter Button */}
             <TouchableOpacity
-              style={[inventoryEntryStyles.enhancedFilterButton, 
-                activeFilters.length > 0 && inventoryEntryStyles.filterButtonActive]}
+              style={[inventoryEntryStyles.enhancedFilterButton,
+              activeFilters.length > 0 && inventoryEntryStyles.filterButtonActive]}
               onPress={() => setIsFilterModalVisible(true)}
               activeOpacity={0.7}
             >
-              <Feather 
-                name="filter" 
-                size={wp(4.5)} 
-                color={activeFilters.length > 0 ? colors.white : colors.gray600} 
+              <Feather
+                name="filter"
+                size={wp(4.5)}
+                color={activeFilters.length > 0 ? colors.white : colors.gray600}
               />
               {activeFilters.length > 0 && (
                 <View style={inventoryEntryStyles.filterBadge}>
@@ -406,6 +407,15 @@ export default function ShipmentScreen() {
                   </Text>
                 </View>
               )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={inventoryEntryStyles.addButton}
+              onPress={() => {
+                navigation.navigate('InsertShipment');
+              }}
+              activeOpacity={0.7}
+            >
+              <Feather name="plus" size={wp(4.5)} color={colors.white} />
             </TouchableOpacity>
           </View>
         </View>

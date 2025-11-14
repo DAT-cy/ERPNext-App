@@ -1,7 +1,7 @@
 // src/router/ScreenNavigator.ts
 import React from 'react';
-import menuRouter, { RouteNames, RouteParams } from './MenuRouter';
 import menuRouterController from './MenuRouterController';
+import { resetTo } from './navigationService';
 
 class ScreenNavigator {
   async handleLogout(logoutFunction: () => Promise<void>): Promise<void> {
@@ -10,12 +10,12 @@ class ScreenNavigator {
       await logoutFunction();
       
       // Reset navigation về Login screen
-      menuRouter.resetToLogin();
+      resetTo('Login');
     } catch (error) {
       console.error('Lỗi khi đăng xuất:', error);
       
       // Ngay cả khi có lỗi, vẫn cố gắng điều hướng về Login
-      menuRouter.resetToLogin();
+      resetTo('Login');
     }
   }
   

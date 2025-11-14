@@ -60,6 +60,9 @@
     "production": {
       "autoIncrement": true,
       "channel": "production",
+      "android": {
+        "buildType": "app-bundle"
+      },
       "ios": {
         "distribution": "store",
         "cocoapods": "1.15.2"

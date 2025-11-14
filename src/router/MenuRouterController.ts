@@ -1,5 +1,5 @@
 // src/router/MenuRouterController.ts
-import menuRouter, { MENU_ROUTE_MAP } from './MenuRouter';
+import { MENU_ROUTE_MAP, navigateByMenuId, navigateByBottomTab } from './navigationService';
 import { hasSubItemAccess } from '../utils/menuPermissions';
 
 /**
@@ -19,7 +19,7 @@ class MenuRouterController {
     }
 
     // Thực hiện điều hướng
-    const success = menuRouter.navigateByMenuId(menuId, subMenuId, params);
+    const success = navigateByMenuId(menuId, subMenuId, params);
     return success;
   }
 
@@ -64,7 +64,7 @@ class MenuRouterController {
     console.log('🔍 [MenuRouterController] Route mapping found:', MENU_ROUTE_MAP[routeKey]);
 
     // Thực hiện điều hướng
-    const success = menuRouter.navigateByMenuId(menuId, nestedSubMenuId, params);
+    const success = navigateByMenuId(menuId, nestedSubMenuId, params);
     console.log('🔍 [MenuRouterController] Navigation success:', success);
     return success;
   }
@@ -77,7 +77,7 @@ class MenuRouterController {
    */
   handleBottomTabNavigation(tabKey: string, params?: any): boolean {
     // Bottom tabs thường không cần kiểm tra quyền đặc biệt
-    return menuRouter.navigateByBottomTab(tabKey, params);
+    return navigateByBottomTab(tabKey, params);
   }
 
   /**

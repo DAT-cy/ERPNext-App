@@ -59,6 +59,7 @@ export default function ShipmentDetailScreen() {
   const [currentStatus, setCurrentStatus] = useState('');
   const [originalDescription, setOriginalDescription] = useState('');
   const [originalStatus, setOriginalStatus] = useState('');
+  const [isGoodsDescriptionExpanded, setIsGoodsDescriptionExpanded] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
 
   const currentData = data || shipmentDetail || defaultShipment;
@@ -123,6 +124,8 @@ export default function ShipmentDetailScreen() {
   const hasChanges = useMemo(() => {
     return description !== originalDescription || currentStatus !== originalStatus;
   }, [description, originalDescription, currentStatus, originalStatus]);
+
+  const footerPaddingBottom = hasChanges ? 220 : 180;
 
   const parseDateValue = (value?: string) => {
     if (!value) return null;
@@ -349,7 +352,7 @@ export default function ShipmentDetailScreen() {
 
       <ScrollView
         ref={scrollViewRef}
-        contentContainerStyle={[styles.container, { paddingBottom: hasChanges ? 120 : 20 }]}
+        contentContainerStyle={[styles.container, { paddingBottom: footerPaddingBottom }]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         refreshControl={
@@ -393,7 +396,28 @@ export default function ShipmentDetailScreen() {
             />
           </View>
         </View>
-
+        {!!currentData.description_of_content && (
+          <View style={styles.shopSection}>
+            <View style={styles.productItem}>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => setIsGoodsDescriptionExpanded((prev) => !prev)}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <View>
+                  <Text style={detailStyles.sectionTitle}>Mô tả hàng hóa</Text>
+                </View>
+              </TouchableOpacity>
+              {isGoodsDescriptionExpanded && (
+                <Text style={detailStyles.multiLineText}>{currentData.description_of_content}</Text>
+              )}
+            </View>
+          </View>
+        )}
         {/* Thông tin vận chuyển */}
         <View style={styles.shopSection}>
           <View style={styles.productItem}>
@@ -479,14 +503,7 @@ export default function ShipmentDetailScreen() {
           </View>
         </View>
 
-        {!!currentData.description_of_content && (
-          <View style={styles.shopSection}>
-            <View style={styles.productItem}>
-              <Text style={detailStyles.sectionTitle}>Mô tả hàng hóa</Text>
-              <Text style={detailStyles.multiLineText}>{currentData.description_of_content}</Text>
-            </View>
-          </View>
-        )}
+        
       </ScrollView>
 
       <View style={styles.footer}>

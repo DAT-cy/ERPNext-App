@@ -3,6 +3,8 @@ export type RootStackParamList = {
   Home: undefined;   // Không có tham số
   InventoryEntry: undefined; // Inventory Entry Screen
   InsertInventoryScreen: undefined;
+  InsertShipment: undefined;
+  CheckListInventoryScreen: undefined;
   LeaveManagement: {
     selectedDate?: string;
     initialTab?: 'pending' | 'approved' | 'rejected';
@@ -24,6 +26,7 @@ export type RootStackParamList = {
     purchaseReceiptDetail?: any;
     name?: string;
   };
+  ShipmentManagement: undefined;
   ShipmentScreenDetail: {
     shipmentDetail?: any;
     name?: string;

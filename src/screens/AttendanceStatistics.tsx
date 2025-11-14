@@ -1,8 +1,9 @@
-import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Modal, TouchableOpacity } from 'react-native';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, Modal, TouchableOpacity, ActivityIndicator } from 'react-native';
 // Removed gradient import for basic styling
 import { CheckinRecord } from '../types/checkin.types';
 import { fs, ss } from '../utils/responsive';
+import { fetchCheckinRecords } from '../services/checkinService';
 
 interface AttendanceStatisticsProps {
   records: CheckinRecord[];
@@ -26,12 +27,14 @@ interface DayStatus {
 
 const VIETNAM_OFFSET = 7 * 60 * 60 * 1000;
 
-const AttendanceStatistics: React.FC<AttendanceStatisticsProps> = ({ records }) => {
+const AttendanceStatistics: React.FC<AttendanceStatisticsProps> = ({ records: initialRecords }) => {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);
   const [selectedPairs, setSelectedPairs] = useState<Array<{ inTime?: string; outTime?: string; inDraft?: boolean; outDraft?: boolean }>>([]);
   const [selectedTotalMinutes, setSelectedTotalMinutes] = useState<number>(0);
   const [monthOffset, setMonthOffset] = useState(0);
+  const [records, setRecords] = useState<CheckinRecord[]>(initialRecords);
+  const [loading, setLoading] = useState(false);
 
   const displayedMonthInfo = useMemo(() => {
     const now = new Date();
@@ -42,7 +45,8 @@ const AttendanceStatistics: React.FC<AttendanceStatisticsProps> = ({ records }) 
 
     return {
       year: vietnamTime.getUTCFullYear(),
-      month: vietnamTime.getUTCMonth(),
+      month: vietnamTime.getUTCMonth() + 1, // Convert to 1-based month (1-12)
+      monthIndex: vietnamTime.getUTCMonth(), // 0-based for Date operations
       monthYearText: vietnamTime.toLocaleDateString('vi-VN', {
         month: 'long',
         year: 'numeric',
@@ -51,7 +55,29 @@ const AttendanceStatistics: React.FC<AttendanceStatisticsProps> = ({ records }) 
     };
   }, [monthOffset]);
 
-  const { year: displayedYear, month: displayedMonth, monthYearText } = displayedMonthInfo;
+  // Load data khi thay đổi tháng
+  const loadMonthData = useCallback(async (year: number, month: number) => {
+    try {
+      setLoading(true);
+      console.log(`📅 [AttendanceStatistics] Loading data for ${year}-${month}`);
+      const data = await fetchCheckinRecords(500, month, year);
+      setRecords(data);
+      console.log(`✅ [AttendanceStatistics] Loaded ${data.length} records for ${year}-${month}`);
+    } catch (error) {
+      console.error('❌ [AttendanceStatistics] Error loading month data:', error);
+      setRecords([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Load data khi monthOffset thay đổi
+  useEffect(() => {
+    const { year, month } = displayedMonthInfo;
+    loadMonthData(year, month);
+  }, [monthOffset, loadMonthData, displayedMonthInfo.year, displayedMonthInfo.month]);
+
+  const { year: displayedYear, monthIndex: displayedMonth, monthYearText } = displayedMonthInfo;
 
   const currentVietnamDateKey = useMemo(() => {
     const now = new Date();
@@ -412,6 +438,13 @@ const AttendanceStatistics: React.FC<AttendanceStatisticsProps> = ({ records }) 
       {/* Lịch chấm công */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Lịch chấm công tháng</Text>
+        
+        {loading && (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="small" color="#2196F3" />
+            <Text style={styles.loadingText}>Đang tải dữ liệu...</Text>
+          </View>
+        )}
         
         {/* Header lịch với tên tháng */}
         <View style={styles.calendarHeader}>
@@ -923,6 +956,18 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: '#fff',
     fontWeight: 'bold',
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: ss(12),
+    marginBottom: ss(8),
+  },
+  loadingText: {
+    marginLeft: ss(8),
+    fontSize: fs(14),
+    color: '#666',
   },
 });
 
