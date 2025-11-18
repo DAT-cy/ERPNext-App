@@ -24,6 +24,8 @@ import { inventoryEntryStyles } from '../../styles/InventoryEntryScreens.styles'
 import { InventoryFilterModal } from '../../components/InventoryFilter';
 import { RealtimePollingManager } from '../../utils/RealtimePollingManager';
 import { getAllShipments, Shipment, ShipmentFilters } from '../../services/shipmentService';
+import { useAuth } from '../../hooks/useAuth';
+import { ROLE_GROUPS } from '../../utils/menuPermissions';
 
 type ShipmentItem = Shipment;
 
@@ -51,11 +53,21 @@ const filterCategories: FilterCategory[] = [
   { key: 'creation', title: 'Ngày Tạo', icon: '📅' },
 ];
 
+
+
 export default function ShipmentScreen() {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
+  const { user, roles } = useAuth();
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isFilterModalVisible, setIsFilterModalVisible] = useState<boolean>(false);
-  const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
+  const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([
+    {
+      key: 'workflow_state',
+      label: 'Lái xe vào lấy hàng',
+      category: 'workflow_state',
+      value: 'Lái xe vào lấy hàng'
+    }
+  ]);
   const [data, setData] = useState<ShipmentItem[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [loadingMore, setLoadingMore] = useState<boolean>(false);
@@ -67,6 +79,18 @@ export default function ShipmentScreen() {
   const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
 
   const scrollY = useRef(new Animated.Value(0)).current;
+
+  // Kiểm tra nếu user chỉ có role "Driver User" trong SHIPMENT_ROLES
+  const isOnlyDriverUser = React.useMemo(() => {
+    if (!user || !roles || roles.length === 0) return false;
+    
+    // Lấy các roles trong SHIPMENT_ROLES mà user có
+    const shipmentRolesArray = ROLE_GROUPS.SHIPMENT_ROLES as readonly string[];
+    const userShipmentRoles = roles.filter(role => shipmentRolesArray.includes(role));
+    
+    // Chỉ trả về true nếu user có đúng 1 role là "Driver User" và không có role nào khác trong SHIPMENT_ROLES
+    return userShipmentRoles.length === 1 && userShipmentRoles[0] === 'Driver User';
+  }, [user, roles]);
 
   const staticFilterOptions: Record<string, FilterOption[]> = {
     workflow_state: [
@@ -130,10 +154,17 @@ export default function ShipmentScreen() {
   };
 
   const transformFilters = (filters: ActiveFilter[]): ShipmentFilters => {
-    return filters.reduce((acc, filter) => {
+    const transformed = filters.reduce((acc, filter) => {
       acc[filter.category as keyof ShipmentFilters] = filter.value;
       return acc;
     }, {} as ShipmentFilters);
+
+    // Nếu user chỉ có role "Driver User", tự động thêm filter custom_party_user
+    if (isOnlyDriverUser && user) {
+      transformed.custom_party_user = user;
+    }
+
+    return transformed;
   };
 
   const fetchData = async (page: number = 0, isLoadMore: boolean = false) => {
@@ -407,15 +438,6 @@ export default function ShipmentScreen() {
                   </Text>
                 </View>
               )}
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={inventoryEntryStyles.addButton}
-              onPress={() => {
-                navigation.navigate('InsertShipment');
-              }}
-              activeOpacity={0.7}
-            >
-              <Feather name="plus" size={wp(4.5)} color={colors.white} />
             </TouchableOpacity>
           </View>
         </View>

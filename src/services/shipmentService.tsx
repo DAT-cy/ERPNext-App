@@ -31,8 +31,13 @@ export interface Shipment {
     custom_driver?:string;
     custom_driver_name?:string;
     custom_driver_phone?:string;
+    custom_contact_phone?:ShipmentContact[];
     
     
+}
+
+export interface ShipmentContact {
+    phone?: string;
 }
 
 export interface ShipmentFilters {
@@ -42,7 +47,8 @@ export interface ShipmentFilters {
     custom_posting_date?: string;
     custom_vehicle?: string;
     custom_service_provider_type?: string;
-    search_query?: string; // For multi-field search
+    custom_party_user?: string;
+    search_query?: string; 
 }
 
 export interface ShipmentQueryOptions {
@@ -57,6 +63,19 @@ export interface ShipmentResult<T = any> {
     success: boolean;
     data?: T;
     error?: string; // Vietnamese error message
+}
+
+export interface statities {
+    user?: string;
+    from_date?: string;
+    to_date?: string;
+    total_shipments?: string;
+    total_amount?: string;
+};
+
+export interface filterStatities {
+    from_date?: string;
+    to_date?: string;
 }
 
 function buildFiltersArray(filters: ShipmentFilters): any[] {
@@ -92,6 +111,10 @@ function buildFiltersArray(filters: ShipmentFilters): any[] {
 
         if (filters.custom_vehicle) {
                 filterArray.push(["custom_vehicle", "=", filters.custom_vehicle]);
+        }
+
+        if (filters.custom_party_user) {
+                filterArray.push(["custom_party_user", "=", filters.custom_party_user]);
         }
     
 
@@ -189,3 +212,27 @@ export async function getShipmentDetail(
         return handleServiceThrow(error, 'Lỗi tải chi tiết Shipment');
     }
 }
+
+export async function getStatities(
+    filters: filterStatities
+): Promise<ShipmentResult<statities>> {
+    try {
+
+        const filterArray: any[] = [];
+        if (filters.from_date && filters.to_date) {
+            filterArray.push(["from_date", "=", filters.from_date]);
+            filterArray.push(["to_date", "=", filters.to_date]);
+        }
+        const queryParams = new URLSearchParams();
+        queryParams.append('filters', JSON.stringify(filterArray));
+        const url =`/api/method/remak.utils.shipment.shipment_mobile_summary?${queryParams.toString()}`;
+        const response = await api.get(url);
+        console.log('response', response.data.data);
+        return { success: true, data: response.data.data as statities };
+    } catch (error: any) {
+        console.error('Error fetching Statities:', error);
+        return handleServiceThrow(error, 'Lỗi tải danh sách Statities');
+    }
+}
+
+

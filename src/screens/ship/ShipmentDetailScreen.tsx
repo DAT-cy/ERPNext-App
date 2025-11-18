@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   RefreshControl,
   ScrollView,
@@ -16,7 +17,7 @@ import { Input } from '../../components/Input';
 import { inventoryDetailStyles as styles } from '../../styles/InventoryDetailScreen.styles';
 import { colors } from '../../styles/globalStyles';
 import { RootStackParamList } from '../../navigation/types';
-import { Shipment, ShipmentParcel, getShipmentDetail } from '../../services/shipmentService';
+import { Shipment, ShipmentParcel, ShipmentContact, getShipmentDetail } from '../../services/shipmentService';
 
 type ShipmentDetailScreenRouteProp = RouteProp<RootStackParamList, 'ShipmentScreenDetail'>;
 
@@ -127,6 +128,21 @@ export default function ShipmentDetailScreen() {
 
   const footerPaddingBottom = hasChanges ? 220 : 180;
 
+  const handlePhoneCall = (phoneNumber: string | undefined) => {
+    if (!phoneNumber) return;
+    
+    // Loại bỏ khoảng trắng và ký tự đặc biệt, chỉ giữ lại số
+    const cleanedPhone = phoneNumber.replace(/[^\d+]/g, '');
+    
+    if (cleanedPhone) {
+      const phoneUrl = `tel:${cleanedPhone}`;
+      Linking.openURL(phoneUrl).catch((err) => {
+        console.error('Error opening phone dialer:', err);
+        Alert.alert('Lỗi', 'Không thể mở ứng dụng gọi điện');
+      });
+    }
+  };
+
   const parseDateValue = (value?: string) => {
     if (!value) return null;
     const normalized = value.includes('T') ? value : value.replace(' ', 'T');
@@ -175,22 +191,6 @@ export default function ShipmentDetailScreen() {
     }
     return value ? 'Có' : 'Không';
   };
-
-  const docstatusText = useMemo(() => {
-    const value = currentData.docstatus;
-    if (value === undefined || value === null) return '—';
-    const normalized = String(value);
-    switch (normalized) {
-      case '0':
-        return 'Nháp';
-      case '1':
-        return 'Đã xác nhận';
-      case '2':
-        return 'Đã hủy';
-      default:
-        return normalized;
-    }
-  }, [currentData.docstatus]);
 
   const displayValue = (value: any): string => {
     if (value === undefined || value === null) return '—';
@@ -422,6 +422,32 @@ export default function ShipmentDetailScreen() {
         <View style={styles.shopSection}>
           <View style={styles.productItem}>
             <Text style={detailStyles.sectionTitle}>Thông tin vận chuyển</Text>
+            <View style={detailStyles.row}>
+              <Text style={detailStyles.label}>Số điện thoại liên hệ</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                {currentData.custom_contact_phone && currentData.custom_contact_phone.length > 0 ? (
+                  currentData.custom_contact_phone.map((c: ShipmentContact, index: number) => (
+                    c.phone ? (
+                      <TouchableOpacity
+                        key={index}
+                        style={[detailStyles.chip, { marginRight: 8, marginBottom: 8 }]}
+                        onPress={() => handlePhoneCall(c.phone)}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={[detailStyles.chipText, { color: colors.primary }]}>
+                          {c.phone}
+                        </Text>
+                      </TouchableOpacity>
+                    ) : null
+                  ))
+                ) : (
+                  <View style={detailStyles.chip}>
+                    <Text style={detailStyles.chipText}>Chưa có</Text>
+                  </View>
+                )}
+              </View>
+            </View>
+
             <View style={detailStyles.row}>
               <Text style={detailStyles.label}>Vận chuyển bên ngoài</Text>
               <View style={detailStyles.chip}><Text style={detailStyles.chipText}>{boolToText((currentData as any).custom_is_external_ship)}</Text></View>
