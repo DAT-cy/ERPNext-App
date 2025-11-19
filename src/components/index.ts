@@ -14,4 +14,6 @@ export { default as Calendar } from './Calendar';
 
 export * from './SidebarMenu';
 
+export { default as UpdateStatus } from './UpdateStatus';
+
 

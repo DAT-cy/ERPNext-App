@@ -357,17 +357,6 @@ export default function HomeScreen() {
         const today = new Date().toISOString().split('T')[0];
         const todayRecords = records.filter(record => record.time.startsWith(today));
         
-        // Debug log chỉ khi gần giờ (trong vòng 2 phút)
-        const checkinTime = NotificationTimeHelper.getCheckinTime();
-        const checkoutTime = NotificationTimeHelper.getCheckoutTime();
-        
-        const nearCheckin = currentHour === checkinTime.hour && 
-                          currentMinute >= checkinTime.minute - 2 && 
-                          currentMinute <= checkinTime.minute + 2;
-        const nearCheckout = currentHour === checkoutTime.hour && 
-                            currentMinute >= checkoutTime.minute - 2 && 
-                            currentMinute <= checkoutTime.minute + 2;
-        
         // Gọi hàm kiểm tra mới - ĐƠN GIẢN HƠN NHIỀU!
         await notificationService.checkAndSendNotification(
           currentHour,

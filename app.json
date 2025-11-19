@@ -2,7 +2,7 @@
   "expo": {
     "name": "Remak",
     "slug": "erpnext-rn-base",
-    "version": "1.2.0",
+    "version": "1.2.2",
     "orientation": "portrait",
     "icon": "./assets/remak-logo.jpg",
     "userInterfaceStyle": "light",
@@ -14,7 +14,9 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.remak.app",
+      // "bundleIdentifier": "com.remak.app",// ggplay
+      "bundleIdentifier": "com.remak.erpremak",// appstore
+
       "entitlements": {
         "aps-environment": "production"
       },
@@ -35,7 +37,8 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.remak.app",
+      // "package": "com.remak.app",// ggplay
+      "package": "com.remak.erpremak",// appstore
       "versionCode": 10,
       "permissions": [
         "android.permission.INTERNET",
@@ -65,6 +68,12 @@
       "eas": {
         "projectId": "dd3a79f4-73f2-4bb1-b76d-d025540ed3ac"
       }
+    },
+    "updates": {
+      "url": "https://u.expo.dev/dd3a79f4-73f2-4bb1-b76d-d025540ed3ac",
+      "fallbackToCacheTimeout": 0,
+      "checkAutomatically": "ON_LOAD",
+      "enabled": true
     },
     "plugins": [
       "expo-camera",

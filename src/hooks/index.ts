@@ -7,3 +7,4 @@ export { default as useScreenTabBar } from "./useScreenTabBar";
 export { useApplicationLeave } from "./useApplicationLeave";
 export { useCheckin } from "./useCheckin";
 export { useResponsiveTopTabBar } from "./useResponsiveTopTabBar";
+export { useOTAUpdates } from "./useOTAUpdates";

@@ -242,28 +242,18 @@ export async function getInformationEmployee(): Promise<InformationUser> {
 }
 export async function submitCheckin(data: Checkin): Promise<any> {
   try {
-    // Tạo FormData thay vì JSON để tránh lỗi 417
-    const formData = new FormData();
     
     // Tạo data object
-    const checkinData = {
-      log_type: data.log_type,
-      custom_checkin: data.custom_checkin,
+    const payload = {
       latitude: Number(data.latitude),
       longitude: Number(data.longitude), 
+      log_type: data.log_type,
       custom_auto_load_location: 1,
-      doctype: "Employee Checkin",
-      web_form_name: "checkin"
     };
-  
-    formData.append('data', JSON.stringify(checkinData));
-    formData.append('web_form', 'checkin');
-    formData.append('for_payment', 'false');
-    formData.append('cmd', 'frappe.website.doctype.web_form.web_form.accept');
-    const res = await api.post("/", formData)
+    console.log('🔄 [submitCheckin] Payload:', payload);
+    const res = await api.post("/api/method/remak.utils.employee_checkin.mobile_create_checkin", payload)
     
     return res.data;
-    
   } catch (error: any) {
 
     handleServiceThrow(error, 'Lỗi lấy thông tin nhân viên');

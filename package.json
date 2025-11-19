@@ -9,7 +9,14 @@
     "web": "expo start --web",
     "build": "expo build",
     "env:dev": "node scripts/set-env.js development",
-    "env:prod": "node scripts/set-env.js production"
+    "env:prod": "node scripts/set-env.js production",
+    "build:ios:testflight": "eas build --platform ios --profile ios-testflight",
+    "build:ios:production": "eas build --platform ios --profile ios-production",
+    "build:ios:device": "eas build --platform ios --profile ios-device",
+    "submit:ios": "eas submit --platform ios --profile production",
+    "update:production": "eas update --branch production",
+    "update:list": "eas update:list",
+    "channel:list": "eas channel:list"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",
