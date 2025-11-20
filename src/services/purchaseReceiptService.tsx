@@ -169,11 +169,7 @@ export async function getPurchaseReceipt(options: PurchaseReceiptQueryOptions = 
     }
 }
 
-/**
- * Get Purchase Receipt detail by name with optional fields selection
- * Example endpoint:
- * /api/resource/Purchase Receipt/PR-0001?fields=["name","supplier_name",...]
- */
+
 export async function getPurchaseReceiptDetail(
     name: string,
     fields?: string[]
