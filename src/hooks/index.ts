@@ -8,3 +8,4 @@ export { useApplicationLeave } from "./useApplicationLeave";
 export { useCheckin } from "./useCheckin";
 export { useResponsiveTopTabBar } from "./useResponsiveTopTabBar";
 export { useOTAUpdates } from "./useOTAUpdates";
+export { useVersionCheck } from "./useVersionCheck";

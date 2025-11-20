@@ -478,6 +478,7 @@ export default function ShipmentScreen() {
         )}
         onEndReached={loadMoreData}
         onEndReachedThreshold={0.5}
+        onMomentumScrollBegin={() => setIsEndReachedCalled(false)}
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
