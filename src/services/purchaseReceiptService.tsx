@@ -168,7 +168,7 @@ export async function getPurchaseReceipt(options: PurchaseReceiptQueryOptions = 
         handleServiceThrow(error, 'Lỗi tải danh sách Purchase Receipt');
     }
 }
-//Aaaaaaaaaaasssssaaaaaaaaassssssss
+//Aaaaaaaaaaasssssaaaaaaaaassssssssssssss
 
 export async function getPurchaseReceiptDetail(
     name: string,
