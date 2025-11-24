@@ -1,8 +1,8 @@
 // src/screens/HomeScreen.tsx
 import React, { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { 
-  SafeAreaView, StatusBar, View, Text, Image,
-  ScrollView, ActivityIndicator, FlatList, TouchableOpacity, Alert, Animated
+  SafeAreaView, StatusBar, View, Text,
+  ScrollView, ActivityIndicator, FlatList, TouchableOpacity, AppState
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import TopTabBar from "../components/TabBar/TopTabBar";
@@ -21,7 +21,6 @@ import AttendanceStatistics from "./AttendanceStatistics";
 import { showErrorAlert } from '../utils/error/ErrorHandler';
 import { getLeaveApproversName } from "../services/applicationLeave";
 import { notificationService } from "../services";
-import { NotificationTimeHelper } from "../enum";
 
 // Helper functions for formatting date and time
 const formatTime = (dateTimeStr: string): string => {
@@ -47,6 +46,13 @@ const getTodayDateString = (): string => {
   return formatDate(new Date().toISOString());
 };
 
+type MapLocation = {
+  latitude: number;
+  longitude: number;
+  latitudeDelta: number;
+  longitudeDelta: number;
+};
+
 // Translate custom_status to Vietnamese
 const translateStatus = (status: string): string => {
   const statusMap: { [key: string]: string } = {
@@ -68,8 +74,7 @@ const translateStatus = (status: string): string => {
 export default function HomeScreen() {
   const navigation = useNavigation<any>();
   const { user, isLoggedIn } = useAuth();
-  const { handleSubmitCheckin, loadCheckinData: reloadCheckinData, loading: checkinLoading } = useCheckin();
-  const hasLoggedRef = useRef(false);
+  const { handleSubmitCheckin } = useCheckin();
 
   // Content tab state - độc lập với TopTabBar (vì TopTab giờ trống)
   const [activeContentTab, setActiveContentTab] = useState('today'); // Default tab "Hôm nay"
@@ -81,12 +86,7 @@ export default function HomeScreen() {
   const [records, setRecords] = useState<CheckinRecord[]>([]);
   const [displayRecords, setDisplayRecords] = useState<CheckinRecord[]>([]);
   const [checkinStatus, setCheckinStatus] = useState(false);
-  const [userLocation, setUserLocation] = useState<{
-    latitude: number;
-    longitude: number;
-    latitudeDelta: number;
-    longitudeDelta: number;
-  } | null>(null);
+  const [userLocation, setUserLocation] = useState<MapLocation | null>(null);
   const [checkinType, setCheckinType] = useState<'IN' | 'OUT'>('IN');
   const [currentTime, setCurrentTime] = useState<string>(new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
   
@@ -97,8 +97,14 @@ export default function HomeScreen() {
   const [locationLoading, setLocationLoading] = useState(true);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [hasValidLocation, setHasValidLocation] = useState(false);
-  const [locationUpdateKey, setLocationUpdateKey] = useState(0); // Key để force re-render map
+  const [mapReloadKey, setMapReloadKey] = useState(0); // Key để kiểm soát việc reload map
+  const mapLoadResolvers = useRef<Array<() => void>>([]);
+  const userLocationRef = useRef<MapLocation | null>(null);
   
+  useEffect(() => {
+    userLocationRef.current = userLocation;
+  }, [userLocation]);
+
   // User Display Name State
   const [displayName, setDisplayName] = useState<string>('Người dùng');
   const [nameLoading, setNameLoading] = useState(false);
@@ -119,12 +125,6 @@ export default function HomeScreen() {
       setLoading(true);
       const data = await fetchCheckinRecords(500); // Tăng limit lên 500 để lấy nhiều dữ liệu hơn
       
-      // Chỉ log dữ liệu lần đầu tiên tải
-      if (!hasLoggedRef.current) {
-        console.log("Checkin data:", data);
-        hasLoggedRef.current = true;
-      }
-      
       setRecords(data);
       setError(null);
       
@@ -142,18 +142,15 @@ export default function HomeScreen() {
         setCheckinStatus(isCheckedIn);
         // Cập nhật checkinType dựa vào trạng thái hiện tại
         setCheckinType(isCheckedIn ? 'OUT' : 'IN');
-        console.log(`📍 Ngày hôm nay đã có ${todayRecords.length} bản ghi, trạng thái hiện tại: ${isCheckedIn ? 'Đã checkin (IN)' : 'Đã checkout (OUT)'}`);
       } else if (data.length > 0) {
         const latestRecord = data[0];
         const hasUnpairedCheckin = latestRecord.log_type === 'IN';
         setCheckinStatus(hasUnpairedCheckin);
         setCheckinType(hasUnpairedCheckin ? 'OUT' : 'IN');
-        console.log(`📍 Không có bản ghi hôm nay. Bản ghi gần nhất là ${latestRecord.log_type}. ${hasUnpairedCheckin ? 'Yêu cầu ra ca trước khi vào ca mới.' : 'Sẵn sàng cho lần check-in tiếp theo.'}`);
       } else {
         // Nếu chưa có bản ghi nào cho ngày hôm nay, luôn bắt đầu với IN
         setCheckinStatus(false);
         setCheckinType('IN');
-        console.log('📍 Ngày mới, bắt đầu với checkin (IN)');
       }
     } catch (err) {
       setError('Lỗi tải dữ liệu chấm công');
@@ -179,19 +176,50 @@ export default function HomeScreen() {
     }
   }, []);
 
+  const reloadMap = useCallback((awaitLoad: boolean = false) => {
+    setMapReloadKey(prev => prev + 1);
+    if (awaitLoad && userLocationRef.current) {
+      return new Promise<void>((resolve) => {
+        mapLoadResolvers.current.push(resolve);
+      });
+    }
+    return Promise.resolve();
+  }, []);
+
+  const handleMapLoaded = useCallback(() => {
+    while (mapLoadResolvers.current.length) {
+      const resolve = mapLoadResolvers.current.shift();
+      resolve && resolve();
+    }
+  }, []);
+
   // Tối ưu hóa lấy vị trí: trả về last known ngay, đồng thời lấy chính xác với timeout
-  const getCurrentLocation = useCallback(async () => {
+  const getCurrentLocation = useCallback(async (): Promise<MapLocation | null> => {
     setLocationLoading(true);
     setLocationError(null);
+
+    let latestLocation: MapLocation | null = null;
+
+    const updateLocationState = (latitude: number, longitude: number) => {
+      const formattedLocation: MapLocation = {
+        latitude,
+        longitude,
+        latitudeDelta: 0.005,
+        longitudeDelta: 0.005
+      };
+      setUserLocation(formattedLocation);
+      setHasValidLocation(true);
+      setLocationError(null);
+      latestLocation = formattedLocation;
+    };
     
     try {
-      console.log('📍 Lấy vị trí hiện tại...');
       
       // Kiểm tra GPS service trước
       const servicesEnabled = await checkLocationServices();
       if (!servicesEnabled) {
         setLocationLoading(false);
-        return;
+        return null;
       }
       
       // Yêu cầu quyền truy cập vị trí
@@ -202,44 +230,18 @@ export default function HomeScreen() {
         setLocationError('Quyền truy cập vị trí bị từ chối. Vui lòng cấp quyền để sử dụng tính năng chấm công.');
         setHasValidLocation(false);
         setLocationLoading(false);
-        return;
+        return null;
       }
       // 1) Trả về cache ngay nếu còn hạn (<= 10s) để cập nhật thường xuyên hơn
       const cached = await getLocationFromCache(10_000);
       if (cached) {
-        setUserLocation({
-          latitude: cached.latitude,
-          longitude: cached.longitude,
-          latitudeDelta: 0.005,
-          longitudeDelta: 0.005
-        });
-        setHasValidLocation(true);
-        setLocationError(null);
-        setLocationUpdateKey(prev => prev + 1); // Force map re-render
-        console.log('⚡ Dùng cached location (<10s):', {
-          lat: cached.latitude.toFixed(6),
-          lng: cached.longitude.toFixed(6),
-          accuracy: cached.accuracy
-        });
+        updateLocationState(cached.latitude, cached.longitude);
       } else {
         // fallback last known nếu không có cache
         try {
           const last = await Location.getLastKnownPositionAsync();
           if (last && last.coords) {
-            setUserLocation({
-              latitude: last.coords.latitude,
-              longitude: last.coords.longitude,
-              latitudeDelta: 0.005,
-              longitudeDelta: 0.005
-            });
-            setHasValidLocation(true);
-            setLocationError(null);
-            setLocationUpdateKey(prev => prev + 1); // Force map re-render
-            console.log('✅ Dùng last known location:', {
-              lat: last.coords.latitude.toFixed(6),
-              lng: last.coords.longitude.toFixed(6),
-              accuracy: last.coords.accuracy
-            });
+            updateLocationState(last.coords.latitude, last.coords.longitude);
           }
         } catch {}
       }
@@ -255,31 +257,16 @@ export default function HomeScreen() {
       try {
         const precise = await preciseWithTimeout(1000);
         if (precise && precise.coords) {
-          setUserLocation({
-            latitude: precise.coords.latitude,
-            longitude: precise.coords.longitude,
-            latitudeDelta: 0.005,
-            longitudeDelta: 0.005
-          });
+          updateLocationState(precise.coords.latitude, precise.coords.longitude);
           saveLocationToCache({
             latitude: precise.coords.latitude,
             longitude: precise.coords.longitude,
             accuracy: precise.coords.accuracy ?? null,
           });
-          setHasValidLocation(true);
-          setLocationError(null);
-          setLocationUpdateKey(prev => prev + 1); // Force map re-render
-          console.log('✅ Cập nhật vị trí chính xác:', {
-            lat: precise.coords.latitude.toFixed(6),
-            lng: precise.coords.longitude.toFixed(6),
-            accuracy: precise.coords.accuracy
-          });
         }
       } catch (err) {
         if ((err as Error).message !== 'LOCATION_TIMEOUT') {
           showErrorAlert(err, 'Lỗi lấy vị trí');
-        } else {
-          console.log('⏱️ Lấy vị trí chính xác quá lâu, dùng last known (nếu có)');
         }
       }
       
@@ -290,6 +277,8 @@ export default function HomeScreen() {
     } finally {
       setLocationLoading(false);
     }
+
+    return latestLocation;
   }, [checkLocationServices]);
 
   useEffect(() => {
@@ -300,30 +289,80 @@ export default function HomeScreen() {
     return () => clearInterval(timer);
   }, []);
 
-  // Tối ưu hóa initial loading
+  // Load map ngay khi mở app - dùng cache tạm thời, sau đó load vị trí mới
   useEffect(() => {
-    if (!hasLoggedRef.current) {
-      // Load dữ liệu và vị trí song song
-      Promise.all([
-        loadCheckinData(),
-        getCurrentLocation()
-      ]).catch(error => {
-        showErrorAlert(error, 'Lỗi khởi tạo ứng dụng');
-      });
-    }
-  }, [loadCheckinData, getCurrentLocation]);
+    const loadMapOnStart = async () => {
+      // Thử lấy từ cache trước để hiển thị map ngay (dùng cache cũ hơn để đảm bảo có map)
+      const cached = await getLocationFromCache(86400000); // 24 giờ
+      if (cached) {
+        setUserLocation({
+          latitude: cached.latitude,
+          longitude: cached.longitude,
+          latitudeDelta: 0.005,
+          longitudeDelta: 0.005
+        });
+        setHasValidLocation(true);
+      } else {
+        // Nếu không có cache, thử lấy last known position
+        try {
+          const last = await Location.getLastKnownPositionAsync();
+          if (last && last.coords) {
+            setUserLocation({
+              latitude: last.coords.latitude,
+              longitude: last.coords.longitude,
+              latitudeDelta: 0.005,
+              longitudeDelta: 0.005
+            });
+            setHasValidLocation(true);
+          }
+        } catch (err) {
+        }
+      }
+      
+      // Sau đó luôn load vị trí GPS mới để chấm công chính xác
+      getCurrentLocation();
+    };
+    
+    loadMapOnStart();
+  }, [getCurrentLocation]);
+
+  // Load dữ liệu checkin mỗi lần mở app
+  useEffect(() => {
+    loadCheckinData();
+  }, [loadCheckinData]);
+
+  const reloadMapThenGetLocation = useCallback(async (): Promise<MapLocation | null> => {
+    await reloadMap(true);
+    return await getCurrentLocation();
+  }, [reloadMap, getCurrentLocation]);
+
+  useEffect(() => {
+    void reloadMap();
+  }, [reloadMap]);
+
+  // Load lại map và location khi app được focus (quay lại từ background)
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'active') {
+        // Load lại location mới khi app được focus
+        getCurrentLocation();
+        // Load lại dữ liệu checkin
+        loadCheckinData();
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [getCurrentLocation, loadCheckinData]);
 
   // Khởi tạo notification service và lên lịch nhắc nhở
   useEffect(() => {
     const initializeNotifications = async () => {
       try {
-        console.log('🔄 Initializing notification service...');
         await notificationService.initialize();
         await notificationService.scheduleCheckinReminder();
-        console.log('✅ Notification service initialized and scheduled');
         
-        // Export để có thể test từ console (optional)
-        (global as any).notificationService = notificationService;
       } catch (error) {
         console.error('❌ Failed to initialize notifications:', error);
       }
@@ -331,18 +370,6 @@ export default function HomeScreen() {
 
     initializeNotifications();
   }, []); 
-
-  // Auto refresh vị trí mỗi 30 giây để cập nhật theo thời gian thực
-  useEffect(() => {
-    const locationInterval = setInterval(() => {
-      if (!locationLoading) {
-        console.log('🔄 Auto refreshing location for real-time update...');
-        getCurrentLocation();
-      }
-    }, 30000); // 30 giây để cập nhật thường xuyên hơn
-
-    return () => clearInterval(locationInterval);
-  }, [locationLoading, getCurrentLocation]);
 
   // Kiểm tra và gửi notification nhắc nhở chấm công dựa trên enum
   useEffect(() => {
@@ -415,15 +442,6 @@ export default function HomeScreen() {
       const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
       endOfMonth.setHours(23, 59, 59, 999);
       
-      console.log('📅 Lọc theo tháng:', {
-        currentDate: now.toISOString(),
-        startOfMonth: startOfMonth.toISOString(),
-        endOfMonth: endOfMonth.toISOString(),
-        totalRecords: records.length,
-        month: now.getMonth() + 1,
-        year: now.getFullYear()
-      });
-      
       // Lọc records trong tháng này - sử dụng cách tiếp cận đơn giản hơn
       const monthRecords = records.filter(record => {
         // Lấy ngày từ record.time (format: YYYY-MM-DD HH:mm:ss)
@@ -437,23 +455,8 @@ export default function HomeScreen() {
         const isInCurrentMonth = recordYear === currentYear && recordMonth === currentMonth;
         
         // Debug từng record để xem tại sao không match
-        if (records.indexOf(record) < 5) { // Chỉ log 5 records đầu tiên
-          console.log('📅 Record check (simple):', {
-            recordTime: record.time,
-            recordDateStr: recordDateStr,
-            recordYear: recordYear,
-            recordMonth: recordMonth,
-            currentYear: currentYear,
-            currentMonth: currentMonth,
-            isInCurrentMonth: isInCurrentMonth
-          });
-        }
-        
         return isInCurrentMonth;
       });
-      
-      console.log('📅 Records trong tháng:', monthRecords.length);
-      
       return monthRecords;
     }
   }, [activeContentTab, records]);
@@ -511,9 +514,9 @@ export default function HomeScreen() {
 
   // 🚀 Hàm chấm công - chỉ hoạt động khi có GPS
   const handleCheckin = useCallback(async (type: 'IN' | 'OUT') => {
-    // Chỉ cho phép chấm công khi có GPS hợp lệ
-    if (!hasValidLocation) {
-      showErrorAlert(new Error('GPS không được bật'), 'Vui lòng bật GPS để chấm công');
+    const latestLocation = await reloadMapThenGetLocation();
+    if (!latestLocation) {
+      showErrorAlert(new Error('Không thể lấy vị trí'), 'Vui lòng bật GPS để chấm công');
       return;
     }
 
@@ -545,15 +548,11 @@ export default function HomeScreen() {
     setDisplayRecords(prev => [tempRecord, ...prev]);
     
     try {
-      if (!userLocation) {
-        throw new Error('Không có vị trí để chấm công');
-      }
-
       const checkinData: Checkin = {
         log_type: type,
         custom_checkin: now,
-        latitude: userLocation.latitude,
-        longitude: userLocation.longitude,
+        latitude: latestLocation.latitude,
+        longitude: latestLocation.longitude,
         custom_auto_load_location: 1,
         doctype: "Employee Checkin",
         web_form_name: "checkin"
@@ -574,7 +573,6 @@ export default function HomeScreen() {
           body: 'Bạn đã chấm công ra ca thành công! Chúc bạn buổi tối vui vẻ!',
           data: { type: 'checkout_success' }
         });
-        console.log('📱 Check-out success notification sent');
       }
             
     } catch (error: any) {
@@ -584,16 +582,13 @@ export default function HomeScreen() {
       
       showErrorAlert(error, 'Lỗi chấm công. Vui lòng thử lại.');
     }
-  }, [userLocation, loadCheckinData, handleSubmitCheckin, user, hasValidLocation, locationError, getCurrentLocation, records]);
+  }, [reloadMapThenGetLocation, loadCheckinData, handleSubmitCheckin, user, locationError, records]);
   
   // Group records by date and create pairs for monthly view
   const groupedRecords = useMemo(() => {
     if (activeContentTab !== 'month') {
-      console.log('📅 groupedRecords: Tab không phải month, trả về []');
       return [];
     }
-    
-    console.log('📅 groupedRecords: Bắt đầu xử lý với', displayRecords.length, 'records');
     
     const grouped: { [key: string]: CheckinRecord[] } = {};
     
@@ -667,7 +662,6 @@ export default function HomeScreen() {
     
     // Sort by date (newest first)
     const finalResult = result.sort((a, b) => b.date.localeCompare(a.date));
-    console.log('📅 groupedRecords: Kết quả cuối cùng:', finalResult.length, 'ngày');
     return finalResult;
   }, [displayRecords, activeContentTab]);
 
@@ -900,7 +894,7 @@ export default function HomeScreen() {
               // Hiển thị trạng thái khi không có GPS
               <TouchableOpacity 
                 style={[homeScreenStyles.checkinButton, homeScreenStyles.checkinButtonDisabled]}
-                onPress={getCurrentLocation}
+                onPress={reloadMapThenGetLocation}
               >
                 <Text style={[homeScreenStyles.checkinButtonText, homeScreenStyles.checkinButtonTextDisabled]}>
                   🚫 Nhấn để lấy vị trí GPS
@@ -924,7 +918,7 @@ export default function HomeScreen() {
                 <Text style={homeScreenStyles.locationErrorText}>⚠️ {locationError}</Text>
                 <TouchableOpacity 
                   style={homeScreenStyles.retryLocationButton}
-                  onPress={getCurrentLocation}
+                  onPress={reloadMapThenGetLocation}
                 >
                   <Text style={homeScreenStyles.retryLocationText}>🔄 Thử lại</Text>
                 </TouchableOpacity>
@@ -935,7 +929,7 @@ export default function HomeScreen() {
             <View style={homeScreenStyles.mapContainer}>
               {userLocation ? (
                 <WebView
-                  key={locationUpdateKey} // Force re-render khi vị trí thay đổi
+                  key={mapReloadKey} // Force re-render khi cần load lại
                   style={homeScreenStyles.map}
                   source={{
                     html: `
@@ -993,9 +987,7 @@ export default function HomeScreen() {
                     </html>
                     `
                   }}
-                  onLoad={() => {
-                    console.log('✅ OpenStreetMap loaded successfully');
-                  }}
+                  onLoad={handleMapLoaded}
                   scrollEnabled={false}
                   showsHorizontalScrollIndicator={false}
                   showsVerticalScrollIndicator={false}
@@ -1013,7 +1005,7 @@ export default function HomeScreen() {
               {/* Nút làm mới vị trí */}
               <TouchableOpacity 
                 style={homeScreenStyles.refreshLocationButton} 
-                onPress={getCurrentLocation}
+                onPress={reloadMapThenGetLocation}
               >
                 <Text style={homeScreenStyles.refreshLocationText}>Cập nhật vị trí</Text>
               </TouchableOpacity>

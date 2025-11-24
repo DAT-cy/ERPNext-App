@@ -289,6 +289,17 @@ export const MENU_DEFINITIONS: MenuItemDef[] = [
           ...ROLE_GROUPS.STOCK_ROLES,
 
         ]
+      },
+      {
+        id: 'delivery-statistics',
+        title: 'Thống kê vận chuyển',
+        icon: require('../assets/hr/hr.png'), // Using existing icon as example
+        allowedRoles: [
+          ...ROLE_GROUPS.ADMIN_ROLES,
+          ...ROLE_GROUPS.SHIPMENT_ROLES,
+          ...ROLE_GROUPS.STOCK_ROLES,
+
+        ]
       }
     ]
   }

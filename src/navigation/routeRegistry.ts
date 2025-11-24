@@ -15,8 +15,8 @@ import PurchaseReceiptDetailScreen from "../screens/PurchaseReceipt/PurchaseRece
 import CheckListInventoryScreen from "../screens/CheckListInventoryScreen";
 import ShipmentScreen from "../screens/ship/ShipmentScreen";
 import ShipmentDetailScreen from "../screens/ship/ShipmentDetailScreen";
-import InsertShipmentDetailScreen from "../screens/ship/InsertShipmentDetailScreen";
 import { RootStackParamList } from "./types";
+import ShipmentStatisticsScreen from "../screens/ship/ShipmentStatitisScreen";
 
 type RouteConfig = {
   component: ComponentType<any>;
@@ -39,7 +39,7 @@ export const ROUTE_REGISTRY: Record<keyof RootStackParamList, RouteConfig> = {
   CheckListInventoryScreen: { component: CheckListInventoryScreen },
   ShipmentManagement: { component: ShipmentScreen },
   ShipmentScreenDetail: { component: ShipmentDetailScreen },
-  InsertShipment: { component: InsertShipmentDetailScreen },
+  ShipmentStatitisScreen: { component: ShipmentStatisticsScreen },
 };
 
 export type AppRouteName = keyof typeof ROUTE_REGISTRY;

@@ -91,6 +91,61 @@ export const inventoryEntryStyles = StyleSheet.create({
     fontSize: fs(12),
     color: colors.gray500,
   },
+
+  statisticsContainer: {
+    backgroundColor: colors.white,
+    marginHorizontal: wp(4),
+    marginBottom: hp(1),
+    borderRadius: wp(3),
+    padding: wp(4),
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  statisticsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: hp(1),
+  },
+  statisticsTitle: {
+    fontSize: fs(15),
+    fontWeight: '600',
+    color: colors.gray800,
+  },
+  statisticsSubtitle: {
+    fontSize: fs(12),
+    color: colors.gray500,
+  },
+  statisticsCardsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  statisticsCard: {
+    flex: 1,
+    backgroundColor: colors.gray50,
+    borderRadius: wp(2),
+    paddingVertical: hp(1.5),
+    paddingHorizontal: wp(3),
+    borderWidth: 1,
+    borderColor: colors.gray200,
+    marginRight: wp(2),
+  },
+  statisticsCardRight: {
+    marginRight: 0,
+  },
+  statisticsCardLabel: {
+    fontSize: fs(12),
+    color: colors.gray600,
+    marginBottom: hp(0.5),
+  },
+  statisticsCardValue: {
+    fontSize: fs(18),
+    fontWeight: '700',
+    color: colors.primary,
+  },
   
   resultsList: {
     flex: 1,

@@ -23,7 +23,7 @@ import { wp } from '../../utils/responsive';
 import { inventoryEntryStyles } from '../../styles/InventoryEntryScreens.styles';
 import { InventoryFilterModal } from '../../components/InventoryFilter';
 import { RealtimePollingManager } from '../../utils/RealtimePollingManager';
-import { getAllShipments, Shipment, ShipmentFilters } from '../../services/shipmentService';
+import { getAllShipments, getStatities, Shipment, ShipmentFilters, statities } from '../../services/shipmentService';
 import { useAuth } from '../../hooks/useAuth';
 import { ROLE_GROUPS } from '../../utils/menuPermissions';
 
@@ -77,6 +77,8 @@ export default function ShipmentScreen() {
   const [lastUpdateTime, setLastUpdateTime] = useState<number>(Date.now());
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [statistics, setStatistics] = useState<statities | null>(null);
+  const [statisticsLoading, setStatisticsLoading] = useState<boolean>(false);
 
   const scrollY = useRef(new Animated.Value(0)).current;
 
@@ -117,8 +119,8 @@ export default function ShipmentScreen() {
   useEffect(() => {
     // initial load
     fetchData(0, false);
+    fetchStatistics();
   }, []);
-
 
   const getStatusInfo = (state?: string, docstatus?: string | number) => {
     const statusMap: Record<string, { text: string; color: string; bgColor: string }> = {
@@ -217,6 +219,22 @@ export default function ShipmentScreen() {
     }
   };
 
+  const fetchStatistics = async () => {
+    setStatisticsLoading(true);
+    try {
+      const response = await getStatities({});
+      if (response.success && response.data) {
+        setStatistics(response.data);
+      } else if (response.error) {
+        console.error('💥 [ShipmentScreen] Stats error:', response.error);
+      }
+    } catch (error) {
+      console.error('💥 [ShipmentScreen] Stats error:', error);
+    } finally {
+      setStatisticsLoading(false);
+    }
+  };
+
   const performSearch = async (query: string) => {
     setLoading(true);
     setCurrentPage(0);
@@ -280,6 +298,7 @@ export default function ShipmentScreen() {
       } else {
         await fetchData(0, false);
       }
+      await fetchStatistics();
     } finally {
       setIsRefreshing(false);
     }
@@ -465,7 +484,6 @@ export default function ShipmentScreen() {
       <View style={inventoryEntryStyles.resultsHeader}>
         <Text style={inventoryEntryStyles.resultsTitle}>Phiếu Giao Hàng</Text>
       </View>
-
       <FlatList
         data={data}
         keyExtractor={(item, index) => `${item.name}-${index}`}

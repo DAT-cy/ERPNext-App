@@ -21,6 +21,7 @@ export const MENU_ROUTE_MAP: Record<string, {
   'inventory-operations:purchase-receipt': { routeName: 'PurchaseReceiptList' },
   'inventory-operations:check-quantity-inventory': { routeName: 'CheckListInventoryScreen' },
   'shipment:delivery-trip': { routeName: 'ShipmentManagement' },
+  'shipment:delivery-statistics': { routeName: 'ShipmentStatitisScreen' },
 };
 
 export function navigate<T extends RouteName>(

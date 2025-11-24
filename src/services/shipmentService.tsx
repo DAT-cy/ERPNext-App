@@ -65,13 +65,19 @@ export interface ShipmentResult<T = any> {
     error?: string; // Vietnamese error message
 }
 
+export interface ShipmentStatusSummary {
+    status: string;
+    total: number;
+}
+
 export interface statities {
     user?: string;
     from_date?: string;
     to_date?: string;
-    total_shipments?: string;
-    total_amount?: string;
-};
+    total_shipments?: number | string;
+    total_amount?: number | string;
+    status_summary?: ShipmentStatusSummary[];
+}
 
 export interface filterStatities {
     from_date?: string;
@@ -173,7 +179,6 @@ export async function getAllShipments(options: ShipmentQueryOptions = {}): Promi
                     data: response.data as Shipment[]
                 };
             }
-            // Check if response.data.data exists (nested structure)
             if (response.data.data && Array.isArray(response.data.data)) {
                 return {
                     success: true,
@@ -217,22 +222,27 @@ export async function getStatities(
     filters: filterStatities
 ): Promise<ShipmentResult<statities>> {
     try {
-
-        const filterArray: any[] = [];
-        if (filters.from_date && filters.to_date) {
-            filterArray.push(["from_date", "=", filters.from_date]);
-            filterArray.push(["to_date", "=", filters.to_date]);
-        }
         const queryParams = new URLSearchParams();
-        queryParams.append('filters', JSON.stringify(filterArray));
-        const url =`/api/method/remak.utils.shipment.shipment_mobile_summary?${queryParams.toString()}`;
+        if (filters.from_date) {
+            queryParams.append('from_date', filters.from_date);
+        }
+        if (filters.to_date) {
+            queryParams.append('to_date', filters.to_date);
+        }
+
+        const queryString = queryParams.toString();
+        const url = queryString
+            ? `/api/method/remak.utils.shipment.shipment_mobile_summary?${queryString}`
+            : `/api/method/remak.utils.shipment.shipment_mobile_summary`;
         const response = await api.get(url);
-        console.log('response', response.data.data);
-        return { success: true, data: response.data.data as statities };
+        const payload = response.data?.data ?? response.data?.message;
+        console.log('response', payload);
+        if (payload) {
+            return { success: true, data: payload as statities };
+        }
+        return { success: false, error: 'Không có dữ liệu Statities' };
     } catch (error: any) {
         console.error('Error fetching Statities:', error);
         return handleServiceThrow(error, 'Lỗi tải danh sách Statities');
     }
 }
-
-
