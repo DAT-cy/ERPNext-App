@@ -2,7 +2,7 @@
   "expo": {
     "name": "Remak",
     "slug": "erpnext-rn-base",
-    "version": "1.2.6",
+    "version": "1.2.7",
     "orientation": "portrait",
     "icon": "./assets/remak-logo.jpg",
     "userInterfaceStyle": "light",
@@ -14,8 +14,8 @@
     },
     "ios": {
       "supportsTablet": true,
-      // "bundleIdentifier": "com.remak.app",// ggplay
-      "bundleIdentifier": "com.remak.erpremak",// appstore
+      "bundleIdentifier": "com.remak.app",// ggplay
+      // "bundleIdentifier": "com.remak.erpremak",// appstore
 
       "entitlements": {
         "aps-environment": "production"
@@ -37,8 +37,8 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      // "package": "com.remak.app",// ggplay
-      "package": "com.remak.erpremak",// appstore
+      "package": "com.remak.app",// ggplay
+      // "package": "com.remak.erpremak",// appstore
       "permissions": [
         "android.permission.INTERNET",
         "android.permission.ACCESS_NETWORK_STATE",

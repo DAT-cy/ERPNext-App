@@ -100,6 +100,9 @@ export default function HomeScreen() {
   const [mapReloadKey, setMapReloadKey] = useState(0); // Key để kiểm soát việc reload map
   const mapLoadResolvers = useRef<Array<() => void>>([]);
   const userLocationRef = useRef<MapLocation | null>(null);
+  const appStateRef = useRef(AppState.currentState);
+  const hasLoadedInitialData = useRef(false); // Track xem đã load dữ liệu ban đầu chưa
+  const hasRequestedPermission = useRef(false); // Track xem đã request permission chưa
   
   useEffect(() => {
     userLocationRef.current = userLocation;
@@ -112,6 +115,8 @@ export default function HomeScreen() {
   // Redirect to login if not logged in
   useEffect(() => {
     if (!isLoggedIn) {
+      setLoading(false); 
+      hasLoadedInitialData.current = false; 
       navigation.reset({
         index: 0,
         routes: [{ name: "Login" }],
@@ -119,8 +124,12 @@ export default function HomeScreen() {
     }
   }, [isLoggedIn, navigation]);
 
-  // Load dữ liệu checkin - sử dụng useCallback với dependencies rỗng
   const loadCheckinData = useCallback(async () => {
+    if (!isLoggedIn || !user) {
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       const data = await fetchCheckinRecords(500); // Tăng limit lên 500 để lấy nhiều dữ liệu hơn
@@ -128,7 +137,6 @@ export default function HomeScreen() {
       setRecords(data);
       setError(null);
       
-      // Lấy ngày hiện tại
       const today = new Date().toISOString().split('T')[0]; // format YYYY-MM-DD
       
       // Lọc records của ngày hôm nay
@@ -158,7 +166,7 @@ export default function HomeScreen() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isLoggedIn, user]);
 
   // Kiểm tra GPS service có bật không
   const checkLocationServices = useCallback(async () => {
@@ -222,9 +230,20 @@ export default function HomeScreen() {
         return null;
       }
       
-      // Yêu cầu quyền truy cập vị trí
-      const { status } = await Location.requestForegroundPermissionsAsync();
+      // Kiểm tra quyền truy cập vị trí - chỉ request nếu chưa có
+      let { status } = await Location.getForegroundPermissionsAsync();
       
+      // Chỉ request permission nếu chưa được cấp và chưa request lần nào
+      if (status !== 'granted' && !hasRequestedPermission.current) {
+        hasRequestedPermission.current = true;
+        const permissionResult = await Location.requestForegroundPermissionsAsync();
+        status = permissionResult.status;
+        // Reset flag nếu user từ chối để có thể request lại sau
+        if (status !== 'granted') {
+          hasRequestedPermission.current = false;
+        }
+      }
+
       if (status !== 'granted') {
         console.warn('Quyền vị trí bị từ chối');
         setLocationError('Quyền truy cập vị trí bị từ chối. Vui lòng cấp quyền để sử dụng tính năng chấm công.');
@@ -271,8 +290,14 @@ export default function HomeScreen() {
       }
       
     } catch (error: any) {
-      setLocationError('Lỗi lấy vị trí. Vui lòng thử lại.');
-      setHasValidLocation(false);
+      if (!latestLocation) {
+        setLocationError('Lỗi lấy vị trí. Vui lòng thử lại.');
+        setHasValidLocation(false);
+      } else {
+        console.warn('⚠️ Lỗi cập nhật vị trí, giữ nguyên vị trí cũ:', error);
+        setLocationError(null);
+        setHasValidLocation(true);
+      }
       showErrorAlert(error, 'Lỗi lấy vị trí');
     } finally {
       setLocationLoading(false);
@@ -326,10 +351,18 @@ export default function HomeScreen() {
     loadMapOnStart();
   }, [getCurrentLocation]);
 
-  // Load dữ liệu checkin mỗi lần mở app
+  // Load dữ liệu checkin khi đã đăng nhập và có user - chỉ load một lần khi mount
   useEffect(() => {
-    loadCheckinData();
-  }, [loadCheckinData]);
+    // Chỉ load khi đã đăng nhập, có user, và chưa load lần nào
+    if (isLoggedIn && user && !hasLoadedInitialData.current) {
+      hasLoadedInitialData.current = true;
+      loadCheckinData();
+    } else if (!isLoggedIn || !user) {
+      // Nếu chưa đăng nhập hoặc chưa có user, set loading = false để hiển thị UI
+      setLoading(false);
+      hasLoadedInitialData.current = false; // Reset để có thể load lại khi login
+    }
+  }, [isLoggedIn, user, loadCheckinData]);
 
   const reloadMapThenGetLocation = useCallback(async (): Promise<MapLocation | null> => {
     await reloadMap(true);
@@ -343,12 +376,12 @@ export default function HomeScreen() {
   // Load lại map và location khi app được focus (quay lại từ background)
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextAppState) => {
-      if (nextAppState === 'active') {
-        // Load lại location mới khi app được focus
+      const wasBackground = appStateRef.current?.match(/inactive|background/);
+      if (nextAppState === 'active' && wasBackground) {
         getCurrentLocation();
-        // Load lại dữ liệu checkin
         loadCheckinData();
       }
+      appStateRef.current = nextAppState;
     });
 
     return () => {

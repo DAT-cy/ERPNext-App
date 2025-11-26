@@ -6,8 +6,6 @@ import { APP_ROUTES } from "./routeRegistry";
 
 const Stack = createStackNavigator();
 
-
-
 export default function AppNavigator() {
   const { isLoggedIn } = useAuth();
 

@@ -16,7 +16,7 @@ type FieldErrors = {
 
 export default function LoginScreen() {
   const navigation = useNavigation<any>();
-  const { login, ping, isLoggedIn } = useAuth();
+  const { login, ping, isLoggedIn, isLoading } = useAuth();
   const authLogin = login; // Alias cho rõ ràng
   const [usr, setUsr] = useState("");
   const [pwd, setPwd] = useState("");
@@ -62,12 +62,19 @@ export default function LoginScreen() {
     }
   }, [usr, pwd, touched.usr, touched.pwd, validateUsr, validatePwd, errors.usr, errors.pwd]);
 
-  // ----- Auto redirect nếu đã đăng nhập -----
+  // Điều hướng sau khi đăng nhập thành công và loading hoàn tất
   useEffect(() => {
-    if (isLoggedIn) {
-      navigation.reset({ index: 0, routes: [{ name: "Home" }] });
+    if (isLoggedIn && !isLoading && !loginLoading) {
+      // Đợi một chút để đảm bảo state đã được cập nhật hoàn toàn
+      const timer = setTimeout(() => {
+        navigation.reset({
+          index: 0,
+          routes: [{ name: "Home" }],
+        });
+      }, 100);
+      return () => clearTimeout(timer);
     }
-  }, [isLoggedIn, navigation]);
+  }, [isLoggedIn, isLoading, loginLoading, navigation]);
 
   const validateAll = useCallback(
     (u: string, p: string) => {
@@ -128,7 +135,7 @@ export default function LoginScreen() {
         setFormErr(errorMessage);
         return;
       }
-      // Không cần điều hướng thủ công, useEffect sẽ tự động điều hướng khi isLoggedIn = true
+      // Navigation sẽ được xử lý tự động bởi AppNavigator dựa trên isLoggedIn state
     } finally {
       setLoginLoading(false);
     }

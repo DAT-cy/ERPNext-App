@@ -86,7 +86,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     // Chỉ set loading khi đăng nhập thành công và cần chuyển trang
     setLoading(true);
-    setLoggedIn(true);
     try {
       const me = await getLoggedUser();
       const userName = me?.message || null;
@@ -104,6 +103,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setRoles([]);
         }
       }
+      
+      // Chỉ set isLoggedIn = true SAU KHI đã load xong user data
+      // Điều này đảm bảo HomeScreen có đủ dữ liệu khi được navigate
+      setLoggedIn(true);
       
       return { ...loginResult, me };
     } catch {
