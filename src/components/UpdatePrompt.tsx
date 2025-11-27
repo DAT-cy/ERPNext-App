@@ -11,6 +11,7 @@ interface UpdatePromptProps {
   onLater: () => void;
 }
 
+
 export default function UpdatePrompt({ visible, versionInfo, onUpdate, onLater }: UpdatePromptProps) {
   if (!visible || !versionInfo) {
     return null;

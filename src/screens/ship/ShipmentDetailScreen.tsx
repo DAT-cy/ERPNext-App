@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { hp } from '../../utils/responsive';
 import { Input } from '../../components/Input';
@@ -49,6 +50,7 @@ const defaultShipment: Shipment = {
 
 export default function ShipmentDetailScreen() {
   const navigation = useNavigation<any>();
+  const insets = useSafeAreaInsets();
   const route = useRoute<ShipmentDetailScreenRouteProp>();
   const { shipmentDetail } = route.params || {};
   const routeName = route.params?.name || shipmentDetail?.name;
@@ -126,7 +128,8 @@ export default function ShipmentDetailScreen() {
     return description !== originalDescription || currentStatus !== originalStatus;
   }, [description, originalDescription, currentStatus, originalStatus]);
 
-  const footerPaddingBottom = hasChanges ? 220 : 180;
+  const footerSafePadding = Math.max(insets.bottom, hp(2));
+  const footerPaddingBottom = (hasChanges ? 220 : 180) + footerSafePadding;
 
   const handlePhoneCall = (phoneNumber: string | undefined) => {
     if (!phoneNumber) return;
@@ -532,7 +535,7 @@ export default function ShipmentDetailScreen() {
         
       </ScrollView>
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: footerSafePadding }]}>
         <View style={styles.footerButtonsContainer}>
           {hasChanges ? (
             <TouchableOpacity

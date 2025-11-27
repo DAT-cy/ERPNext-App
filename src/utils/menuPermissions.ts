@@ -271,7 +271,7 @@ export const MENU_DEFINITIONS: MenuItemDef[] = [
   {
     id: 'shipment',
     title: 'VNShipment',
-    icon: require('../assets/hr/hr.png'), // Using existing icon as example
+    icon: require('../assets/shipment/shipped.png'), // Using existing icon as example
     hasSubItems: true,
     allowedRoles: [
       ...ROLE_GROUPS.ADMIN_ROLES,
@@ -282,7 +282,7 @@ export const MENU_DEFINITIONS: MenuItemDef[] = [
       {
         id: 'delivery-trip',
         title: 'Vận chuyển',
-        icon: require('../assets/hr/hr.png'), // Using existing icon as example
+        icon: require('../assets/shipment/delivery-trip.png'), // Using existing icon as example
         allowedRoles: [
           ...ROLE_GROUPS.ADMIN_ROLES,
           ...ROLE_GROUPS.SHIPMENT_ROLES,
@@ -293,7 +293,7 @@ export const MENU_DEFINITIONS: MenuItemDef[] = [
       {
         id: 'delivery-statistics',
         title: 'Thống kê vận chuyển',
-        icon: require('../assets/hr/hr.png'), // Using existing icon as example
+        icon: require('../assets/shipment/statistics-delivery.png'), // Using existing icon as example
         allowedRoles: [
           ...ROLE_GROUPS.ADMIN_ROLES,
           ...ROLE_GROUPS.SHIPMENT_ROLES,
