@@ -118,6 +118,7 @@ class NotificationService {
           data: { type: 'checkin_reminder' },
           sound: true,
           priority: 'high',
+          ...(Platform.OS === 'android' && { channelId: 'checkin-reminder' }),
         },
         trigger: checkinTrigger,
       });
@@ -130,6 +131,7 @@ class NotificationService {
           data: { type: 'checkout_reminder' },
           sound: true,
           priority: 'high',
+          ...(Platform.OS === 'android' && { channelId: 'checkin-reminder' }),
         },
         trigger: checkoutTrigger,
       });
@@ -156,8 +158,6 @@ class NotificationService {
     try {
       await this.initialize();
 
-      console.log('📱 [SENDING] Attempting to send notification:', data.title);
-
       const notificationId = await Notifications.scheduleNotificationAsync({
         content: {
           title: data.title,
@@ -165,12 +165,10 @@ class NotificationService {
           data: data.data,
           sound: true,
           priority: 'high',
+          ...(Platform.OS === 'android' && { channelId: 'checkin-reminder' }),
         },
         trigger: null, // Hiển thị ngay lập tức
       });
-
-      console.log('✅ [SENT] Notification sent with ID:', notificationId);
-      console.log('📋 [NOTIFICATION DATA]', data);
     } catch (error) {
       console.error('❌ [FAILED] Failed to send notification:', error);
       throw error;
@@ -199,64 +197,41 @@ class NotificationService {
       const nearCheckout = currentHour === checkoutTime.hour && 
                           currentMinute >= checkoutTime.minute - 2 && 
                           currentMinute <= checkoutTime.minute + 2;
-
-
-
-      // ===== CHECK-IN TIME =====
-      // Gửi thông báo khi đúng giờ:phút:giây trong enum - CHỈ GỬI 1 LẦN
+      // Gửi thông báo khi đúng giờ:phút trong enum - CHỈ GỬI 1 LẦN
       if (
         currentHour === checkinTime.hour &&
-        currentMinute === checkinTime.minute &&
-        currentSecond >= checkinTime.second &&
-        currentSecond <= checkinTime.second + 1
+        currentMinute === checkinTime.minute
       ) {
-        // Chỉ gửi 1 lần trong phút này (không gửi lại trong vòng 1 giây)
+        // Chỉ gửi 1 lần trong phút này
         if (this.lastCheckinNotificationMinute !== currentMinute) {
           this.lastCheckinNotificationMinute = currentMinute;
           
           if (!hasCheckin) {
-            console.log('⏰ [CHECK-IN TIME] ĐÚNG THỜI ĐIỂM! Gửi thông báo...', {
-              current: `${currentHour}:${currentMinute}:${currentSecond}`,
-              target: checkinTime.label,
-              hasCheckin,
-            });
-            
             await this.sendImmediateNotification({
               title: '⏰ Nhắc nhở chấm công',
               body: `Đã ${checkinTime.label}! Bạn chưa chấm công vào ca. Hãy chấm công ngay!`,
               data: { type: 'checkin_reminder' },
             });
-            console.log('✅ [CHECK-IN] THÔNG BÁO ĐÃ GỬI');
           }
         }
       }
 
       // ===== CHECK-OUT TIME =====
-      // Gửi thông báo khi đúng giờ:phút:giây trong enum - CHỈ GỬI 1 LẦN
+      // Gửi thông báo khi đúng giờ:phút trong enum - CHỈ GỬI 1 LẦN
       if (
         currentHour === checkoutTime.hour &&
-        currentMinute === checkoutTime.minute &&
-        currentSecond >= checkoutTime.second &&
-        currentSecond <= checkoutTime.second + 1
+        currentMinute === checkoutTime.minute
       ) {
-        // Chỉ gửi 1 lần trong phút này (không gửi lại trong vòng 1 giây)
+        // Chỉ gửi 1 lần trong phút này
         if (this.lastCheckoutNotificationMinute !== currentMinute) {
           this.lastCheckoutNotificationMinute = currentMinute;
           
           if (hasCheckin && !hasCheckout) {
-            console.log('⏰ [CHECK-OUT TIME] ĐÚNG THỜI ĐIỂM! Gửi thông báo...', {
-              current: `${currentHour}:${currentMinute}:${currentSecond}`,
-              target: checkoutTime.label,
-              hasCheckin,
-              hasCheckout,
-            });
-            
             await this.sendImmediateNotification({
               title: '⏰ Nhắc nhở ra ca',
               body: `Đã ${checkoutTime.label}! Bạn đã chấm công vào nhưng chưa chấm công ra. Hãy chấm công ngay!`,
               data: { type: 'checkout_reminder' },
             });
-            console.log('✅ [CHECK-OUT] THÔNG BÁO ĐÃ GỬI');
           }
         }
       }
@@ -270,13 +245,11 @@ class NotificationService {
   // Hàm để test gửi notification ngay lập tức
   async testSendNotification(): Promise<void> {
     try {
-      console.log('🧪 [TEST] Sending test notification...');
       await this.sendImmediateNotification({
         title: '🧪 TEST Notification',
         body: 'Đây là thông báo test. Nếu bạn thấy nó, notification hoạt động!',
         data: { type: 'test' },
       });
-      console.log('✅ [TEST] Notification sent');
     } catch (error) {
       console.error('❌ [TEST] Failed to send notification:', error);
     }

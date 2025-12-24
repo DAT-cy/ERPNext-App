@@ -2,6 +2,7 @@ import { ComponentType } from "react";
 import { StackNavigationOptions } from "@react-navigation/stack";
 import LoginScreen from "../screens/LoginScreen";
 import HomeScreen from "../screens/HomeScreen";
+import ProfileScreen from "../screens/ProfileScreen";
 import LeaveManagementScreen from "../screens/LeaveManagementScreen";
 import { ApplicationLeave } from "../screens";
 import InventoryManagementScreen from "../screens/Inventory/InventoryManagementScreen";
@@ -26,6 +27,7 @@ type RouteConfig = {
 export const ROUTE_REGISTRY: Record<keyof RootStackParamList, RouteConfig> = {
   Login: { component: LoginScreen },
   Home: { component: HomeScreen },
+  Profile: { component: ProfileScreen },
   LeaveManagement: { component: LeaveManagementScreen },
   ApplicationLeave: { component: ApplicationLeave },
   InventoryManagement: { component: InventoryManagementScreen },

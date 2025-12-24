@@ -6,7 +6,7 @@ import { API_URL } from "@env";
 export const SID_KEY = "erpnext_sid";
 
 // Robust API_URL handling with multiple fallbacks
-let BASE_URL: string;
+export let BASE_URL: string;
 try {
   BASE_URL = API_URL || "https://we.remak.vn";
   if (typeof BASE_URL !== 'string' || BASE_URL.trim() === '') {
@@ -51,5 +51,30 @@ api.interceptors.request.use(async (config) => {
   h.set("Accept", "application/json");
   h.set("Content-Type", "application/json");
   if (sid) h.set("Cookie", `sid=${sid}`);
+  h.set("Expect", "");  // Avoid 417 Expectation Failed
+
+  // Add CSRF token for non-GET requests
+  if (config.method && config.method.toUpperCase() !== 'GET') {
+    try {
+      const csrfResponse = await axios.get(`${getBaseURL()}/api/method/frappe.client.get_csrf_token`, {
+        headers: { Cookie: `sid=${sid}`, Expect: '' },
+        withCredentials: true
+      });
+      let csrfToken = '';
+      if (csrfResponse.data && csrfResponse.data.message) {
+        csrfToken = csrfResponse.data.message;
+      } else if (typeof csrfResponse.data === 'string') {
+        csrfToken = csrfResponse.data;
+      } else if (csrfResponse.data && csrfResponse.data.csrf_token) {
+        csrfToken = csrfResponse.data.csrf_token;
+      }
+      if (csrfToken) {
+        h.set("X-Frappe-CSRF-Token", csrfToken);
+      }
+    } catch (error) {
+      console.warn('Failed to get CSRF token:', error);
+    }
+  }
+
   return config;
 });

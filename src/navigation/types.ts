@@ -1,6 +1,7 @@
 export type RootStackParamList = {
   Login: undefined;  // Không có tham số
   Home: undefined;   // Không có tham số
+  Profile: undefined; // Profile Screen
   InventoryEntry: undefined; // Inventory Entry Screen
   InsertInventoryScreen: undefined;
   CheckListInventoryScreen: undefined;

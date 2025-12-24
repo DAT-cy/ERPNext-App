@@ -13,6 +13,7 @@ export const MENU_ROUTE_MAP: Record<string, {
   defaultParams?: any;
 }> = {
   'bottom:home': { routeName: 'Home' },
+  'bottom:profile': { routeName: 'Profile' },
   'hr:leaves-hr': { routeName: 'LeaveManagement' },
   'hr:apply-hr': { routeName: 'ApplicationLeave', defaultParams: { leaveId: '' } },
   'leaves-hr:apply-hr': { routeName: 'ApplicationLeave', defaultParams: { leaveId: '' } },
